@@ -1,0 +1,14 @@
+node_modules/
+data/
+logs/
+*.log
+.env
+.env.secrets
+.env.local
+plugins/*/panel.js
+plugins/*/panel.js.map
+bot/node_modules/
+bot/dist/
+bot/glab-bot.config.json
+bot/.env
+*.tsbuildinfo

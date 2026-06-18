@@ -1,0 +1,5 @@
+{
+  "name": "glab-pack",
+  "description": "GLAB 運営プラグインパック — Corpus に載せる 4 モジュール (出席 / 施設 / イベント / 就活)",
+  "modules": ["attendance", "facility", "events", "jobs"]
+}

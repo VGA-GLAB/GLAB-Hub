@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  },
+  "include": ["index.ts", "register.ts", "config.ts", "config-store.ts", "config-setup.ts", "db.ts", "channels.ts", "format.ts", "llm/*.ts", "commands/*.ts", "notify/*.ts", "../plugins/data.ts"]
+}

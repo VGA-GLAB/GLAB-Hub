@@ -1,0 +1,231 @@
+// GLAB 共有データ層 — イベント / 就活情報。
+//
+// このファイルは Web hub プラグイン (plugins/events, plugins/jobs。 Corpus の
+// `ctx.db` を使う) と Discord Bot (bot/。 better-sqlite3 を直接開く) の *両方* から
+// import される。 両者は同じ SQLite ファイル (`data/corpus.db`、 WAL) を共有するため、
+// スキーマとクエリをここに一元化して齟齬を防ぐ (DESIGN.md §4)。
+//
+// import 結合を避けるため、 DB は構造的な最小インターフェース (SqlDb) で受ける。
+// Corpus の CorpusDb も better-sqlite3 の Database もこれを満たす。
+
+/** prepared statement の最小形。 */
+export interface SqlStatement {
+  get(...params: unknown[]): unknown;
+  all(...params: unknown[]): unknown[];
+  run(...params: unknown[]): { lastInsertRowid: number | bigint; changes: number };
+}
+
+/** better-sqlite3 / CorpusDb が満たす最小 DB インターフェース。 */
+export interface SqlDb {
+  prepare(sql: string): SqlStatement;
+  exec(sql: string): unknown;
+}
+
+export const GLAB_SCHEMA = `
+CREATE TABLE IF NOT EXISTS glab_event (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  title         TEXT NOT NULL,
+  body          TEXT,
+  location      TEXT,
+  starts_at     INTEGER NOT NULL,
+  created_by    TEXT NOT NULL,
+  created_at    INTEGER NOT NULL,
+  notified_at   INTEGER,
+  discord_message_id TEXT
+);
+CREATE INDEX IF NOT EXISTS glab_event_starts ON glab_event(starts_at);
+
+CREATE TABLE IF NOT EXISTS glab_job (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  company       TEXT NOT NULL,
+  position      TEXT,
+  category      TEXT,
+  url           TEXT,
+  body          TEXT,
+  deadline_at   INTEGER,
+  status        TEXT NOT NULL DEFAULT 'open',
+  posted_by     TEXT NOT NULL,
+  created_at    INTEGER NOT NULL,
+  deadline_notified_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS glab_job_status ON glab_job(status, deadline_at);
+`;
+
+export interface EventRow {
+  id: number;
+  title: string;
+  body: string | null;
+  location: string | null;
+  starts_at: number;
+  created_by: string;
+  created_at: number;
+  notified_at: number | null;
+  discord_message_id: string | null;
+}
+
+export interface JobRow {
+  id: number;
+  company: string;
+  position: string | null;
+  category: string | null;
+  url: string | null;
+  body: string | null;
+  deadline_at: number | null;
+  status: string;
+  posted_by: string;
+  created_at: number;
+  deadline_notified_at: number | null;
+}
+
+/** スキーマ初期化 (冪等)。 plugins は ctx.db で、 bot は自前接続で 1 度呼ぶ。 */
+export function ensureSchema(db: SqlDb): void {
+  db.exec(GLAB_SCHEMA);
+}
+
+// ─── イベント ────────────────────────────────────────────────
+
+export interface NewEvent {
+  title: string;
+  body?: string | null;
+  location?: string | null;
+  startsAt: number;
+  createdBy: string;
+}
+
+export function createEvent(db: SqlDb, e: NewEvent): number {
+  const res = db
+    .prepare(
+      `INSERT INTO glab_event (title, body, location, starts_at, created_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+    .run(e.title, e.body ?? null, e.location ?? null, e.startsAt, e.createdBy, Date.now());
+  return Number(res.lastInsertRowid);
+}
+
+/** 今後のイベント (starts_at >= now)。 includePast=true で全件。 */
+export function listEvents(db: SqlDb, includePast = false): EventRow[] {
+  if (includePast) {
+    return db.prepare(`SELECT * FROM glab_event ORDER BY starts_at DESC`).all() as EventRow[];
+  }
+  return db
+    .prepare(`SELECT * FROM glab_event WHERE starts_at >= ? ORDER BY starts_at ASC`)
+    .all(Date.now()) as EventRow[];
+}
+
+export function getEvent(db: SqlDb, id: number): EventRow | null {
+  return (db.prepare(`SELECT * FROM glab_event WHERE id = ?`).get(id) as EventRow) ?? null;
+}
+
+export function deleteEvent(db: SqlDb, id: number): boolean {
+  return db.prepare(`DELETE FROM glab_event WHERE id = ?`).run(id).changes > 0;
+}
+
+export function markEventNotified(db: SqlDb, id: number, discordMessageId: string | null): void {
+  db.prepare(`UPDATE glab_event SET notified_at = ?, discord_message_id = ? WHERE id = ?`).run(
+    Date.now(),
+    discordMessageId,
+    id,
+  );
+}
+
+/** 開始が now..now+windowMs に入り、 まだ通知していないイベント (リマインダ用)。 */
+export function eventsDueForReminder(db: SqlDb, windowMs: number): EventRow[] {
+  const now = Date.now();
+  return db
+    .prepare(
+      `SELECT * FROM glab_event
+       WHERE notified_at IS NULL AND starts_at >= ? AND starts_at <= ?
+       ORDER BY starts_at ASC`,
+    )
+    .all(now, now + windowMs) as EventRow[];
+}
+
+// ─── 就活情報 ────────────────────────────────────────────────
+
+export interface NewJob {
+  company: string;
+  position?: string | null;
+  category?: string | null;
+  url?: string | null;
+  body?: string | null;
+  deadlineAt?: number | null;
+  postedBy: string;
+}
+
+export function createJob(db: SqlDb, j: NewJob): number {
+  const res = db
+    .prepare(
+      `INSERT INTO glab_job (company, position, category, url, body, deadline_at, status, posted_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?)`,
+    )
+    .run(
+      j.company,
+      j.position ?? null,
+      j.category ?? null,
+      j.url ?? null,
+      j.body ?? null,
+      j.deadlineAt ?? null,
+      j.postedBy,
+      Date.now(),
+    );
+  return Number(res.lastInsertRowid);
+}
+
+export interface JobQuery {
+  status?: 'open' | 'closed' | 'all';
+  category?: string;
+  /** company / position / body の部分一致。 */
+  q?: string;
+}
+
+export function listJobs(db: SqlDb, query: JobQuery = {}): JobRow[] {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  const status = query.status ?? 'open';
+  if (status !== 'all') {
+    where.push(`status = ?`);
+    params.push(status);
+  }
+  if (query.category) {
+    where.push(`category = ?`);
+    params.push(query.category);
+  }
+  if (query.q) {
+    where.push(`(company LIKE ? OR position LIKE ? OR body LIKE ?)`);
+    const like = `%${query.q}%`;
+    params.push(like, like, like);
+  }
+  const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  // 締切が近い順 (締切なしは末尾)、 次に新しい順
+  return db
+    .prepare(
+      `SELECT * FROM glab_job ${clause}
+       ORDER BY (deadline_at IS NULL) ASC, deadline_at ASC, created_at DESC`,
+    )
+    .all(...params) as JobRow[];
+}
+
+export function getJob(db: SqlDb, id: number): JobRow | null {
+  return (db.prepare(`SELECT * FROM glab_job WHERE id = ?`).get(id) as JobRow) ?? null;
+}
+
+export function closeJob(db: SqlDb, id: number): boolean {
+  return db.prepare(`UPDATE glab_job SET status = 'closed' WHERE id = ?`).run(id).changes > 0;
+}
+
+export function markJobDeadlineNotified(db: SqlDb, id: number): void {
+  db.prepare(`UPDATE glab_job SET deadline_notified_at = ? WHERE id = ?`).run(Date.now(), id);
+}
+
+/** 締切が now..now+windowMs に入り、 open かつ未通知の求人 (締切リマインダ用)。 */
+export function jobsDueForReminder(db: SqlDb, windowMs: number): JobRow[] {
+  const now = Date.now();
+  return db
+    .prepare(
+      `SELECT * FROM glab_job
+       WHERE status = 'open' AND deadline_notified_at IS NULL
+         AND deadline_at IS NOT NULL AND deadline_at >= ? AND deadline_at <= ?
+       ORDER BY deadline_at ASC`,
+    )
+    .all(now, now + windowMs) as JobRow[];
+}

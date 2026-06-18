@@ -1,0 +1,33 @@
+{
+  "name": "glab",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GLAB — 学校組織 GLAB 運営 hub (Corpus 派生)。 出席 / 施設予約 / イベント / 就活情報 + Discord Bot",
+  "type": "module",
+  "scripts": {
+    "build:corpus-web": "npm --prefix corpus run build:web",
+    "build:panels": "esbuild plugins/attendance/panel.ts plugins/facility/panel.ts plugins/events/panel.ts plugins/jobs/panel.ts --bundle --format=esm --target=es2020 --outdir=plugins --outbase=plugins --sourcemap",
+    "build": "npm run build:corpus-web && npm run build:panels",
+    "predev": "npm run build",
+    "dev": "tsx watch --env-file-if-exists=.env.secrets --env-file-if-exists=.env server.ts",
+    "prestart": "npm run build",
+    "start": "tsx --env-file-if-exists=.env.secrets --env-file-if-exists=.env server.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.frontend.json",
+    "bot": "npm --prefix bot run start",
+    "env:setup": "npx tsx ../Cernere/packages/env-cli/src/cli.ts setup",
+    "env:test": "npx tsx ../Cernere/packages/env-cli/src/cli.ts test",
+    "env:gen": "npx tsx ../Cernere/packages/env-cli/src/cli.ts env",
+    "env:list": "npx tsx ../Cernere/packages/env-cli/src/cli.ts list",
+    "env:get": "npx tsx ../Cernere/packages/env-cli/src/cli.ts get",
+    "env:set": "npx tsx ../Cernere/packages/env-cli/src/cli.ts set",
+    "env:initialize": "npx tsx ../Cernere/packages/env-cli/src/cli.ts initialize"
+  },
+  "dependencies": {
+    "tsx": "^4.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "esbuild": "^0.27.0",
+    "typescript": "^5.6.0"
+  }
+}
