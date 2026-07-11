@@ -37,17 +37,23 @@ GLAB/
 
 ### Web hub
 
+通常運用では **Excubitor (Ex) から起動する**。ExはGLABをspawnするたびに新しい
+`CERNERE_PROJECT_CLIENT_SECRET`を生成し、Cernereへ登録してから子プロセスenvへ直接渡す。
+GLAB用secretをInfisicalや`.env`へ固定保存しない。
+
+1. ExのLaunch画面で`glab`を選択する（`cernere` / `corpus`は依存として先に起動）。
+2. ExのpreflightでCernere接続とExcubitor issuer credentialを確認する。
+3. Startを実行する。GLABは `http://localhost:5187` で起動する。
+
+単独開発時だけ従来の`.env` / env-cli経路を利用できる。
+
 ```bash
 git clone --recurse-submodules <this-repo>
 npm install
 npm --prefix corpus install
-cp .env.example .env        # CERNERE_BASE_URL / AEDILIS_BASE_URL 等を埋める
-npm run env:set             # Cernereで再発行したGLABのclient_id / client_secretも設定
-npm run dev                 # http://localhost:5187
+cp .env.example .env
+npm run dev
 ```
-
-GLAB projectのcredentialは、Cernereの `server/` で
-`npx tsx scripts/rotate-project-secret.ts --project glab` を実行して一度だけ取得する。
 
 ### Discord Bot
 
