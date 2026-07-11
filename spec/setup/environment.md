@@ -23,8 +23,9 @@ GLAB は 2 系統の設定を持つ：**hub** は Infisical（env-cli）/ `.env`
 Infisical bootstrap は `.env.secrets`（`INFISICAL_SITE_URL` / `PROJECT_ID` / `ENVIRONMENT` /
 `CLIENT_ID` / `CLIENT_SECRET`）。`npm run env:setup` → `env:gen` で `.env` を生成。
 
-`CERNERE_PROJECT_CLIENT_SECRET` は Cernere の
-`POST /api/admin/projects/glab/rotate-secret` で発行した値を Infisical に保存する。
+`CERNERE_PROJECT_CLIENT_SECRET` は Cernere の `server/` で
+`npx tsx scripts/rotate-project-secret.ts --project glab` を実行して発行し、
+同時に表示される `client_id` とともに Infisical に保存する。
 未設定時は Infisical 注入後の `vantan-user` プラグイン初期化が起動を中止し、
 初回登録を迂回した degraded 動作にはしない。
 
