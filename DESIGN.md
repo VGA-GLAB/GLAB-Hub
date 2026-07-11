@@ -81,7 +81,9 @@ AES-256-GCM + scrypt）に保存する。平文 JSON を置かない。
   マシンごとに `npm run config-setup` を実行。
 - 読込順：env > 暗号化 config > 既定（`bot/config.ts`）。CI/上書きは env で。
 
-hub 側の設定（Cernere / Aedilis URL / admin）は Corpus 既定の Infisical（env-cli）系統で運用する。
+hub 側の通常起動はExcubitorが担当する。ExはCernere/Aedilisのtopology envを解決し、
+GLAB起動ごとに生成したCernere project credentialとCernere admin IDをspawn envへ直接渡す。
+GLAB自身のInfisical（env-cli）経路は単独開発用フォールバックとして残す。
 
 ## 7. 認証
 
@@ -96,6 +98,10 @@ GLAB の初回アクセスでは、全パネル共通ゲートが Cernere の `v
 `project_credentials` で Cernere `/ws/project` に接続し、`data_sharing: readwrite` の
 許可範囲だけを読み書きする。プロフィール値を GLAB の SQLite へ複製しない。
 一方、Cernere の `user_id` と現在の出席状況は `glab_user` に保存し、GLAB が正本を持つ。
+
+project credentialは固定保存しない。Excubitorがspawn直前にsecretを生成してCernereへ送り、
+Cernereが現行bcrypt hashとAES-256-GCM暗号履歴をDBへ永続化する。Exは返されたclient IDと
+自分が生成したsecretをこのGLABプロセスのenvにだけ注入する。
 
 ## 8. オープン論点 / follow-up
 

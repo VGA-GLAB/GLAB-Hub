@@ -7,9 +7,10 @@ import type { EnvCliConfig } from "../Cernere/packages/env-cli/src/types.js";
  *   npm run env:gen          Infisical から secret を fetch して .env を生成
  *   npm run env:list / set / get / test / initialize
  *
- * 設計ノート:
+ * 設計ノート（単独起動フォールバック）:
  *   - GLAB hub は Corpus submodule を起動する薄いランチャ (`server.ts`)。
- *     hub の設定 (Cernere / 集約先サービス URL / admin) は Infisical (env-cli) で運用。
+ *     通常運用ではExcubitorがCernere起動credentialを毎回発行し、spawn envへ注入する。
+ *     env-cliはExを使わない単独開発時だけ利用する。
  *   - Discord Bot (`bot/`) の token / API キーは別系統 = 暗号化 config
  *     (@ludiars/encrypted-config、 `npm --prefix bot run config-setup`)。 ここには含めない。
  */

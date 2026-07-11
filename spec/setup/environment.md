@@ -1,17 +1,17 @@
 # setup/ — 環境変数・シークレット一覧
 
-GLAB は 2 系統の設定を持つ：**hub** は Infisical（env-cli）/ `.env`、**Bot** は暗号化 config
+GLAB は 2 系統の設定を持つ：**hub** は通常Excubitor spawn env（単独開発のみenv-cli / `.env`）、**Bot** は暗号化 config
 （[`bot-encrypted-config.md`](./bot-encrypted-config.md)）。token / API キーは平文 JSON に置かない。
 
-## Web hub（`.env` / Infisical、`env-cli.config.ts` / `.env.example`）
+## Web hub（Excubitor spawn env）
 
 | 変数 | 既定 | 必須（production） | 意味 |
 |---|---|---|---|
 | `CERNERE_BASE_URL` | `http://localhost:8080` | ○ | Cernere 認証（PASETO V4） |
-| `CERNERE_PROJECT_CLIENT_ID` | （空） | ○ | GLAB の Cernere project_credentials client ID |
-| `CERNERE_PROJECT_CLIENT_SECRET` | （空） | ○ | GLAB の Cernere project_credentials secret（Infisical 管理） |
+| `CERNERE_PROJECT_CLIENT_ID` | （空） | ○ | Cernereが起動時発行したGLAB client ID（Ex注入） |
+| `CERNERE_PROJECT_CLIENT_SECRET` | （空） | ○ | Exが起動ごとに生成したsecret（固定保存せず子envのみ） |
 | `CORPUS_PUBLIC_URL` | `http://localhost:5187` | ○ | 自身の public URL（PASETO audience） |
-| `CORPUS_ADMIN_IDS` | （空） | ○ | admin の Cernere sub claim（カンマ区切り） |
+| `CORPUS_ADMIN_IDS` | （空） | ○ | Cernereが返すadmin user ID（Exがカンマ区切りで注入） |
 | `CORPUS_PORT` | `5187` | | listen port（VantanHub 5186 の次） |
 | `CORPUS_MODE` | `server` | | Corpus 動作モード |
 | `CORPUS_TOKEN_MODE` | `passthrough` | | トークン透過モード |
@@ -20,14 +20,11 @@ GLAB は 2 系統の設定を持つ：**hub** は Infisical（env-cli）/ `.env`
 | `AEDILIS_BASE_URL` | （空 = degraded） | | 施設予約の集約先 Aedilis |
 | `AEDILIS_SERVICE_TOKEN` | （任意） | | Aedilis 連携のサービス間 Bearer（未設定ならユーザ Bearer 透過） |
 
-Infisical bootstrap は `.env.secrets`（`INFISICAL_SITE_URL` / `PROJECT_ID` / `ENVIRONMENT` /
-`CLIENT_ID` / `CLIENT_SECRET`）。`npm run env:setup` → `env:gen` で `.env` を生成。
+ExはCernereの`POST /api/auth/project-launch-credential`をspawn直前に呼ぶ。Exが生成した
+secretはCernereで暗号化永続化され、GLAB子プロセスenvへだけ渡る。旧secretは次回起動時に
+無効化される。発行失敗や必須env不足時はExがspawnを中止し、初回登録を迂回しない。
 
-`CERNERE_PROJECT_CLIENT_SECRET` は Cernere の `server/` で
-`npx tsx scripts/rotate-project-secret.ts --project glab` を実行して発行し、
-同時に表示される `client_id` とともに Infisical に保存する。
-未設定時は Infisical 注入後の `vantan-user` プラグイン初期化が起動を中止し、
-初回登録を迂回した degraded 動作にはしない。
+単独開発時のみ、`.env.secrets`のInfisical machine identityまたは`.env`へ同じキーを設定できる。
 
 ## Discord Bot（暗号化 config or env、`bot/config.ts`）
 
@@ -62,8 +59,8 @@ Infisical bootstrap は `.env.secrets`（`INFISICAL_SITE_URL` / `PROJECT_ID` / `
 
 ## デプロイ / リリース
 
-v0.1 はローカル起動運用（hub `npm run dev|start` + Bot `npm run start`）。専用のデプロイ
-パイプラインは未整備。運用時の hub 設定は Infisical（env-cli）、Bot 設定はマシンごとの
+v0.1 はExからhubを起動し、Botは`npm run start`で別プロセス運用する。専用のデプロイ
+パイプラインは未整備。hub設定はExのspawn env、Bot設定はマシンごとの
 `config-setup` で揃える。
 
 ## 関連
