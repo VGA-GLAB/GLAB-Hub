@@ -8,6 +8,8 @@ GLAB は 2 系統の設定を持つ：**hub** は Infisical（env-cli）/ `.env`
 | 変数 | 既定 | 必須（production） | 意味 |
 |---|---|---|---|
 | `CERNERE_BASE_URL` | `http://localhost:8080` | ○ | Cernere 認証（PASETO V4） |
+| `CERNERE_PROJECT_CLIENT_ID` | （空） | ○ | GLAB の Cernere project_credentials client ID |
+| `CERNERE_PROJECT_CLIENT_SECRET` | （空） | ○ | GLAB の Cernere project_credentials secret（Infisical 管理） |
 | `CORPUS_PUBLIC_URL` | `http://localhost:5187` | ○ | 自身の public URL（PASETO audience） |
 | `CORPUS_ADMIN_IDS` | （空） | ○ | admin の Cernere sub claim（カンマ区切り） |
 | `CORPUS_PORT` | `5187` | | listen port（VantanHub 5186 の次） |
@@ -15,11 +17,16 @@ GLAB は 2 系統の設定を持つ：**hub** は Infisical（env-cli）/ `.env`
 | `CORPUS_TOKEN_MODE` | `passthrough` | | トークン透過モード |
 | `CORPUS_SERVICE_ID` | `glab` | | サービス識別（マニフェスト / project key） |
 | `CORPUS_DISPLAY_NAME` | `GLAB` | | 表示名 |
-| `AEDILIS_BASE_URL` | （空 = degraded） | | 出席 / 施設の集約先 Aedilis |
+| `AEDILIS_BASE_URL` | （空 = degraded） | | 施設予約の集約先 Aedilis |
 | `AEDILIS_SERVICE_TOKEN` | （任意） | | Aedilis 連携のサービス間 Bearer（未設定ならユーザ Bearer 透過） |
 
 Infisical bootstrap は `.env.secrets`（`INFISICAL_SITE_URL` / `PROJECT_ID` / `ENVIRONMENT` /
 `CLIENT_ID` / `CLIENT_SECRET`）。`npm run env:setup` → `env:gen` で `.env` を生成。
+
+`CERNERE_PROJECT_CLIENT_SECRET` は Cernere の
+`POST /api/admin/projects/glab/rotate-secret` で発行した値を Infisical に保存する。
+未設定時は Infisical 注入後の `vantan-user` プラグイン初期化が起動を中止し、
+初回登録を迂回した degraded 動作にはしない。
 
 ## Discord Bot（暗号化 config or env、`bot/config.ts`）
 

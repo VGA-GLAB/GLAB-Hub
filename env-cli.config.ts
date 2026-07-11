@@ -30,11 +30,13 @@ const config: EnvCliConfig = {
 
     // ─── Cernere 認証 ────────────────────────────────────────
     CERNERE_BASE_URL: "",
+    CERNERE_PROJECT_CLIENT_ID: "",
+    CERNERE_PROJECT_CLIENT_SECRET: "",
 
     // ─── Admin user IDs (Cernere sub claim をカンマ区切り) ────
     CORPUS_ADMIN_IDS: "",
 
-    // ─── 集約先: 出席 / 施設予約 = Aedilis ────────────────────
+    // ─── 集約先: 施設予約 = Aedilis（出席状況は GLAB 所有） ───
     AEDILIS_BASE_URL: "",
   },
 
@@ -45,7 +47,13 @@ const config: EnvCliConfig = {
   defaultEnvironment: "dev",
 
   required: {
-    production: ["CERNERE_BASE_URL", "CORPUS_PUBLIC_URL", "CORPUS_ADMIN_IDS"],
+    production: [
+      "CERNERE_BASE_URL",
+      "CERNERE_PROJECT_CLIENT_ID",
+      "CERNERE_PROJECT_CLIENT_SECRET",
+      "CORPUS_PUBLIC_URL",
+      "CORPUS_ADMIN_IDS",
+    ],
   },
 };
 

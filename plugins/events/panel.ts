@@ -1,6 +1,13 @@
 // events パネル — 今後のイベント一覧 + 登録フォーム。
 
-import { el, fmtDateTime, section, ensureStyles, type PanelContext } from '../panel-kit.ts';
+import {
+  el,
+  fmtDateTime,
+  section,
+  ensureStyles,
+  requireVantanUserRegistration,
+  type PanelContext,
+} from '../panel-kit.ts';
 
 interface EventView {
   id: number;
@@ -14,6 +21,7 @@ interface EventView {
 
 export async function mount(container: HTMLElement, ctx: PanelContext): Promise<void> {
   ensureStyles();
+  if (!await requireVantanUserRegistration(container, ctx)) return;
 
   async function render(): Promise<void> {
     container.innerHTML = '';

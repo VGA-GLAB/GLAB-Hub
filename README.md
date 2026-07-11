@@ -8,15 +8,15 @@ GLAB 特化のプラグインパックと Discord Bot を載せた派生 hub。
 
 | 機能 | 実現方法 |
 |---|---|
-| 集会出席管理 | Web hub `attendance` → Aedilis + Ostiarius（会場 LAN passkey チェックイン）の記録を閲覧 |
+| 集会出席管理 | Web hub `attendance` → GLAB SQLite に `user_id` と現在の出席状況を保管 |
 | 施設予約 | Web hub `facility` → Aedilis の予約 API に接続 |
 | イベント通知 | Discord Bot `/event` + 定期リマインド（自前 DB、Web hub `events` と共有） |
 | 就活情報の投稿 | Discord Bot `/job` + 締切リマインド（自前 DB、Web hub `jobs` と共有） |
 | LLM やりとり | Discord Bot `/chat`（claude-cli / anthropic 切替） |
-| ユーザ管理 | Cernere（Corpus が認証を担う） |
+| ユーザ管理 | Cernere（Corpus が認証、初回アクセス時に名前・役職・学科を登録） |
 
-出席・施設予約は **Aedilis** が真実の源（GLAB は接続して見せるだけ）。
-イベント・就活情報は GLAB 自前の SQLite（`data/corpus.db`）に持ち、Web hub と Discord Bot が
+施設予約は **Aedilis** が真実の源（GLAB は接続して見せるだけ）。
+ユーザ参照・現在の出席状況・イベント・就活情報は GLAB 自前の SQLite（`data/corpus.db`）に持ち、Web hub と Discord Bot が
 **同じ DB を WAL 共有**して双方向にやりとりする。
 
 ## 構成
@@ -42,6 +42,7 @@ git clone --recurse-submodules <this-repo>
 npm install
 npm --prefix corpus install
 cp .env.example .env        # CERNERE_BASE_URL / AEDILIS_BASE_URL 等を埋める
+npm run env:set             # Cernere の GLAB project client_id / client_secret も設定
 npm run dev                 # http://localhost:5187
 ```
 

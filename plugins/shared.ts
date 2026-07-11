@@ -1,7 +1,7 @@
 // プラグインパック共有ヘルパ。
 //
 // plugins/ 直下の *ファイル* なので Corpus のプラグインローダ (サブディレクトリ
-// 走査) からはモジュールとして拾われない。 connector 系モジュール (出席 / 施設) が
+// 走査) からはモジュールとして拾われない。 connector 系モジュール（施設）が
 // 共有する。
 
 import type { Context, ServiceConnector } from '../corpus/server/hub/sdk.ts';
