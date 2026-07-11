@@ -6,8 +6,8 @@
 対象機能は 5 つ：集会出席管理 / 施設予約 / イベント通知 / 就活情報の投稿 / LLM やりとり。
 ユーザは Cernere で一元管理する。
 
-「小さく作る」方針：既存サービス（Aedilis / Ostiarius / Cernere）で済むものは流用し、
-GLAB 固有のデータ（イベント・就活情報）と運用面（Discord）だけを自前で持つ。
+「小さく作る」方針：既存サービス（Aedilis / Cernere）で済むものは流用し、
+GLAB 固有のデータ（ユーザ参照・出席状況・イベント・就活情報）と運用面（Discord）だけを自前で持つ。
 
 ## 2. アーキテクチャ
 
@@ -30,9 +30,9 @@ GLAB は **2 つのランタイム**からなる：
 Web hub (Corpus)   Discord Bot
  plugins/           bot/
   attendance ──┐     │
-  facility ────┼─────┼──► Aedilis + Ostiarius (出席/施設予約)
-  events ──────┤     │
+  events ──────┼─────┤
   jobs ────────┘     │
+  facility ─────────────► Aedilis (施設予約)
         │            │
         └─ data/corpus.db (WAL 共有) ─┘
                      │
@@ -43,17 +43,17 @@ Web hub (Corpus)   Discord Bot
 
 | id | 種別 | 内容 |
 |---|---|---|
-| `attendance` | コネクタ | Aedilis `/api/checkin/*` を中継。自分の出席履歴 + (admin) 全員。出席記録自体は Ostiarius の passkey チェックインで生成される |
+| `attendance` | 自前データ | Cernere `user_id` と現在の出席状況を `glab_user` に保管。本人表示 + admin 更新 |
 | `facility` | コネクタ | Aedilis `/api/facilities`・`/api/reservations` を中継。施設一覧 + 予約作成/取消 |
 | `events` | 自前データ | イベントの登録/一覧/削除。`glab_event` テーブル |
 | `jobs` | 自前データ | 就活情報の投稿/検索/クローズ。`glab_job` テーブル |
 
-コネクタモジュールは Aedilis 未稼働時は connector が 503 を返し、パネルが「未接続」を表示する
+施設コネクタは Aedilis 未稼働時は connector が 503 を返し、パネルが「未接続」を表示する
 degraded モードで動く。
 
 ## 4. データ共有（hub ↔ Bot）
 
-- スキーマ正本：`plugins/data.ts`（`GLAB_SCHEMA` + 型 + クエリ関数）。
+- スキーマ正本：`plugins/data.ts`（`glab_user` / イベント / 就活の `GLAB_SCHEMA` + 型 + クエリ関数）。
 - hub プラグインは `ensureSchema(ctx.db)`、Bot は `openSharedDb()` 内で `ensureSchema()` を呼ぶ
   （どちらが先に起動しても冪等）。
 - 二重通知防止：イベントは `notified_at`、就活締切は `deadline_notified_at` で既通知を管理。
@@ -89,6 +89,13 @@ Cernere（PASETO V4）。Web hub は Corpus が `requireAuth` で検証し、プ
 `getIdentity(c)` で `userId / displayName / isAdmin` を得る。コネクタは受信した Bearer を
 そのまま Aedilis へ透過する（ユーザ権限を保存）。Discord Bot はメンバーの Discord ID を
 そのまま行為主体とする（v0.1 では Cernere との突合はしない）。
+
+GLAB の初回アクセスでは、全パネル共通ゲートが Cernere の `vantan_user` を確認する。
+`name`（名前）・`role_title`（役職）・`department_name`（学科）のいずれかが未登録なら
+登録フォームを表示し、完了するまで通常パネルを描画しない。GLAB server は
+`project_credentials` で Cernere `/ws/project` に接続し、`data_sharing: readwrite` の
+許可範囲だけを読み書きする。プロフィール値を GLAB の SQLite へ複製しない。
+一方、Cernere の `user_id` と現在の出席状況は `glab_user` に保存し、GLAB が正本を持つ。
 
 ## 8. オープン論点 / follow-up
 

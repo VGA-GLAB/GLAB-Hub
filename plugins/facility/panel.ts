@@ -6,6 +6,7 @@ import {
   section,
   ensureStyles,
   connectorGuard,
+  requireVantanUserRegistration,
   type PanelContext,
 } from '../panel-kit.ts';
 
@@ -33,6 +34,7 @@ function asArray<T>(body: unknown, key: string): T[] {
 
 export async function mount(container: HTMLElement, ctx: PanelContext): Promise<void> {
   ensureStyles();
+  if (!await requireVantanUserRegistration(container, ctx)) return;
 
   async function render(): Promise<void> {
     container.innerHTML = '';

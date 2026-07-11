@@ -1,44 +1,71 @@
-// GLAB モジュール 1: 集会出席管理 (attendance)。
-//
-// 出席は Aedilis + Ostiarius (会場LANゲートウェイ + passkey attestation) で記録される。
-// GLAB はその記録を閲覧する Corpus コネクタ。 データは自前で持たず Aedilis を真実の源と
-// する。 Aedilis 未稼働時は connector が 503 を返し、 パネルが「未接続」を表示する。
-//
-//   Aedilis API (DESIGN.md §7):
-//     GET  /api/checkin/mine          自分の出席履歴
-//     GET  /api/checkin               出席一覧 (admin、 ?facility=&from=&to=)
-//     GET  /api/facilities            施設一覧 (施設名ラベル解決用)
-//
-// 物理チェックイン自体 (passkey タップ → attestation → POST /api/checkin/verify) は
-// 会場の PWA / Ostiarius が行う。 GLAB hub は記録のレビュー面。
+// GLAB モジュール 1: 現在の出席状況。
+// user_id と出席状況は GLAB 固有データとして共有 SQLite に保存する。
+// 名前・役職・学科は Cernere の vantan_user を正本とし、このテーブルへ複製しない。
 
-import { Hono, HttpServiceConnector } from '../../corpus/server/hub/sdk.ts';
-import type { CorpusModule, CorpusContext } from '../../corpus/server/hub/sdk.ts';
-import { proxy } from '../shared.ts';
+import { Hono, getIdentity, requireAdmin } from '../../corpus/server/hub/sdk.ts';
+import type { CorpusContext, CorpusDb, CorpusModule } from '../../corpus/server/hub/sdk.ts';
+import { z } from 'zod';
+import {
+  ATTENDANCE_STATUSES,
+  ensureGlabUser,
+  ensureSchema,
+  listGlabUsers,
+  setAttendanceStatus,
+  type GlabUserRow,
+} from '../data.ts';
+
+const attendanceInputSchema = z.object({
+  status: z.enum(ATTENDANCE_STATUSES),
+}).strict();
+
+function attendanceView(row: GlabUserRow): Record<string, unknown> {
+  return {
+    userId: row.user_id,
+    status: row.attendance_status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    updatedBy: row.updated_by,
+  };
+}
+
+function makeRoutes(db: CorpusDb): Hono {
+  const router = new Hono();
+
+  router.get('/mine', (c) => {
+    const identity = getIdentity(c);
+    return c.json({ user: attendanceView(ensureGlabUser(db, identity.userId)) });
+  });
+
+  router.get('/list', requireAdmin, (c) => {
+    return c.json({ users: listGlabUsers(db).map(attendanceView) });
+  });
+
+  router.put('/:userId/status', requireAdmin, async (c) => {
+    const parsed = attendanceInputSchema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: 'invalid_attendance_status' }, 400);
+    const actor = getIdentity(c);
+    const updated = setAttendanceStatus(
+      db,
+      c.req.param('userId'),
+      parsed.data.status,
+      actor.userId,
+    );
+    if (!updated) return c.json({ error: 'not_found' }, 404);
+    return c.json({ ok: true, user: attendanceView(updated) });
+  });
+
+  return router;
+}
 
 const attendanceModule: CorpusModule = {
   id: 'attendance',
   title: '出席',
   icon: '✅',
   setup(ctx: CorpusContext) {
-    const aedilis = new HttpServiceConnector({
-      id: 'aedilis',
-      title: '出席 / 施設 (Aedilis)',
-      scope: 'multi',
-      baseUrl: ctx.env('AEDILIS_BASE_URL') ?? '',
-    });
-    ctx.registerConnector(aedilis);
-
-    const r = new Hono();
-    r.get('/mine', (c) => proxy(c, aedilis, '/api/checkin/mine'));
-    r.get('/list', (c) => proxy(c, aedilis, '/api/checkin'));
-    r.get('/facilities', (c) => proxy(c, aedilis, '/api/facilities'));
-    ctx.registerRoute(r);
-
+    ensureSchema(ctx.db);
+    ctx.registerRoute(makeRoutes(ctx.db));
     ctx.registerPanel({ title: '出席', icon: '✅' });
-    ctx.logger.info(
-      `attendance → Aedilis (${ctx.env('AEDILIS_BASE_URL') || '未設定 = degraded'})`,
-    );
+    ctx.logger.info('attendance ready (GLAB-owned user_id + current status)');
   },
 };
 

@@ -5,6 +5,7 @@ import {
   fmtDateTime,
   section,
   ensureStyles,
+  requireVantanUserRegistration,
   type PanelContext,
 } from '../panel-kit.ts';
 
@@ -23,6 +24,7 @@ const DAY = 86_400_000;
 
 export async function mount(container: HTMLElement, ctx: PanelContext): Promise<void> {
   ensureStyles();
+  if (!await requireVantanUserRegistration(container, ctx)) return;
 
   let searchQ = '';
   let statusFilter: 'open' | 'all' = 'open';

@@ -1,6 +1,6 @@
-// GLAB 共有データ層 — イベント / 就活情報。
+// GLAB 共有データ層 — ユーザ参照 / 出席状況 / イベント / 就活情報。
 //
-// このファイルは Web hub プラグイン (plugins/events, plugins/jobs。 Corpus の
+// このファイルは Web hub プラグイン (plugins/vantan-user, attendance, events, jobs。 Corpus の
 // `ctx.db` を使う) と Discord Bot (bot/。 better-sqlite3 を直接開く) の *両方* から
 // import される。 両者は同じ SQLite ファイル (`data/corpus.db`、 WAL) を共有するため、
 // スキーマとクエリをここに一元化して齟齬を防ぐ (DESIGN.md §4)。
@@ -22,6 +22,17 @@ export interface SqlDb {
 }
 
 export const GLAB_SCHEMA = `
+CREATE TABLE IF NOT EXISTS glab_user (
+  user_id             TEXT PRIMARY KEY,
+  attendance_status   TEXT NOT NULL DEFAULT 'unknown'
+    CHECK (attendance_status IN ('unknown', 'present', 'absent', 'late', 'excused')),
+  created_at          INTEGER NOT NULL,
+  updated_at          INTEGER NOT NULL,
+  updated_by          TEXT
+);
+CREATE INDEX IF NOT EXISTS glab_user_attendance_status
+  ON glab_user(attendance_status, updated_at);
+
 CREATE TABLE IF NOT EXISTS glab_event (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   title         TEXT NOT NULL,
@@ -63,6 +74,24 @@ export interface EventRow {
   discord_message_id: string | null;
 }
 
+export const ATTENDANCE_STATUSES = [
+  'unknown',
+  'present',
+  'absent',
+  'late',
+  'excused',
+] as const;
+
+export type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
+
+export interface GlabUserRow {
+  user_id: string;
+  attendance_status: AttendanceStatus;
+  created_at: number;
+  updated_at: number;
+  updated_by: string | null;
+}
+
 export interface JobRow {
   id: number;
   company: string;
@@ -80,6 +109,48 @@ export interface JobRow {
 /** スキーマ初期化 (冪等)。 plugins は ctx.db で、 bot は自前接続で 1 度呼ぶ。 */
 export function ensureSchema(db: SqlDb): void {
   db.exec(GLAB_SCHEMA);
+}
+
+// ─── GLAB ユーザ / 現在の出席状況 ───────────────────────────
+
+/** 初回アクセス時に Cernere user_id の参照行だけを GLAB に確保する。 */
+export function ensureGlabUser(db: SqlDb, userId: string): GlabUserRow {
+  const normalized = userId.trim();
+  if (!normalized) throw new Error('userId is required');
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO glab_user (user_id, attendance_status, created_at, updated_at)
+     VALUES (?, 'unknown', ?, ?)
+     ON CONFLICT(user_id) DO NOTHING`,
+  ).run(normalized, now, now);
+  const row = getGlabUser(db, normalized);
+  if (!row) throw new Error('failed to ensure GLAB user');
+  return row;
+}
+
+export function getGlabUser(db: SqlDb, userId: string): GlabUserRow | null {
+  return (db.prepare(`SELECT * FROM glab_user WHERE user_id = ?`).get(userId) as GlabUserRow)
+    ?? null;
+}
+
+export function listGlabUsers(db: SqlDb): GlabUserRow[] {
+  return db.prepare(
+    `SELECT * FROM glab_user ORDER BY updated_at DESC, user_id ASC`,
+  ).all() as GlabUserRow[];
+}
+
+export function setAttendanceStatus(
+  db: SqlDb,
+  userId: string,
+  status: AttendanceStatus,
+  updatedBy: string,
+): GlabUserRow | null {
+  const result = db.prepare(
+    `UPDATE glab_user
+     SET attendance_status = ?, updated_at = ?, updated_by = ?
+     WHERE user_id = ?`,
+  ).run(status, Date.now(), updatedBy, userId);
+  return result.changes > 0 ? getGlabUser(db, userId) : null;
 }
 
 // ─── イベント ────────────────────────────────────────────────

@@ -4,6 +4,7 @@
 // 個別バンドルするので、 このファイルは各 panel.js に inline される。
 
 export type { PanelContext, PanelModule } from '../corpus/public/src/types.ts';
+import type { PanelContext } from '../corpus/public/src/types.ts';
 
 /** 要素生成。 */
 export function el<K extends keyof HTMLElementTagNameMap>(
@@ -93,8 +94,138 @@ export function ensureStyles(): void {
     .gl-tag.closed { background: #3fb95a; color: #14161c; }
     .gl-tag.soon { background: #d9534f; color: #fff; }
     .gl-bubble { background: #252934; border-radius: 10px; padding: 0.5rem 0.7rem; margin: 0.3rem 0; }
+    .gl-profile-gate { max-width: 34rem; margin: 2rem auto; }
+    .gl-profile-form { display: grid; gap: 0.9rem; margin-top: 1rem; }
+    .gl-profile-field { display: grid; gap: 0.35rem; font-weight: 600; }
+    .gl-profile-field .gl-input { font-weight: 400; }
   `;
   const style = document.createElement('style');
   style.textContent = css;
   document.head.appendChild(style);
+}
+
+/**
+ * GLAB のどのパネルを最初に開いても、Cernere の必須 Vantan profile を先に登録する。
+ * 登録完了までは Promise を解決せず、呼び出し元パネルの通常描画を止める。
+ */
+export async function requireVantanUserRegistration(
+  container: HTMLElement,
+  ctx: PanelContext,
+): Promise<boolean> {
+  let response: Response;
+  try {
+    response = await ctx.hubApi('/api/x/vantan-user/profile');
+  } catch {
+    renderProfileUnavailable(container);
+    return false;
+  }
+  if (!response.ok) {
+    renderProfileUnavailable(container);
+    return false;
+  }
+
+  const profileResponse = parseVantanProfileResponse(await response.json().catch(() => null));
+  if (!profileResponse) {
+    renderProfileUnavailable(container);
+    return false;
+  }
+  if (profileResponse.complete) return true;
+
+  return new Promise<boolean>((resolve) => {
+    container.innerHTML = '';
+    const gate = el('section', 'gl-notice gl-profile-gate');
+    gate.appendChild(el('h2', undefined, 'GLAB 初回登録'));
+    gate.appendChild(el(
+      'p',
+      'gl-muted',
+      'GLAB を利用するため、名前・役職・学科を登録してください。情報は Cernere に保存されます。',
+    ));
+
+    const form = el('form', 'gl-profile-form');
+    const name = profileField('名前', profileResponse.profile.name || ctx.identity.displayName || '');
+    const roleTitle = profileField('役職', profileResponse.profile.roleTitle);
+    const departmentName = profileField('学科', profileResponse.profile.departmentName);
+    form.append(name.label, roleTitle.label, departmentName.label);
+
+    const message = el('p', 'gl-muted');
+    const submit = el('button', 'gl-btn', '登録して GLAB を開く');
+    submit.type = 'submit';
+    form.append(message, submit);
+    form.onsubmit = (event) => {
+      event.preventDefault();
+      submit.disabled = true;
+      message.textContent = '登録中…';
+      void ctx.hubApi('/api/x/vantan-user/profile', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name: name.input.value,
+          roleTitle: roleTitle.input.value,
+          departmentName: departmentName.input.value,
+        }),
+      }).then(async (result) => {
+        if (!result.ok) {
+          const body = await result.json().catch(() => null) as { error?: string } | null;
+          message.textContent = body?.error === 'invalid_profile'
+            ? '名前・役職・学科をすべて入力してください。'
+            : 'Cernere への登録に失敗しました。時間をおいて再試行してください。';
+          submit.disabled = false;
+          return;
+        }
+        resolve(true);
+      }).catch(() => {
+        message.textContent = 'Cernere への登録に失敗しました。時間をおいて再試行してください。';
+        submit.disabled = false;
+      });
+    };
+
+    gate.appendChild(form);
+    container.appendChild(gate);
+  });
+}
+
+function profileField(labelText: string, value: string): {
+  label: HTMLLabelElement;
+  input: HTMLInputElement;
+} {
+  const label = el('label', 'gl-profile-field', labelText);
+  const input = el('input', 'gl-input');
+  input.type = 'text';
+  input.required = true;
+  input.maxLength = 200;
+  input.value = value;
+  label.appendChild(input);
+  return { label, input };
+}
+
+function renderProfileUnavailable(container: HTMLElement): void {
+  container.innerHTML = '';
+  const box = el('div', 'gl-notice gl-notice-error');
+  box.appendChild(el('strong', undefined, 'Cernere のプロフィールを確認できません'));
+  box.appendChild(el('p', 'gl-muted', '接続または設定を確認してから再読み込みしてください。'));
+  container.appendChild(box);
+}
+
+function parseVantanProfileResponse(value: unknown): {
+  complete: boolean;
+  profile: { name: string; roleTitle: string; departmentName: string };
+} | null {
+  if (!value || typeof value !== 'object') return null;
+  const response = value as Record<string, unknown>;
+  const profile = response.profile;
+  if (typeof response.complete !== 'boolean' || !profile || typeof profile !== 'object') return null;
+  const fields = profile as Record<string, unknown>;
+  if (
+    typeof fields.name !== 'string'
+    || typeof fields.roleTitle !== 'string'
+    || typeof fields.departmentName !== 'string'
+  ) return null;
+  return {
+    complete: response.complete,
+    profile: {
+      name: fields.name,
+      roleTitle: fields.roleTitle,
+      departmentName: fields.departmentName,
+    },
+  };
 }

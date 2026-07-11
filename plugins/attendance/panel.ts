@@ -1,122 +1,130 @@
-// attendance パネル — Aedilis から自分の出席履歴 / (admin) 全員の出席を集約表示。
+// attendance パネル — GLAB が保持する user_id と現在の出席状況を表示・管理する。
 
 import {
   el,
   fmtDateTime,
   section,
   ensureStyles,
-  connectorGuard,
+  requireVantanUserRegistration,
   type PanelContext,
 } from '../panel-kit.ts';
 
-interface CheckinRow {
-  id?: string;
-  userId?: string;
-  user_id?: string;
-  displayName?: string;
-  facilityId?: string;
-  facility_id?: string;
-  checkedInAt?: number;
-  checked_in_at?: number;
-  reservationId?: string | null;
-}
-interface Facility { id?: string; facilityId?: string; name?: string; displayName?: string }
+type AttendanceStatus = 'unknown' | 'present' | 'absent' | 'late' | 'excused';
 
-function asArray<T>(body: unknown, key: string): T[] {
-  if (Array.isArray(body)) return body as T[];
-  if (body && typeof body === 'object') {
-    const v = (body as Record<string, unknown>)[key];
-    if (Array.isArray(v)) return v as T[];
-  }
-  return [];
+interface AttendanceUser {
+  userId: string;
+  status: AttendanceStatus;
+  createdAt: number;
+  updatedAt: number;
+  updatedBy: string | null;
 }
+
+const STATUS_LABELS: Record<AttendanceStatus, string> = {
+  unknown: '未設定',
+  present: '出席',
+  absent: '欠席',
+  late: '遅刻',
+  excused: '公欠',
+};
+
+const STATUSES = Object.keys(STATUS_LABELS) as AttendanceStatus[];
 
 export async function mount(container: HTMLElement, ctx: PanelContext): Promise<void> {
   ensureStyles();
+  if (!await requireVantanUserRegistration(container, ctx)) return;
 
   async function render(): Promise<void> {
     container.innerHTML = '';
     const head = el('div', 'gl-row');
-    head.appendChild(el('h2', undefined, '✅ 集会出席'));
+    head.appendChild(el('h2', undefined, '✅ 出席状況'));
     const refresh = el('button', 'gl-btn ghost', '更新');
     refresh.onclick = () => void render();
     head.appendChild(refresh);
     container.appendChild(head);
 
-    // 施設名ラベル解決 (id → name)
-    const facLabel = new Map<string, string>();
-    try {
-      const fr = await ctx.api('/facilities');
-      if (fr.ok) {
-        for (const f of asArray<Facility>(await fr.json(), 'facilities')) {
-          const id = f.id ?? f.facilityId;
-          const name = f.displayName ?? f.name;
-          if (id && name) facLabel.set(id, name);
-        }
-      }
-    } catch {
-      /* ラベル解決は best-effort */
-    }
-
-    function labelFacility(id: string | undefined): string {
-      if (!id) return '?';
-      return facLabel.get(id) ?? id;
-    }
-
-    function renderCheckins(rows: CheckinRow[], emptyMsg: string): HTMLElement {
-      if (rows.length === 0) return el('p', 'gl-muted', emptyMsg);
-      const ul = el('ul', 'gl-list');
-      for (const row of rows) {
-        const li = el('li');
-        const ts = row.checkedInAt ?? row.checked_in_at;
-        li.appendChild(el('strong', undefined, labelFacility(row.facilityId ?? row.facility_id)));
-        if (row.displayName) li.appendChild(el('span', undefined, `  ${row.displayName}`));
-        if (ts) li.appendChild(el('span', 'gl-muted', `  ${fmtDateTime(ts)}`));
-        if (!row.reservationId) li.appendChild(el('span', 'gl-tag', ' walk-in'));
-        ul.appendChild(li);
-      }
-      return ul;
-    }
-
-    // --- 自分の出席履歴 ---
-    const mineRes = await ctx.api('/mine');
-    const guard = await connectorGuard(mineRes, 'Aedilis (出席)');
-    if (guard) {
-      container.appendChild(guard);
+    const mineResponse = await ctx.api('/mine');
+    if (!mineResponse.ok) {
+      container.appendChild(errorNotice('自分の出席状況を取得できませんでした。'));
       return;
     }
-    const mineSec = section('自分の出席履歴');
-    try {
-      mineSec.body.appendChild(
-        renderCheckins(asArray<CheckinRow>(await mineRes.json(), 'checkins'), '(出席記録はありません)'),
-      );
-    } catch {
-      mineSec.body.appendChild(el('p', 'gl-muted', '出席データの解釈に失敗しました。'));
+    const mineBody = await mineResponse.json() as { user?: AttendanceUser };
+    const mine = section('自分の現在状況');
+    if (mineBody.user) {
+      mine.body.appendChild(attendanceRow(mineBody.user, false, ctx, render));
     }
-    container.appendChild(mineSec.wrap);
+    container.appendChild(mine.wrap);
 
-    // --- 全員の出席 (admin のみ。 非 admin は Aedilis が 403 を返す) ---
-    const allRes = await ctx.api('/list');
-    if (allRes.ok) {
-      const allSec = section('全員の出席 (管理者)');
-      try {
-        allSec.body.appendChild(
-          renderCheckins(asArray<CheckinRow>(await allRes.json(), 'checkins'), '(出席記録はありません)'),
-        );
-      } catch {
-        allSec.body.appendChild(el('p', 'gl-muted', '出席データの解釈に失敗しました。'));
+    if (ctx.identity.isAdmin) {
+      const listResponse = await ctx.api('/list');
+      const all = section('全メンバー（管理者）');
+      if (!listResponse.ok) {
+        all.body.appendChild(errorNotice('メンバー一覧を取得できませんでした。'));
+      } else {
+        const body = await listResponse.json() as { users?: AttendanceUser[] };
+        const users = body.users ?? [];
+        if (users.length === 0) {
+          all.body.appendChild(el('p', 'gl-muted', '登録済みメンバーはいません。'));
+        } else {
+          const list = el('ul', 'gl-list');
+          for (const user of users) list.appendChild(attendanceRow(user, true, ctx, render));
+          all.body.appendChild(list);
+        }
       }
-      container.appendChild(allSec.wrap);
+      container.appendChild(all.wrap);
     }
 
-    container.appendChild(
-      el(
-        'p',
-        'gl-muted',
-        '出席は会場で passkey チェックイン (Ostiarius) すると記録されます。 ここは記録の閲覧面です。',
-      ),
-    );
+    container.appendChild(el(
+      'p',
+      'gl-muted',
+      'GLAB には Cernere user_id と現在の出席状況だけを保存します。名前・役職・学科は Cernere が正本です。',
+    ));
   }
 
   await render();
+}
+
+function attendanceRow(
+  user: AttendanceUser,
+  editable: boolean,
+  ctx: PanelContext,
+  rerender: () => Promise<void>,
+): HTMLLIElement {
+  const row = el('li');
+  const main = el('div', 'gl-row');
+  main.appendChild(el('strong', undefined, user.userId));
+  main.appendChild(el('span', `gl-tag ${user.status}`, STATUS_LABELS[user.status]));
+  main.appendChild(el('span', 'gl-muted', `更新: ${fmtDateTime(user.updatedAt)}`));
+
+  if (editable) {
+    const select = el('select', 'gl-select');
+    for (const status of STATUSES) {
+      const option = el('option', undefined, STATUS_LABELS[status]);
+      option.value = status;
+      option.selected = status === user.status;
+      select.appendChild(option);
+    }
+    select.onchange = () => {
+      select.disabled = true;
+      void ctx.api(`/${encodeURIComponent(user.userId)}/status`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ status: select.value }),
+      }).then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return rerender();
+      }).catch(() => {
+        select.disabled = false;
+      });
+    };
+    main.appendChild(select);
+  }
+
+  row.appendChild(main);
+  return row;
+}
+
+function errorNotice(message: string): HTMLElement {
+  const box = el('div', 'gl-notice gl-notice-error');
+  box.appendChild(el('strong', undefined, message));
+  return box;
 }
