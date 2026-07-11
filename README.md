@@ -42,9 +42,12 @@ git clone --recurse-submodules <this-repo>
 npm install
 npm --prefix corpus install
 cp .env.example .env        # CERNERE_BASE_URL / AEDILIS_BASE_URL 等を埋める
-npm run env:set             # Cernere の GLAB project client_id / client_secret も設定
+npm run env:set             # Cernereで再発行したGLABのclient_id / client_secretも設定
 npm run dev                 # http://localhost:5187
 ```
+
+GLAB projectのcredentialは、Cernereの `server/` で
+`npx tsx scripts/rotate-project-secret.ts --project glab` を実行して一度だけ取得する。
 
 ### Discord Bot
 
