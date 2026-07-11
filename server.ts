@@ -21,8 +21,9 @@ process.env.CORPUS_PLUGIN_DIR ??= resolve(ROOT, 'plugins');
 process.env.CORPUS_DATA ??= resolve(ROOT, 'data');
 process.env.CORPUS_PUBLIC_DIR ??= resolve(ROOT, 'corpus', 'public');
 
-// ブランド既定値 (.env / Infisical で上書き可)。 VantanHub 5186 の次の 5187。
-process.env.CORPUS_PORT ??= '5187';
+// 親processの汎用CORPUS_PORTを継承しても、GLAB固有portが変わらないよう明示する。
+// deploymentで変更する場合はGLAB_PORTを使い、汎用Corpusの設定とは分離する。
+process.env.CORPUS_PORT = process.env.GLAB_PORT?.trim() || '5187';
 process.env.CORPUS_PUBLIC_URL ??= `http://localhost:${process.env.CORPUS_PORT}`;
 
 // GLAB サーバ自身のサービス識別 (Corpus マニフェスト /.well-known/
