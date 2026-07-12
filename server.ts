@@ -25,6 +25,8 @@ process.env.CORPUS_PUBLIC_DIR ??= resolve(ROOT, 'corpus', 'public');
 // deploymentで変更する場合はGLAB_PORTを使い、汎用Corpusの設定とは分離する。
 process.env.CORPUS_PORT = process.env.GLAB_PORT?.trim() || '5187';
 process.env.CORPUS_PUBLIC_URL ??= `http://localhost:${process.env.CORPUS_PORT}`;
+// GLab はパスワード認証を公開せず、Cernere-hosted passkey popup のみを使う。
+process.env.CORPUS_AUTH_UI_MODE = 'passkey';
 
 // GLAB サーバ自身のサービス識別 (Corpus マニフェスト /.well-known/
 // corpus-service.json と Cernere project key に使われる)。
