@@ -24,7 +24,7 @@ npm run dev                 # http://localhost:5187
 | script | 内容 |
 |---|---|
 | `build:corpus-web` | `npm --prefix corpus run build:web` |
-| `build:panels` | esbuild で `plugins/{attendance,facility,events,jobs}/panel.ts` → `panel.js`（ESM, es2020） |
+| `build:panels` | esbuild で `plugins/{attendance,facility,events,jobs,vantan-user}/panel.ts` → `panel.js`（ESM, es2020） |
 | `build` | corpus-web + panels |
 | `dev` | `tsx watch ... server.ts`（`predev` で build）。port 5187 |
 | `start` | `tsx ... server.ts`（`prestart` で build） |

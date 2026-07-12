@@ -14,15 +14,6 @@ export interface VantanUserProfile {
   departmentName: string;
 }
 
-export const vantanUserProfileResponseSchema = z.object({
-  complete: z.boolean(),
-  profile: z.object({
-    name: z.string(),
-    roleTitle: z.string(),
-    departmentName: z.string(),
-  }),
-});
-
 export function isCompleteVantanUserProfile(profile: VantanUserProfile): boolean {
   return [profile.name, profile.roleTitle, profile.departmentName]
     .every((value) => value.trim().length > 0);
