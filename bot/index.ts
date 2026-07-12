@@ -10,6 +10,7 @@ import { openSharedDb } from './db.ts';
 import { createLlmClient } from './llm/client.ts';
 import { ALL_COMMANDS, registerCommands } from './commands/registry.ts';
 import { startScheduler } from './notify/scheduler.ts';
+import { startMemberResolver } from './member-resolver.ts';
 import type { CommandDeps } from './commands/types.ts';
 
 async function main(): Promise<void> {
@@ -32,6 +33,7 @@ async function main(): Promise<void> {
       console.error('[glab-bot] command 登録に失敗:', e);
     }
     startScheduler(client, db, cfg);
+    if (cfg.guildId) startMemberResolver(client, db, cfg.guildId);
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
