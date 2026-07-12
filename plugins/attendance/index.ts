@@ -36,6 +36,16 @@ function makeRoutes(db: CorpusDb): Hono {
     return c.json({ user: attendanceView(ensureGlabUser(db, identity.userId)) });
   });
 
+  // 本人による出席記録 (self-service)。 管理者操作 (PUT /:userId/status) とは別に、
+  // ログイン中ユーザが自分の出席を 'present' として記録できる。
+  router.post('/mine/checkin', (c) => {
+    const identity = getIdentity(c);
+    ensureGlabUser(db, identity.userId);
+    const updated = setAttendanceStatus(db, identity.userId, 'present', identity.userId);
+    if (!updated) return c.json({ error: 'not_found' }, 404);
+    return c.json({ ok: true, user: attendanceView(updated) });
+  });
+
   router.get('/list', requireAdmin, (c) => {
     return c.json({ users: listGlabUsers(db).map(attendanceView) });
   });
