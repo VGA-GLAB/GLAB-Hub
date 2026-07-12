@@ -18,15 +18,6 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-/** epoch ms を短い相対/時刻表記にする。 */
-export function fmtTime(ts: number): string {
-  const diff = Date.now() - ts;
-  if (diff < 60_000) return 'たった今';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分前`;
-  const d = new Date(ts);
-  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
 /** epoch ms を日時の絶対表記にする (イベント / 締切表示用)。 */
 export function fmtDateTime(ts: number): string {
   const d = new Date(ts);
