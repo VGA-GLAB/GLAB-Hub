@@ -50,7 +50,28 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
     const mineBody = await mineResponse.json() as { user?: AttendanceUser };
     const mine = section('自分の現在状況');
     if (mineBody.user) {
-      mine.body.appendChild(attendanceRow(mineBody.user, false, ctx, render));
+      const u = mineBody.user;
+      if (attendedToday(u)) {
+        const badge = el('div', 'gl-notice');
+        badge.style.borderColor = 'var(--green, #16a34a)';
+        badge.style.color = 'var(--green, #16a34a)';
+        badge.appendChild(el('strong', undefined, '本日出席済み ✅'));
+        badge.appendChild(el('span', 'gl-muted', ` (${fmtDateTime(u.updatedAt)})`));
+        mine.body.appendChild(badge);
+      } else {
+        const cta = el('div', 'gl-row');
+        const btn = el('button', 'gl-btn', '本日の出席を記録');
+        btn.onclick = () => {
+          btn.disabled = true;
+          void ctx.api('/mine/checkin', { method: 'POST' })
+            .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return render(); })
+            .catch(() => { btn.disabled = false; });
+        };
+        cta.appendChild(btn);
+        cta.appendChild(el('span', 'gl-muted', '本日はまだ出席記録がありません。'));
+        mine.body.appendChild(cta);
+      }
+      mine.body.appendChild(attendanceRow(u, false, ctx, render, ctx.identity.displayName));
     }
     container.appendChild(mine.wrap);
 
@@ -83,15 +104,29 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
   await render();
 }
 
+/** 同一カレンダー日か (ローカル時刻)。 */
+function isToday(ts: number): boolean {
+  const d = new Date(ts);
+  const n = new Date();
+  return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
+}
+
+/** 本日出席済み = 出席/遅刻ステータスが今日更新されている。 */
+function attendedToday(user: AttendanceUser): boolean {
+  return (user.status === 'present' || user.status === 'late') && isToday(user.updatedAt);
+}
+
 function attendanceRow(
   user: AttendanceUser,
   editable: boolean,
   ctx: PanelContext,
   rerender: () => Promise<void>,
+  label?: string | null,
 ): HTMLLIElement {
   const row = el('li');
   const main = el('div', 'gl-row');
-  main.appendChild(el('strong', undefined, user.userId));
+  // 表示は氏名優先 (Cernere 正本)。 名前が無い場合のみ user_id を出す。
+  main.appendChild(el('strong', undefined, label || user.userId));
   main.appendChild(el('span', `gl-tag ${user.status}`, STATUS_LABELS[user.status]));
   main.appendChild(el('span', 'gl-muted', `更新: ${fmtDateTime(user.updatedAt)}`));
 
