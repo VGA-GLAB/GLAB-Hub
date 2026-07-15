@@ -2,10 +2,20 @@ import assert from 'node:assert/strict';
 import { afterEach, describe, it } from 'node:test';
 import {
   CernereProjectClient,
-  translateVantanProfile,
   type WsLike,
-} from '../plugins/vantan-user/cernere-client.ts';
-import { vantanUserInputSchema } from '../plugins/vantan-user/profile-schema.ts';
+} from '../plugins/cernere/project-client.ts';
+import {
+  getVantanUserProfile,
+  setVantanUserProfile,
+} from '../plugins/vantan-user/profile-client.ts';
+import {
+  translateVantanProfile,
+  vantanUserInputSchema,
+} from '../plugins/vantan-user/profile-schema.ts';
+import {
+  CernereSurveyPermissionReader,
+  hasSurveyAuthoringPermission,
+} from '../plugins/surveys/permissions.ts';
 
 class FakeWebSocket implements WsLike {
   onopen: (() => void) | null = null;
@@ -80,7 +90,7 @@ describe('CernereProjectClient', () => {
       },
     });
 
-    const resultPromise = client.getVantanUserProfile('user-1');
+    const resultPromise = getVantanUserProfile(client, 'user-1');
     await waitFor(() => sockets.length === 1);
     const socket = sockets[0]!;
     assert.equal(socket.url, 'wss://cernere.example.com/ws/project');
@@ -117,7 +127,7 @@ describe('CernereProjectClient', () => {
       },
     });
 
-    const writePromise = client.setVantanUserProfile('user-2', {
+    const writePromise = setVantanUserProfile(client, 'user-2', {
       name: '山田 花子',
       roleTitle: '学生',
       departmentName: 'CG学科',
@@ -140,6 +150,37 @@ describe('CernereProjectClient', () => {
     socket.respond({ ok: true, updated: ['name', 'role_title', 'department_name'] });
     await writePromise;
   });
+
+  it('reads survey authoring permission from volputas_users by Cernere userId', async () => {
+    const sockets: FakeWebSocket[] = [];
+    client = new CernereProjectClient({
+      cernereBaseUrl: 'https://cernere.example.com',
+      clientId: 'glab-client',
+      clientSecret: 'secret',
+      fetchImpl: projectLoginFetch(),
+      createWebSocket: (url, protocols) => {
+        const socket = new FakeWebSocket(url, protocols);
+        sockets.push(socket);
+        return socket;
+      },
+    });
+    const permissions = new CernereSurveyPermissionReader(client);
+
+    const permissionPromise = permissions.canCreateSurveys('user-3');
+    await waitFor(() => sockets.length === 1);
+    const socket = sockets[0]!;
+    socket.connect();
+    await waitFor(() => socket.sent.length === 1);
+    const request = JSON.parse(socket.sent[0]!) as Record<string, unknown>;
+    assert.deepEqual(request.payload, {
+      userId: 'user-3',
+      targetProjectKey: 'volputas_users',
+      columns: ['can_create_surveys'],
+    });
+    socket.respond({ can_create_surveys: true });
+
+    assert.equal(await permissionPromise, true);
+  });
 });
 
 describe('vantan_user profile validation', () => {
@@ -157,5 +198,12 @@ describe('vantan_user profile validation', () => {
       roleTitle: '',
       departmentName: '',
     });
+  });
+
+  it('fails closed when survey authoring permission is absent or malformed', () => {
+    assert.equal(hasSurveyAuthoringPermission({ can_create_surveys: true }), true);
+    assert.equal(hasSurveyAuthoringPermission({ can_create_surveys: 'true' }), false);
+    assert.equal(hasSurveyAuthoringPermission({}), false);
+    assert.equal(hasSurveyAuthoringPermission(null), false);
   });
 });

@@ -15,7 +15,7 @@ GLAB Web hub は Corpus（submodule `corpus/`）の汎用 hub フレームワー
 git clone --recurse-submodules <this-repo>
 npm install
 npm --prefix corpus install
-cp .env.example .env        # CERNERE_BASE_URL / AEDILIS_BASE_URL 等を埋める
+cp .env.example .env        # CERNERE_BASE_URL / AEDILIS_BASE_URL / VOLPUTAS_URL 等を埋める
 npm run dev                 # http://localhost:5187
 ```
 
@@ -24,7 +24,7 @@ npm run dev                 # http://localhost:5187
 | script | 内容 |
 |---|---|
 | `build:corpus-web` | `npm --prefix corpus run build:web` |
-| `build:panels` | esbuild で `plugins/{attendance,facility,events,jobs,vantan-user}/panel.ts` → `panel.js`（ESM, es2020） |
+| `build:panels` | esbuild で `plugins/{attendance,facility,events,jobs,surveys,vantan-user,volputas}/panel.ts` → `panel.js`（ESM, es2020） |
 | `build` | corpus-web + panels |
 | `dev` | `tsx watch ... server.ts`（`predev` で build）。port 5187 |
 | `start` | `tsx ... server.ts`（`prestart` で build） |

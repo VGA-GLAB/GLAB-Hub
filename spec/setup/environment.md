@@ -19,10 +19,18 @@ GLAB は 2 系統の設定を持つ：**hub** は通常Excubitor spawn env（単
 | `CORPUS_DISPLAY_NAME` | `GLAB` | | 表示名 |
 | `AEDILIS_BASE_URL` | （空 = degraded） | | 施設予約の集約先 Aedilis |
 | `AEDILIS_SERVICE_TOKEN` | （任意） | | Aedilis 連携のサービス間 Bearer（未設定ならユーザ Bearer 透過） |
+| `VOLPUTAS_URL` | （空 = degraded） | | Volputas API / health の base URL（Ex topology は `http://localhost:8892` を注入） |
+| `VOLPUTAS_WEB_URL` | `VOLPUTAS_URL` | | Volputas Web UI が API と別 origin の場合の public base URL |
+| `DISCUTERE_URL` | （空 = degraded） | | Di API の内部 base URL（Ex topology は `http://localhost:3110` を注入） |
+| `DISCUTERE_WEB_URL` | `DISCUTERE_URL` | | Di Web UI が API と別 origin の場合の public base URL |
+| `TIROCINIUM_URL` | （空 = degraded） | | Tr API の内部 base URL（Ex topology は `http://localhost:8084` を注入） |
 
 ExはCernereの`POST /api/auth/project-launch-credential`をspawn直前に呼ぶ。Exが生成した
 secretはCernereで暗号化永続化され、GLAB子プロセスenvへだけ渡る。旧secretは次回起動時に
 無効化される。発行失敗や必須env不足時はExがspawnを中止し、初回登録を迂回しない。
+
+GLABはCernere frontendを起動依存に持たない。Corpusがproject credentialでCernere backendへ
+直接接続し、ユーザーセッションはGLAB originのHttpOnly access/refresh Cookieで継続する。
 
 単独開発時のみ、`.env.secrets`のInfisical machine identityまたは`.env`へ同じキーを設定できる。
 

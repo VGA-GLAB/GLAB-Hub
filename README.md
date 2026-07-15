@@ -12,11 +12,16 @@ GLAB 特化のプラグインパックと Discord Bot を載せた派生 hub。
 | 施設予約 | Web hub `facility` → Aedilis の予約 API に接続 |
 | イベント通知 | Discord Bot `/event` + 定期リマインド（自前 DB、Web hub `events` と共有） |
 | 就活情報の投稿 | Discord Bot `/job` + 締切リマインド（自前 DB、Web hub `jobs` と共有） |
+| 志望・内定企業 | Web hub `tirocinium` → Trの企業マスタを検索し、Cernere IDごとの志望企業・内定情報を登録 |
+| アンケート | Web hub `surveys` → Voluptas 互換の尺度・単一選択・自由記述、単回答/複数回答、Cernere 権限による作成 |
+| ゲームレビュー | Web hub `volputas` → 開発作品・市販作品の5段階評価とレビュー投稿を開く |
+| 動画レビュー | Web hub `volputas` → Volputas の動画アップロード・再生位置への感情記録 UX を開く |
+| Di | Web hub `di` → 「議論」「学習ビュー」のみを公開。議論開始時にCernere IDを監査用に関連付け |
 | LLM やりとり | Discord Bot `/chat`（claude-cli / anthropic 切替） |
 | ユーザ管理 | Cernere（Corpus が認証、初回アクセス時に名前・役職・学科を登録） |
 
 施設予約は **Aedilis** が真実の源（GLAB は接続して見せるだけ）。
-ユーザ参照・現在の出席状況・イベント・就活情報は GLAB 自前の SQLite（`data/corpus.db`）に持ち、Web hub と Discord Bot が
+ユーザ参照・現在の出席状況・イベント・就活情報・アンケートは GLAB 自前の SQLite（`data/corpus.db`）に持ち、Web hub と Discord Bot が
 **同じ DB を WAL 共有**して双方向にやりとりする。
 
 ## 構成
@@ -25,8 +30,8 @@ GLAB 特化のプラグインパックと Discord Bot を載せた派生 hub。
 GLAB/
 ├── corpus/        # submodule (LUDIARS/Corpus、 触らない)
 ├── plugins/       # Web hub モジュールパック
-│   ├── attendance/  facility/  events/  jobs/
-│   └── data.ts    # イベント / 就活の共有スキーマ + クエリ (bot と共用)
+│   ├── attendance/  facility/  events/  jobs/  surveys/  tirocinium/  volputas/
+│   └── data.ts    # イベント / 就活 / アンケートの共有スキーマ + クエリ (bot と共用)
 ├── bot/           # Discord Bot (別プロセス、 独自 package)
 │   ├── commands/  llm/  notify/
 │   └── config-store.ts  # 暗号化 config (@ludiars/encrypted-config)
@@ -41,7 +46,7 @@ GLAB/
 `CERNERE_PROJECT_CLIENT_SECRET`を生成し、Cernereへ登録してから子プロセスenvへ直接渡す。
 GLAB用secretをInfisicalや`.env`へ固定保存しない。
 
-1. ExのLaunch画面で`glab`を選択する（`cernere` / `corpus`は依存として先に起動）。
+1. ExのLaunch画面で`glab`を選択する（`cernere` / `corpus` / `volputas`は依存として先に起動）。
 2. ExのpreflightでCernere接続とExcubitor issuer credentialを確認する。
 3. Startを実行する。GLABは `http://localhost:5187` で起動する。
 

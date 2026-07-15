@@ -1,6 +1,7 @@
 import { Hono, getIdentity } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusContext, CorpusModule } from '../../corpus/server/hub/sdk.ts';
-import { CernereProjectClient } from './cernere-client.ts';
+import { createCernereProjectClient } from '../cernere/create-client.ts';
+import { getVantanUserProfile, setVantanUserProfile } from './profile-client.ts';
 import {
   isCompleteVantanUserProfile,
   vantanUserInputSchema,
@@ -13,18 +14,14 @@ const vantanUserModule: CorpusModule = {
   icon: '👤',
   setup(ctx: CorpusContext) {
     ensureSchema(ctx.db);
-    const client = new CernereProjectClient({
-      cernereBaseUrl: requireEnv(ctx, 'CERNERE_BASE_URL'),
-      clientId: requireEnv(ctx, 'CERNERE_PROJECT_CLIENT_ID'),
-      clientSecret: requireEnv(ctx, 'CERNERE_PROJECT_CLIENT_SECRET'),
-    });
+    const client = createCernereProjectClient(ctx);
     const router = new Hono();
 
     router.get('/profile', async (c) => {
       const identity = getIdentity(c);
       ensureGlabUser(ctx.db, identity.userId);
       try {
-        const profile = await client.getVantanUserProfile(identity.userId);
+        const profile = await getVantanUserProfile(client, identity.userId);
         return c.json({
           complete: isCompleteVantanUserProfile(profile),
           profile,
@@ -48,7 +45,7 @@ const vantanUserModule: CorpusModule = {
       try {
         const identity = getIdentity(c);
         ensureGlabUser(ctx.db, identity.userId);
-        await client.setVantanUserProfile(identity.userId, parsed.data);
+        await setVantanUserProfile(client, identity.userId, parsed.data);
         return c.json({ ok: true, profile: parsed.data });
       } catch (error) {
         ctx.logger.error(`vantan_user write failed: ${errorMessage(error)}`);
@@ -61,12 +58,6 @@ const vantanUserModule: CorpusModule = {
     ctx.logger.info('vantan_user registration route enabled (Cernere project WS)');
   },
 };
-
-function requireEnv(ctx: CorpusContext, key: string): string {
-  const value = ctx.env(key)?.trim();
-  if (!value) throw new Error(`Required environment variable is missing: ${key}`);
-  return value;
-}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
