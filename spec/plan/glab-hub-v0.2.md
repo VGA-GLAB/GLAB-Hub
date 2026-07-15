@@ -130,8 +130,8 @@ GLab-Hub に直結する (設計判断は §5-B)。
 
 ### 3-4. 動体・顔認証 (要件 4) — 適合・レビュー完了、Phase 5 で実装
 
-- 原本コピー: [spec/imported/ludellus-player-tracking.md](../imported/ludellus-player-tracking.md) /
-  [spec/imported/ludellus-face-identity.md](../imported/ludellus-face-identity.md)
+- 原本コピー: [spec/feature/imported/ludellus-player-tracking.md](../feature/imported/ludellus-player-tracking.md) /
+  [spec/feature/imported/ludellus-face-identity.md](../feature/imported/ludellus-face-identity.md)
 - 適合版 + レビュー: **[spec/feature/face-attendance.md](../feature/face-attendance.md)**
 - 要点: 照合コア・FSM・プライバシー原則は流用可。roster の名簿常駐化・閾値強化・
   出席目的の同意フロー・出席ログ永続化の 4 点が新規設計。OpenCV 実映像 / Cernere 実疎通が

@@ -1,9 +1,9 @@
 # 機能: 顔認証・動体検知による出席/在席確認 (GLab 適合版)
 
 > 分類: feature (**実験的 / Phase 5**)。Ludellus の
-> [player-tracking](../imported/ludellus-player-tracking.md) (動体検知・セッション内追跡) と
-> [face-identity](../imported/ludellus-face-identity.md) (roster 限定 1:N 顔識別) を
-> GLab の出席・在席確認用途に適合させたもの。原本は `spec/imported/` にコピー保管。
+> [player-tracking](./imported/ludellus-player-tracking.md) (動体検知・セッション内追跡) と
+> [face-identity](./imported/ludellus-face-identity.md) (roster 限定 1:N 顔識別) を
+> GLab の出席・在席確認用途に適合させたもの。原本は `spec/feature/imported/` にコピー保管。
 > 一次経路はあくまで passkey チェックイン ([attendance](./attendance.md)) と
 > COCOIRU 自動出席であり、本機能はその**上乗せ (ハンズフリー化)**。
 
