@@ -18,3 +18,15 @@ export function isCompleteVantanUserProfile(profile: VantanUserProfile): boolean
   return [profile.name, profile.roleTitle, profile.departmentName]
     .every((value) => value.trim().length > 0);
 }
+
+export function translateVantanProfile(raw: unknown): VantanUserProfile {
+  if (!raw || typeof raw !== 'object') {
+    return { name: '', roleTitle: '', departmentName: '' };
+  }
+  const row = raw as Record<string, unknown>;
+  return {
+    name: typeof row.name === 'string' ? row.name : '',
+    roleTitle: typeof row.role_title === 'string' ? row.role_title : '',
+    departmentName: typeof row.department_name === 'string' ? row.department_name : '',
+  };
+}

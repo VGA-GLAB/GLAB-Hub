@@ -23,11 +23,13 @@ interface Reservation {
   state?: string;
 }
 
-function asArray<T>(body: unknown, key: string): T[] {
+function asArray<T>(body: unknown, ...keys: string[]): T[] {
   if (Array.isArray(body)) return body as T[];
   if (body && typeof body === 'object') {
-    const v = (body as Record<string, unknown>)[key];
-    if (Array.isArray(v)) return v as T[];
+    for (const key of keys) {
+      const value = (body as Record<string, unknown>)[key];
+      if (Array.isArray(value)) return value as T[];
+    }
   }
   return [];
 }
@@ -55,7 +57,7 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
     let facilities: Facility[] = [];
     const facSec = section('施設一覧');
     try {
-      facilities = asArray<Facility>(await facRes.json(), 'facilities');
+      facilities = asArray<Facility>(await facRes.json(), 'items', 'facilities');
       if (facilities.length === 0) {
         facSec.body.appendChild(el('p', 'gl-muted', '(施設がありません)'));
       } else {
@@ -139,7 +141,7 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
     const resRes = await ctx.api('/reservations/mine');
     if (resRes.ok) {
       try {
-        const list = asArray<Reservation>(await resRes.json(), 'reservations');
+        const list = asArray<Reservation>(await resRes.json(), 'items', 'reservations');
         if (list.length === 0) {
           resSec.body.appendChild(el('p', 'gl-muted', '(予約はありません)'));
         } else {

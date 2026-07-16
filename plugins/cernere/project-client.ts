@@ -1,9 +1,9 @@
 import WebSocket from 'ws';
-import type { VantanUserInput, VantanUserProfile } from './profile-schema.ts';
 
 const REQUEST_TIMEOUT_MS = 10_000;
 const WS_OPEN = 1;
-const VANTAN_COLUMNS = ['name', 'role_title', 'department_name'] as const;
+const PROJECT_KEY_PATTERN = /^[a-z][a-z0-9_]{1,62}$/;
+const COLUMN_PATTERN = /^[a-z][a-z0-9_]{0,62}$/;
 
 export interface WsLike {
   onopen: (() => void) | null;
@@ -22,6 +22,7 @@ export interface CernereProjectClientConfig {
   fetchImpl?: typeof fetch;
   createWebSocket?: (url: string, protocols: string[]) => WsLike;
   requestTimeoutMs?: number;
+  now?: () => number;
 }
 
 interface PendingRequest {
@@ -45,6 +46,7 @@ export class CernereProjectClient {
   private readonly fetchImpl: typeof fetch;
   private readonly createWebSocket: (url: string, protocols: string[]) => WsLike;
   private readonly requestTimeoutMs: number;
+  private readonly now: () => number;
 
   private ws: WsLike | null = null;
   private connectPromise: Promise<void> | null = null;
@@ -61,26 +63,32 @@ export class CernereProjectClient {
     this.fetchImpl = config.fetchImpl ?? fetch;
     this.createWebSocket = config.createWebSocket ?? defaultCreateWebSocket;
     this.requestTimeoutMs = config.requestTimeoutMs ?? REQUEST_TIMEOUT_MS;
+    this.now = config.now ?? Date.now;
   }
 
-  async getVantanUserProfile(userId: string): Promise<VantanUserProfile> {
-    const raw = await this.request('managed_project', 'get_user_data', {
+  async getUserData(
+    userId: string,
+    targetProjectKey: string,
+    columns: string[],
+  ): Promise<unknown> {
+    return this.request('managed_project', 'get_user_data', {
       userId: requireUserId(userId),
-      targetProjectKey: 'vantan_user',
-      columns: [...VANTAN_COLUMNS],
+      targetProjectKey: requireProjectKey(targetProjectKey),
+      columns: requireColumns(columns),
     });
-    return translateVantanProfile(raw);
   }
 
-  async setVantanUserProfile(userId: string, profile: VantanUserInput): Promise<void> {
+  async setUserData(
+    userId: string,
+    targetProjectKey: string,
+    data: Record<string, unknown>,
+  ): Promise<void> {
+    const columns = requireColumns(Object.keys(data));
+    if (columns.length === 0) throw new Error('data must contain at least one column');
     await this.request('managed_project', 'set_user_data', {
       userId: requireUserId(userId),
-      targetProjectKey: 'vantan_user',
-      data: {
-        name: profile.name,
-        role_title: profile.roleTitle,
-        department_name: profile.departmentName,
-      },
+      targetProjectKey: requireProjectKey(targetProjectKey),
+      data,
     });
   }
 
@@ -101,7 +109,7 @@ export class CernereProjectClient {
       throw new Error('Cernere project WebSocket is not connected');
     }
 
-    const requestId = `glab-${Date.now()}-${this.requestSequence++}`;
+    const requestId = `glab-${this.now()}-${this.requestSequence++}`;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(requestId);
@@ -239,6 +247,19 @@ function requireUserId(userId: string): string {
   return normalized;
 }
 
+function requireProjectKey(projectKey: string): string {
+  const normalized = projectKey.trim();
+  if (!PROJECT_KEY_PATTERN.test(normalized)) throw new Error('targetProjectKey is invalid');
+  return normalized;
+}
+
+function requireColumns(columns: string[]): string[] {
+  if (!columns.every((column) => COLUMN_PATTERN.test(column))) {
+    throw new Error('columns contain an invalid name');
+  }
+  return [...columns];
+}
+
 function parseMessage(raw: unknown): Record<string, unknown> | null {
   try {
     return JSON.parse(String(raw)) as Record<string, unknown>;
@@ -253,16 +274,4 @@ function describeError(error: unknown): string {
     if (typeof message === 'string') return message;
   }
   return 'unknown error';
-}
-
-export function translateVantanProfile(raw: unknown): VantanUserProfile {
-  if (!raw || typeof raw !== 'object') {
-    return { name: '', roleTitle: '', departmentName: '' };
-  }
-  const row = raw as Record<string, unknown>;
-  return {
-    name: typeof row.name === 'string' ? row.name : '',
-    roleTitle: typeof row.role_title === 'string' ? row.role_title : '',
-    departmentName: typeof row.department_name === 'string' ? row.department_name : '',
-  };
 }

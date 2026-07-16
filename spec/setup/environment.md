@@ -14,15 +14,24 @@ GLAB は 2 系統の設定を持つ：**hub** は通常Excubitor spawn env（単
 | `CORPUS_ADMIN_IDS` | （空） | ○ | Cernereが返すadmin user ID（Exがカンマ区切りで注入） |
 | `CORPUS_PORT` | `5187` | | listen port（VantanHub 5186 の次） |
 | `CORPUS_MODE` | `server` | | Corpus 動作モード |
-| `CORPUS_TOKEN_MODE` | `passthrough` | | トークン透過モード |
+| `CORPUS_TOKEN_MODE` | `cernere-project-token` | | 接続先ごとの短命 Cernere project token を発行 |
 | `CORPUS_SERVICE_ID` | `glab` | | サービス識別（マニフェスト / project key） |
 | `CORPUS_DISPLAY_NAME` | `GLAB` | | 表示名 |
+| `CORPUS_SERVICE_VERSION` | GLAB package version | | GLAB `/api/health` と概況へ出すバージョン |
+| `GLAB_DATABASE_URL` | — | ○ | GLAB所有イベント・施設マスタをWeb/Botで共有するPostgreSQL URL（Infisicalから注入） |
 | `AEDILIS_BASE_URL` | （空 = degraded） | | 施設予約の集約先 Aedilis |
-| `AEDILIS_SERVICE_TOKEN` | （任意） | | Aedilis 連携のサービス間 Bearer（未設定ならユーザ Bearer 透過） |
+| `OSTIARIUS_URL` | （空 = 出席無効） | | GLabサーバーからOsへ到達する内部URL。OsはTunnelへ公開しない。ブラウザ向けURLはOs healthの `lanUrl` のみを使い、会場Wi-Fiから直接healthへ到達できた場合だけ出席を表示 |
+| `VOLPUTAS_URL` | （空 = degraded） | | Volputas API / health の base URL（Ex topology は `http://localhost:8892` を注入） |
+| `DISCUTERE_URL` | （空 = degraded） | | Di API の内部 base URL（Ex topology は `http://localhost:3110` を注入） |
+| `DISCUTERE_WEB_URL` | `DISCUTERE_URL` | | Di Web UI が API と別 origin の場合の public base URL |
+| `TIROCINIUM_URL` | （空 = degraded） | | Tr API の内部 base URL（Ex topology は `http://localhost:8084` を注入） |
 
 ExはCernereの`POST /api/auth/project-launch-credential`をspawn直前に呼ぶ。Exが生成した
 secretはCernereで暗号化永続化され、GLAB子プロセスenvへだけ渡る。旧secretは次回起動時に
 無効化される。発行失敗や必須env不足時はExがspawnを中止し、初回登録を迂回しない。
+
+GLABはCernere frontendを起動依存に持たない。Corpusがproject credentialでCernere backendへ
+直接接続し、ユーザーセッションはGLAB originのHttpOnly access/refresh Cookieで継続する。
 
 単独開発時のみ、`.env.secrets`のInfisical machine identityまたは`.env`へ同じキーを設定できる。
 
@@ -33,7 +42,8 @@ secretはCernereで暗号化永続化され、GLAB子プロセスenvへだけ渡
 | `DISCORD_TOKEN` | — | ○ | Bot トークン（必須、未設定で起動中止） |
 | `DISCORD_CLIENT_ID` | — | | アプリ（client）ID（command 登録に必要） |
 | `DISCORD_GUILD_ID` | — | | 登録先ギルド。無いと global 登録（反映最大 1h） |
-| `GLAB_DB_PATH` | `bot/../data/corpus.db` | | 共有 SQLite |
+| `GLAB_DB_PATH` | `bot/../data/corpus.db` | | 出席・Bot求人等の共有SQLite |
+| `GLAB_DATABASE_URL` | — | ○ | Web hubと共通のGLABイベントPostgreSQL。`npm run config-setup`で暗号化configに保存（env指定も可） |
 | `GLAB_EVENT_CHANNEL_ID` | — | | イベント通知先 |
 | `GLAB_JOB_CHANNEL_ID` | — | | 就活通知先 |
 | `GLAB_ADMIN_USER_IDS` | — | | admin の Discord ユーザ ID（カンマ区切り） |

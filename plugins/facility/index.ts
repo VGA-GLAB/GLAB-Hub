@@ -11,31 +11,43 @@
 //     POST   /api/reservations           新規予約 {facilityId,startAt,endAt,purpose?}
 //     DELETE /api/reservations/:id        予約キャンセル
 
-import { Hono, HttpServiceConnector } from '../../corpus/server/hub/sdk.ts';
+import { Hono } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusModule, CorpusContext } from '../../corpus/server/hub/sdk.ts';
 import { proxy } from '../shared.ts';
+import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
 
 const facilityModule: CorpusModule = {
   id: 'facility',
   title: '施設',
   icon: '🏫',
   setup(ctx: CorpusContext) {
-    const aedilis = new HttpServiceConnector({
+    const aedilis = new VersionedHttpServiceConnector({
       id: 'aedilis',
       title: '施設予約 (Aedilis)',
       scope: 'multi',
       baseUrl: ctx.env('AEDILIS_BASE_URL') ?? '',
+      healthPath: '/api/health',
     });
     ctx.registerConnector(aedilis);
 
     const r = new Hono();
-    r.get('/facilities', (c) => proxy(c, aedilis, '/api/facilities'));
-    r.get('/facilities/:id', (c) => proxy(c, aedilis, `/api/facilities/${c.req.param('id')}`));
-    r.get('/reservations', (c) => proxy(c, aedilis, '/api/reservations'));
-    r.get('/reservations/mine', (c) => proxy(c, aedilis, '/api/reservations/mine'));
-    r.post('/reservations', (c) => proxy(c, aedilis, '/api/reservations'));
+    r.get('/facilities', (c) => proxy(c, aedilis, '/api/facilities', ctx.tokenProvider));
+    r.get('/facilities/:id', (c) => proxy(
+      c,
+      aedilis,
+      `/api/facilities/${encodeURIComponent(c.req.param('id'))}`,
+      ctx.tokenProvider,
+    ));
+    r.get('/reservations', (c) => proxy(c, aedilis, '/api/reservations', ctx.tokenProvider));
+    r.get('/reservations/mine', (c) => proxy(
+      c,
+      aedilis,
+      '/api/reservations/mine',
+      ctx.tokenProvider,
+    ));
+    r.post('/reservations', (c) => proxy(c, aedilis, '/api/reservations', ctx.tokenProvider));
     r.delete('/reservations/:id', (c) =>
-      proxy(c, aedilis, `/api/reservations/${c.req.param('id')}`),
+      proxy(c, aedilis, `/api/reservations/${encodeURIComponent(c.req.param('id'))}`, ctx.tokenProvider),
     );
     ctx.registerRoute(r);
 

@@ -18,6 +18,7 @@ const HINTS: Record<string, string> = {
   DISCORD_TOKEN: 'Discord Bot トークン',
   DISCORD_CLIENT_ID: 'Discord アプリ (client) ID',
   DISCORD_GUILD_ID: 'コマンド登録先ギルド (サーバ) ID',
+  GLAB_DATABASE_URL: 'GLABイベントの PostgreSQL URL (postgresql://...)',
   GLAB_EVENT_CHANNEL_ID: 'イベント通知チャンネル ID',
   GLAB_JOB_CHANNEL_ID: '就活情報チャンネル ID',
   GLAB_ADMIN_USER_IDS: 'admin ユーザ ID (カンマ区切り)',

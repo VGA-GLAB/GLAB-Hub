@@ -18,6 +18,8 @@ export interface BotConfig {
   guildId: string;
   /** 共有 SQLite (Corpus と同じ corpus.db)。 */
   dbPath: string;
+  /** GLAB所有イベントのPostgreSQL。 */
+  databaseUrl: string;
   channels: { event: string; job: string };
   /** admin 扱いする Discord ユーザ id。 */
   adminUserIds: string[];
@@ -68,6 +70,7 @@ export function loadConfig(): BotConfig {
     discordClientId: pick('DISCORD_CLIENT_ID'),
     guildId: pick('DISCORD_GUILD_ID'),
     dbPath: pick('GLAB_DB_PATH', resolve(BOT_DIR, '..', 'data', 'corpus.db')),
+    databaseUrl: pick('GLAB_DATABASE_URL'),
     channels: {
       event: pick('GLAB_EVENT_CHANNEL_ID'),
       job: pick('GLAB_JOB_CHANNEL_ID'),

@@ -1,7 +1,8 @@
 // イベント / 就活カードの整形 + 日時入力パース。
 // コマンドハンドラと通知スケジューラの両方で使う。
 
-import type { EventRow, JobRow } from '../plugins/data.ts';
+import type { JobRow } from '../plugins/data.ts';
+import type { EventRow } from '../plugins/events/store.ts';
 
 function fmt(ts: number): string {
   const d = new Date(ts);

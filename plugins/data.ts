@@ -19,6 +19,7 @@ export interface SqlStatement {
 export interface SqlDb {
   prepare(sql: string): SqlStatement;
   exec(sql: string): unknown;
+  close?(): void;
 }
 
 export const GLAB_SCHEMA = `
@@ -28,23 +29,12 @@ CREATE TABLE IF NOT EXISTS glab_user (
     CHECK (attendance_status IN ('unknown', 'present', 'absent', 'late', 'excused')),
   created_at          INTEGER NOT NULL,
   updated_at          INTEGER NOT NULL,
-  updated_by          TEXT
+  updated_by          TEXT,
+  attendance_event_id INTEGER,
+  attendance_checked_in_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS glab_user_attendance_status
   ON glab_user(attendance_status, updated_at);
-
-CREATE TABLE IF NOT EXISTS glab_event (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  title         TEXT NOT NULL,
-  body          TEXT,
-  location      TEXT,
-  starts_at     INTEGER NOT NULL,
-  created_by    TEXT NOT NULL,
-  created_at    INTEGER NOT NULL,
-  notified_at   INTEGER,
-  discord_message_id TEXT
-);
-CREATE INDEX IF NOT EXISTS glab_event_starts ON glab_event(starts_at);
 
 CREATE TABLE IF NOT EXISTS glab_job (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,19 +50,8 @@ CREATE TABLE IF NOT EXISTS glab_job (
   deadline_notified_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS glab_job_status ON glab_job(status, deadline_at);
-`;
 
-export interface EventRow {
-  id: number;
-  title: string;
-  body: string | null;
-  location: string | null;
-  starts_at: number;
-  created_by: string;
-  created_at: number;
-  notified_at: number | null;
-  discord_message_id: string | null;
-}
+`;
 
 export const ATTENDANCE_STATUSES = [
   'unknown',
@@ -90,6 +69,8 @@ export interface GlabUserRow {
   created_at: number;
   updated_at: number;
   updated_by: string | null;
+  attendance_event_id: number | null;
+  attendance_checked_in_at: number | null;
 }
 
 export interface JobRow {
@@ -109,6 +90,37 @@ export interface JobRow {
 /** スキーマ初期化 (冪等)。 plugins は ctx.db で、 bot は自前接続で 1 度呼ぶ。 */
 export function ensureSchema(db: SqlDb): void {
   db.exec(GLAB_SCHEMA);
+  ensureAttendanceEventColumns(db);
+}
+
+function ensureAttendanceEventColumns(db: SqlDb): void {
+  ensureColumns(db, 'glab_user', [
+    ['attendance_event_id', 'INTEGER'],
+    ['attendance_checked_in_at', 'INTEGER'],
+  ]);
+}
+
+function ensureColumns(
+  db: SqlDb,
+  table: string,
+  columns: ReadonlyArray<readonly [name: string, sqlType: string]>,
+): void {
+  const present = (): Set<string> => new Set(
+    db.prepare(`PRAGMA table_info(${table})`).all()
+      .map((column) => (column as { name?: unknown }).name)
+      .filter((name): name is string => typeof name === 'string'),
+  );
+  let current = present();
+  for (const [name, sqlType] of columns) {
+    if (current.has(name)) continue;
+    try {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${sqlType}`);
+    } catch (error) {
+      current = present();
+      if (!current.has(name)) throw error;
+    }
+    current.add(name);
+  }
 }
 
 // ─── GLAB ユーザ / 現在の出席状況 ───────────────────────────
@@ -150,65 +162,32 @@ export function setAttendanceStatus(
      SET attendance_status = ?, updated_at = ?, updated_by = ?
      WHERE user_id = ?`,
   ).run(status, Date.now(), updatedBy, userId);
+  if (result.changes > 0 && status !== 'present') {
+    db.prepare(
+      `UPDATE glab_user
+       SET attendance_event_id = NULL, attendance_checked_in_at = NULL
+       WHERE user_id = ?`,
+    ).run(userId);
+  }
   return result.changes > 0 ? getGlabUser(db, userId) : null;
 }
 
-// ─── イベント ────────────────────────────────────────────────
-
-export interface NewEvent {
-  title: string;
-  body?: string | null;
-  location?: string | null;
-  startsAt: number;
-  createdBy: string;
-}
-
-export function createEvent(db: SqlDb, e: NewEvent): number {
-  const res = db
-    .prepare(
-      `INSERT INTO glab_event (title, body, location, starts_at, created_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    )
-    .run(e.title, e.body ?? null, e.location ?? null, e.startsAt, e.createdBy, Date.now());
-  return Number(res.lastInsertRowid);
-}
-
-/** 今後のイベント (starts_at >= now)。 includePast=true で全件。 */
-export function listEvents(db: SqlDb, includePast = false): EventRow[] {
-  if (includePast) {
-    return db.prepare(`SELECT * FROM glab_event ORDER BY starts_at DESC`).all() as EventRow[];
-  }
-  return db
-    .prepare(`SELECT * FROM glab_event WHERE starts_at >= ? ORDER BY starts_at ASC`)
-    .all(Date.now()) as EventRow[];
-}
-
-export function getEvent(db: SqlDb, id: number): EventRow | null {
-  return (db.prepare(`SELECT * FROM glab_event WHERE id = ?`).get(id) as EventRow) ?? null;
-}
-
-export function deleteEvent(db: SqlDb, id: number): boolean {
-  return db.prepare(`DELETE FROM glab_event WHERE id = ?`).run(id).changes > 0;
-}
-
-export function markEventNotified(db: SqlDb, id: number, discordMessageId: string | null): void {
-  db.prepare(`UPDATE glab_event SET notified_at = ?, discord_message_id = ? WHERE id = ?`).run(
-    Date.now(),
-    discordMessageId,
-    id,
-  );
-}
-
-/** 開始が now..now+windowMs に入り、 まだ通知していないイベント (リマインダ用)。 */
-export function eventsDueForReminder(db: SqlDb, windowMs: number): EventRow[] {
-  const now = Date.now();
-  return db
-    .prepare(
-      `SELECT * FROM glab_event
-       WHERE notified_at IS NULL AND starts_at >= ? AND starts_at <= ?
-       ORDER BY starts_at ASC`,
-    )
-    .all(now, now + windowMs) as EventRow[];
+export function markAttendanceForEvent(
+  db: SqlDb,
+  userId: string,
+  eventId: number,
+  checkedInAt = Date.now(),
+): GlabUserRow {
+  ensureGlabUser(db, userId);
+  db.prepare(
+    `UPDATE glab_user
+     SET attendance_status = 'present', updated_at = ?, updated_by = ?,
+         attendance_event_id = ?, attendance_checked_in_at = ?
+     WHERE user_id = ?`,
+  ).run(checkedInAt, userId, eventId, checkedInAt, userId);
+  const row = getGlabUser(db, userId);
+  if (!row) throw new Error('failed to record event attendance');
+  return row;
 }
 
 // ─── 就活情報 ────────────────────────────────────────────────
