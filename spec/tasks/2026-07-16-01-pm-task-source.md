@@ -2,7 +2,8 @@
 task: 01-pm-task-source
 project: GLAB
 kind: 設計相談
-status: pending
+status: delegated
+delegation_run_id: 14f09b4b-4518-444b-956e-a815896b236e
 created: 2026-07-16T00:00:00.000Z
 source_session: lictor-9747bcfe-3969-4e12-959d-6cf39d3287fc
 memoria_task_id: 534
