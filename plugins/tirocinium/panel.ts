@@ -46,19 +46,19 @@ function relationsFrom(value: unknown): Relation[] {
   return rows.flatMap((row) => {
     if (!row || typeof row !== 'object') return [];
     const item = row as Record<string, unknown>;
-    const type = item.relation_type;
+    const type = item.type;
     if (
-      typeof item.company_id !== 'string'
-      || typeof item.company_name !== 'string'
+      typeof item.companyId !== 'string'
+      || typeof item.companyName !== 'string'
       || (type !== 'desired' && type !== 'offer')
     ) return [];
     return [{
-      companyId: item.company_id,
-      companyName: item.company_name,
+      companyId: item.companyId,
+      companyName: item.companyName,
       industry: typeof item.industry === 'string' ? item.industry : '',
       type,
-      roleTitle: typeof item.role_title === 'string' ? item.role_title : '',
-      offeredOn: typeof item.offered_on === 'string' ? item.offered_on : null,
+      roleTitle: typeof item.roleTitle === 'string' ? item.roleTitle : '',
+      offeredOn: typeof item.offeredOn === 'string' ? item.offeredOn : null,
     }];
   });
 }
@@ -211,7 +211,7 @@ function renderSearchResults(
     desired.type = 'button';
     desired.addEventListener('click', async () => {
       desired.disabled = true;
-      const response = await saveRelation(ctx, company.id, 'desired', {});
+      const response = await saveRelation(ctx, company, 'desired', {});
       if (response.ok) {
         desired.textContent = '登録済み';
         await reload();
@@ -252,7 +252,7 @@ function toggleOfferForm(
   save.type = 'button';
   save.addEventListener('click', async () => {
     save.disabled = true;
-    const response = await saveRelation(ctx, company.id, 'offer', {
+    const response = await saveRelation(ctx, company, 'offer', {
       roleTitle: role.value.trim(),
       offeredOn: date.value || null,
     });
@@ -270,14 +270,18 @@ function toggleOfferForm(
 
 function saveRelation(
   ctx: PanelContext,
-  companyId: string,
+  company: Company,
   type: 'desired' | 'offer',
   body: { roleTitle?: string; offeredOn?: string | null },
 ): Promise<Response> {
-  return ctx.api(`/career-companies/${type}/${encodeURIComponent(companyId)}`, {
+  return ctx.api(`/career-companies/${type}/${encodeURIComponent(company.id)}`, {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      companyName: company.name,
+      industry: company.industry,
+      ...body,
+    }),
   });
 }
 

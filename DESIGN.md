@@ -3,11 +3,12 @@
 ## 1. 目的・スコープ
 
 学校組織 GLAB（Vantan Game Academy のゲーム制作ラボ）の運営を一箇所に集約する hub。
-対象機能は 11 個：集会出席管理 / 施設予約 / イベント通知 / 就活情報の投稿 / 志望・内定企業 / アンケート / ゲームレビュー / 動画レビュー / 議論 / 学習ビュー / LLM やりとり。
+対象機能は、集会出席管理 / 施設予約 / イベント通知 / 就活情報 / 志望・内定企業 /
+ゲームレビュー / ゲーム嗜好アンケート / 議論 / 学習ビュー / LLM やりとり。
 ユーザは Cernere で一元管理する。
 
 「小さく作る」方針：既存サービス（Aedilis / Cernere）で済むものは流用し、
-GLAB 固有のデータ（ユーザ参照・出席状況・イベント・就活情報・アンケート）と運用面（Discord）だけを自前で持つ。
+GLAB 固有のデータ（ユーザ参照・出席状況・イベント）と運用面（Discord）だけを自前で持つ。
 
 ## 2. アーキテクチャ
 
@@ -18,9 +19,9 @@ GLAB は **2 つのランタイム**からなる：
 2. **Discord Bot**（`bot/`）— discord.js Gateway 常時接続の別プロセス。日常運用面
    （イベント通知・就活投稿・LLM 対話）。
 
-両者は **同じ SQLite（`data/corpus.db`、WAL）** を共有する。これにより Web で登録した
-イベント/就活を Bot が通知し、Bot で投稿したものを Web で閲覧できる。スキーマとクエリは
-`plugins/data.ts` に一元化して齟齬を防ぐ（hub は `ctx.db`、Bot は better-sqlite3 で同ファイルを開く）。
+Web hubとBotはイベントだけを **GLAB PostgreSQL** で共有する。SQLite
+（`data/corpus.db`、WAL）は現在の出席状況とBot求人等のローカル運用データに限定する。
+在校生/OBの就活データとゲームレビュー回答はCernere共有schemaを使う。
 
 ```
         Cernere (認証)
@@ -33,11 +34,12 @@ Web hub (Corpus)   Discord Bot
   events ──────┼─────┤
   jobs ────────┘     │
   facility ─────────────► Aedilis (施設予約)
-  volputas ─────────────► Volputas (動画アップロード / 感情位置の記録)
+  volputas ─────────────► Volputas (ゲーム定性評価 / 嗜好アンケートUI)
   di ───────────────────► Di (議論 / 学習ビュー)
   tirocinium ────────────► Tr (企業検索 / 志望・内定企業)
         │            │
-        └─ data/corpus.db (WAL 共有) ─┘
+        ├─ GLAB PostgreSQL (イベント共有) ─┤
+        └─ data/corpus.db (出席 / Bot求人) ─┘
                      │
                      └──► LLM (claude-cli / anthropic)
 ```
@@ -46,42 +48,38 @@ Web hub (Corpus)   Discord Bot
 
 | id | 種別 | 内容 |
 |---|---|---|
-| `attendance` | 自前データ | Cernere `user_id` と現在の出席状況を `glab_user` に保管。本人表示 + admin 更新 |
-| `facility` | コネクタ | Aedilis `/api/facilities`・`/api/reservations` を中継。施設一覧 + 予約作成/取消 |
-| `events` | 自前データ | イベントの登録/一覧/削除。`glab_event` テーブル |
-| `jobs` | 自前データ | 就活情報の投稿/検索/クローズ。`glab_job` テーブル |
+| Corpus内蔵ステータス | コネクタ集約 | 各実モジュールが登録するCr / Os / Ae / Vo / Di / Trのhealth・versionを集約 |
+| `attendance` | 自前データ + コネクタ | 進行中イベント + Os passkey → Aedilis `/api/checkin/verify` で attestation 検証後に直近出席を`glab_user`へ記録 |
+| `facility` | コネクタ | Aedilis `/api/facilities`・`/api/reservations` をproject token付きで中継 |
+| `events` | 自前データ | GLAB PostgreSQLだけでイベントを登録/削除。施設名/IDと利用時間を保持 |
+| `jobs` | 自前データ + コネクタ | 求人情報の投稿/検索/クローズ (`glab_job`、Bot `/job` と共有)。本人の就活データは `/career` で Cernere `tirocinium_student_career` へ中継 |
 | `tirocinium` | コネクタ | Trの企業マスタを検索し、Cernere IDに紐づく志望企業、内定企業・職種・内定日を登録 |
-| `surveys` | 自前データ | Voluptas の設問モデル（尺度・単一選択・自由記述）を使うアンケート。Cernere `volputas_users.can_create_surveys` 保有者が作成し、単回答は更新、複数回答は履歴追加する。`glab_survey` / `glab_survey_submission` テーブル |
-| `volputas` | コネクタ | Volputas の死活を集約し、開発作品・市販作品のゲームレビューと、動画への感情・コメント配置を行う既存 Web UX を別タブで開く |
+| `volputas` | コネクタ | 唯一の「レビュー」パネル。Volputas設問とCernere回答をCorpus内の3タブで表示 |
 
-アンケートは Voluptas サービスへ接続せず、設問・回答モデルと回答体験を GLAB プラグインへ移植する。
-学校運営データを GLAB の認証・権限・SQLite に閉じ、Voluptas のプレイヤープロフィール分析とは分離するためである。
-作成権限だけは個人に紐づく認可属性なので Cernere `project_data_volputas_users` を正本とし、
-GLAB は project WebSocket の read grant で毎回確認する。Cernere が利用不能なら作成は fail-closed で拒否する。
+アンケート設問はVolputas、回答はCernereのTEXT/INTEGER正規化テーブルを正本とする。
+GLABはVolputasが本人向けにフィルタしたデータを中継し、Corpus内で表示・回答するだけとする。
 
-ゲームレビューと動画レビューは Volputas が正本であり、レビュー・動画・リアクション・Volputas JWT を GLAB に複製しない。
-GLAB は `VOLPUTAS_URL`（必要なら別途 `VOLPUTAS_WEB_URL`）から安全な遷移先を組み立て、
-ブラウザを Volputas の `/game-reviews/new` または `/video-reviews/new` へ直接遷移させる。大容量動画は GLAB を経由しない。
+企業の公開情報はTrが正本であり、GLABに複製しない。OB会社情報は
+`tirocinium_alumni_career`、在校生の就活データと公開フラグは
+`tirocinium_student_career`を使う。GLABは在校生schemaだけへ接続する。
 
-企業の公開情報は Tr が正本であり、GLAB に複製しない。志望企業・内定情報はCernere IDを本人アンカーにして
-Trへ保存する。GLABからの書込みは同一ホストの内部APIに限定し、ブラウザからCernere IDを指定させない。
-
-施設・動画レビューのコネクタは接続先未設定時も GLAB を停止せず、パネルが「未接続」を表示する
+施設・外部サービスのコネクタは接続先未設定時も GLAB を停止せず、パネルが「未接続」を表示する
 degraded モードで動く。設定値が存在するのに URL が不正な場合は起動時に拒否する。
 
 ## 4. データ共有（hub ↔ Bot）
 
-- スキーマ正本：`plugins/data.ts`（`glab_user` / イベント / 就活 / アンケートの `GLAB_SCHEMA` + 型 + クエリ関数）。
+- イベントのスキーマ正本：`plugins/events/store.ts`（GLAB PostgreSQL）。
+- SQLiteのスキーマ正本：`plugins/data.ts`（`glab_user` / Bot求人等）。
 - hub プラグインは `ensureSchema(ctx.db)`、Bot は `openSharedDb()` 内で `ensureSchema()` を呼ぶ
   （どちらが先に起動しても冪等）。
-- 二重通知防止：イベントは `notified_at`、就活締切は `deadline_notified_at` で既通知を管理。
+- 二重通知防止：PostgreSQLイベントは `notified_at`、Bot求人締切はSQLiteの `deadline_notified_at` で管理。
 - DB は構造的インターフェース `SqlDb` で受け、CorpusDb / better-sqlite3 の両方を満たす
   （import 結合を避ける）。
 
 ## 5. Discord Bot（bot/）
 
 - **Transport**：discord.js Gateway（常時接続。公開 URL / Interactions Endpoint 不要）。
-- **コマンド**：`/event add|list`、`/job add|list|close`、`/chat`。
+- **コマンド**：`/event list`、`/job add|list|close`、`/chat`。イベント作成は施設予約を必須にするWebへ一本化。
 - **LLM**：`bot/llm/` の `LlmClient` 抽象。backend = `claude-cli`（既定、Lictor/サブスク経由で
   API キー不要）/ `anthropic`（API 直叩き）/ `mock`。local（OpenAI 互換）は follow-up。
 - **通知スケジューラ**（`bot/notify/scheduler.ts`）：定期ポーリングで「もうすぐのイベント」
@@ -99,15 +97,16 @@ AES-256-GCM + scrypt）に保存する。平文 JSON を置かない。
   マシンごとに `npm run config-setup` を実行。
 - 読込順：env > 暗号化 config > 既定（`bot/config.ts`）。CI/上書きは env で。
 
-hub 側の通常起動はExcubitorが担当する。ExはCernere/Aedilis/Volputas/Di/Trのtopology envを解決し、
+hub 側の通常起動はExcubitorが担当する。ExはCernere/Aedilis/Volputas/Di/Trを起動し、Osは会場LANで起動する。
+各backendのhealthは`version`を返し、GLABの単一「ステータス」タブが接続先全件を表示する。
 GLAB起動ごとに生成したCernere project credentialとCernere admin IDをspawn envへ直接渡す。
 GLAB自身のInfisical（env-cli）経路は単独開発用フォールバックとして残す。
 
 ## 7. 認証
 
 Cernere（PASETO V4）。Web hub は Corpus が `requireAuth` で検証し、プラグインは
-`getIdentity(c)` で `userId / displayName / isAdmin` を得る。コネクタは受信した Bearer を
-そのまま Aedilis へ透過する（ユーザ権限を保存）。Discord Bot はメンバーの Discord ID を
+`getIdentity(c)` で `userId / displayName / isAdmin` を得る。Aedilisコネクタは受信user tokenを
+Corpus `TokenProvider`でAedilis向けproject tokenへ交換する。Discord Bot はメンバーの Discord ID を
 そのまま行為主体とする（v0.1 では Cernere との突合はしない）。
 
 ログインUIはGLAB内に埋め込み、Cernere frontendへredirectしない。Corpus backendは起動時に

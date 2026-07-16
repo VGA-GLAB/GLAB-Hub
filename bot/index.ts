@@ -2,7 +2,7 @@
 //
 // discord.js Gateway (常時接続) で起動し、 /event /job /chat を処理する。
 // 起動時に slash command 登録 + 通知スケジューラを開始。 設定は暗号化 config から
-// 読む (npm run config-setup)。 DB は Corpus hub と同じ corpus.db を WAL 共有する。
+// 読む (npm run config-setup)。イベントはGLAB PostgreSQL、Bot求人等はSQLiteを使う。
 
 import { Client, Events, GatewayIntentBits, MessageFlags } from 'discord.js';
 import { loadConfig } from './config.ts';
@@ -11,6 +11,10 @@ import { createLlmClient } from './llm/client.ts';
 import { ALL_COMMANDS, registerCommands } from './commands/registry.ts';
 import { startScheduler } from './notify/scheduler.ts';
 import type { CommandDeps } from './commands/types.ts';
+import {
+  closeEventStore,
+  initializeEventStore,
+} from '../plugins/events/store.ts';
 
 async function main(): Promise<void> {
   const cfg = loadConfig();
@@ -20,10 +24,13 @@ async function main(): Promise<void> {
   }
 
   const db = openSharedDb(cfg.dbPath);
+  await initializeEventStore(cfg.databaseUrl);
+  console.log('[glab-bot] PostgreSQL event store ready');
   const llm = createLlmClient(cfg);
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
   const deps: CommandDeps = { db, cfg, llm, client };
 
+  let stopScheduler: (() => void) | null = null;
   client.once(Events.ClientReady, async (c) => {
     console.log(`[glab-bot] logged in as ${c.user.tag} (LLM backend=${llm.backend})`);
     try {
@@ -31,7 +38,7 @@ async function main(): Promise<void> {
     } catch (e) {
       console.error('[glab-bot] command 登録に失敗:', e);
     }
-    startScheduler(client, db, cfg);
+    stopScheduler = startScheduler(client, db, cfg);
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
@@ -50,6 +57,15 @@ async function main(): Promise<void> {
       }
     }
   });
+
+  const shutdown = async (): Promise<void> => {
+    stopScheduler?.();
+    client.destroy();
+    db.close?.();
+    await closeEventStore();
+  };
+  process.once('SIGINT', () => void shutdown().finally(() => process.exit(0)));
+  process.once('SIGTERM', () => void shutdown().finally(() => process.exit(0)));
 
   await client.login(cfg.discordToken);
 }

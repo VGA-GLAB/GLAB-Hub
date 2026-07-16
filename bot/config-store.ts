@@ -14,14 +14,19 @@ import {
   type StoreOptions,
 } from '@ludiars/encrypted-config';
 
-/** 暗号化保存するキー (それ以外は plain 保存)。 */
-export const GLAB_BOT_SECRET_KEYS = new Set(['DISCORD_TOKEN', 'ANTHROPIC_API_KEY']);
+/** 暗号化保存するキー (それ以外は plain 保存)。 接続文字列は資格情報を含むため暗号化する。 */
+export const GLAB_BOT_SECRET_KEYS = new Set([
+  'DISCORD_TOKEN',
+  'ANTHROPIC_API_KEY',
+  'GLAB_DATABASE_URL',
+]);
 
 /** config-setup / 起動時に扱う全キー (表示順)。 */
 export const GLAB_BOT_CONFIG_KEYS: readonly string[] = [
   'DISCORD_TOKEN',
   'DISCORD_CLIENT_ID',
   'DISCORD_GUILD_ID',
+  'GLAB_DATABASE_URL',
   'GLAB_EVENT_CHANNEL_ID',
   'GLAB_JOB_CHANNEL_ID',
   'GLAB_ADMIN_USER_IDS',

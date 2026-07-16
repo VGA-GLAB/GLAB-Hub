@@ -1,4 +1,4 @@
-// jobs パネル — 就活情報の検索 / 一覧 + 投稿フォーム。
+// jobs パネル — 本人の就活データ (Cernere) + 求人情報の検索 / 一覧 / 投稿 (glab_job)。
 
 import {
   el,
@@ -8,6 +8,13 @@ import {
   requireVantanUserRegistration,
   type PanelContext,
 } from '../panel-kit.ts';
+
+interface StudentCareer {
+  desiredRole: string;
+  portfolioUrl: string;
+  careerNote: string;
+  isPublic: boolean;
+}
 
 interface JobView {
   id: number;
@@ -25,29 +32,75 @@ const DAY = 86_400_000;
 export async function mount(container: HTMLElement, ctx: PanelContext): Promise<void> {
   ensureStyles();
   if (!await requireVantanUserRegistration(container, ctx)) return;
+  container.innerHTML = '';
+  container.appendChild(el('h2', undefined, '💼 就活'));
 
+  const careerHost = el('div');
+  const jobsHost = el('div');
+  container.append(careerHost, jobsHost);
+  await Promise.all([
+    renderCareer(careerHost, ctx),
+    renderJobs(jobsHost, ctx),
+  ]);
+}
+
+// --- 本人データ (Cernere tirocinium_student_career) ---
+
+async function renderCareer(host: HTMLElement, ctx: PanelContext): Promise<void> {
+  const response = await ctx.api('/career');
+  if (!response.ok) {
+    host.appendChild(el('p', 'gl-notice gl-notice-error', 'Cernereの就活データを取得できません。'));
+    return;
+  }
+  const { career } = await response.json() as { career: StudentCareer };
+  const form = section('本人データ');
+  const desiredRole = input('希望職種', career.desiredRole);
+  const portfolioUrl = input('ポートフォリオURL', career.portfolioUrl);
+  const note = el('textarea', 'gl-textarea') as HTMLTextAreaElement;
+  note.placeholder = '就活メモ';
+  note.value = career.careerNote;
+  note.maxLength = 4_000;
+  const visibility = el('label', 'gl-row');
+  const isPublic = el('input') as HTMLInputElement;
+  isPublic.type = 'checkbox';
+  isPublic.checked = career.isPublic;
+  visibility.append(isPublic, document.createTextNode('Tr / GLAB内で公開する'));
+  const save = el('button', 'gl-btn', '保存');
+  const message = el('p', 'gl-muted');
+  save.onclick = async () => {
+    save.setAttribute('disabled', 'true');
+    const saved = await ctx.api('/career', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        desiredRole: desiredRole.value.trim(),
+        portfolioUrl: portfolioUrl.value.trim(),
+        careerNote: note.value.trim(),
+        isPublic: isPublic.checked,
+      }),
+    });
+    message.textContent = saved.ok ? '保存しました。' : `保存に失敗しました (${saved.status})。`;
+    save.removeAttribute('disabled');
+  };
+  form.body.append(desiredRole, portfolioUrl, note, visibility, save, message);
+  host.appendChild(form.wrap);
+}
+
+// --- 求人情報 (glab_job、Discord Bot /job と共有) ---
+
+async function renderJobs(host: HTMLElement, ctx: PanelContext): Promise<void> {
   let searchQ = '';
   let statusFilter: 'open' | 'all' = 'open';
 
   async function render(): Promise<void> {
-    container.innerHTML = '';
-    const head = el('div', 'gl-row');
-    head.appendChild(el('h2', undefined, '💼 就活情報'));
-    const refresh = el('button', 'gl-btn ghost', '更新');
-    refresh.onclick = () => void render();
-    head.appendChild(refresh);
-    container.appendChild(head);
+    host.innerHTML = '';
 
     // --- 投稿フォーム ---
     const formSec = section('就活情報を投稿');
-    const company = el('input', 'gl-input') as HTMLInputElement;
-    company.placeholder = '企業名 (必須)';
-    const position = el('input', 'gl-input') as HTMLInputElement;
-    position.placeholder = '募集 / 職種';
-    const category = el('input', 'gl-input') as HTMLInputElement;
-    category.placeholder = '業種 (例: ゲーム)';
-    const url = el('input', 'gl-input') as HTMLInputElement;
-    url.placeholder = 'URL';
+    const company = input('企業名 (必須)', '');
+    const position = input('募集 / 職種', '');
+    const category = input('業種 (例: ゲーム)', '');
+    const url = input('URL', '');
     const deadline = el('input', 'gl-input') as HTMLInputElement;
     deadline.type = 'datetime-local';
     const desc = el('textarea', 'gl-textarea') as HTMLTextAreaElement;
@@ -92,14 +145,12 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
     const row2 = el('div', 'gl-row');
     row2.append(url, deadline);
     formSec.body.append(row1, row2, desc, submit, msg);
-    container.appendChild(formSec.wrap);
+    host.appendChild(formSec.wrap);
 
-    // --- 検索 / フィルタ ---
-    const filterSec = section('一覧');
+    // --- 検索 / フィルタ + 一覧 ---
+    const filterSec = section('求人一覧');
     const filterRow = el('div', 'gl-row');
-    const searchBox = el('input', 'gl-input') as HTMLInputElement;
-    searchBox.placeholder = '企業 / 職種 / 本文を検索';
-    searchBox.value = searchQ;
+    const searchBox = input('企業 / 職種 / 本文を検索', searchQ);
     const searchBtn = el('button', 'gl-btn ghost', '検索');
     searchBtn.onclick = () => {
       searchQ = searchBox.value.trim();
@@ -110,7 +161,9 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
       statusFilter = statusFilter === 'open' ? 'all' : 'open';
       void render();
     };
-    filterRow.append(searchBox, searchBtn, toggle);
+    const refresh = el('button', 'gl-btn ghost', '更新');
+    refresh.onclick = () => void render();
+    filterRow.append(searchBox, searchBtn, toggle, refresh);
     filterSec.body.appendChild(filterRow);
 
     const params = new URLSearchParams();
@@ -124,44 +177,7 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
           filterSec.body.appendChild(el('p', 'gl-muted', '(該当する就活情報はありません)'));
         } else {
           const ul = el('ul', 'gl-list');
-          for (const job of jobs) {
-            const li = el('li');
-            const titleLine = el('div', 'gl-row');
-            const name = job.url ? (el('a') as HTMLAnchorElement) : el('strong');
-            if (job.url && name instanceof HTMLAnchorElement) {
-              name.href = job.url;
-              name.target = '_blank';
-              name.rel = 'noopener';
-            }
-            name.textContent = job.company;
-            titleLine.appendChild(name);
-            if (job.position) titleLine.appendChild(el('span', undefined, job.position));
-            if (job.category) titleLine.appendChild(el('span', 'gl-tag', job.category));
-            if (job.status === 'closed') titleLine.appendChild(el('span', 'gl-tag closed', '終了'));
-            li.appendChild(titleLine);
-
-            if (job.deadlineAt) {
-              const soon = job.deadlineAt - Date.now() < 3 * DAY;
-              li.appendChild(
-                el(
-                  'span',
-                  soon ? 'gl-tag soon' : 'gl-muted',
-                  `締切 ${fmtDateTime(job.deadlineAt)}`,
-                ),
-              );
-            }
-            if (job.body) li.appendChild(el('div', 'gl-muted', job.body));
-
-            if (job.status === 'open') {
-              const close = el('button', 'gl-btn ghost', '募集終了にする');
-              close.onclick = async () => {
-                const d = await ctx.api(`/${job.id}/close`, { method: 'POST' });
-                if (d.ok) await render();
-              };
-              li.appendChild(close);
-            }
-            ul.appendChild(li);
-          }
+          for (const job of jobs) ul.appendChild(jobRow(job, ctx, render));
           filterSec.body.appendChild(ul);
         }
       } catch {
@@ -170,8 +186,50 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
     } else {
       filterSec.body.appendChild(el('p', 'gl-muted', '就活情報を取得できませんでした。'));
     }
-    container.appendChild(filterSec.wrap);
+    host.appendChild(filterSec.wrap);
   }
 
   await render();
+}
+
+function jobRow(job: JobView, ctx: PanelContext, rerender: () => Promise<void>): HTMLLIElement {
+  const li = el('li');
+  const titleLine = el('div', 'gl-row');
+  const name = job.url ? (el('a') as HTMLAnchorElement) : el('strong');
+  if (job.url && name instanceof HTMLAnchorElement) {
+    name.href = job.url;
+    name.target = '_blank';
+    name.rel = 'noopener';
+  }
+  name.textContent = job.company;
+  titleLine.appendChild(name);
+  if (job.position) titleLine.appendChild(el('span', undefined, job.position));
+  if (job.category) titleLine.appendChild(el('span', 'gl-tag', job.category));
+  if (job.status === 'closed') titleLine.appendChild(el('span', 'gl-tag closed', '終了'));
+  li.appendChild(titleLine);
+
+  if (job.deadlineAt) {
+    const soon = job.deadlineAt - Date.now() < 3 * DAY;
+    li.appendChild(
+      el('span', soon ? 'gl-tag soon' : 'gl-muted', `締切 ${fmtDateTime(job.deadlineAt)}`),
+    );
+  }
+  if (job.body) li.appendChild(el('div', 'gl-muted', job.body));
+
+  if (job.status === 'open') {
+    const close = el('button', 'gl-btn ghost', '募集終了にする');
+    close.onclick = async () => {
+      const d = await ctx.api(`/${job.id}/close`, { method: 'POST' });
+      if (d.ok) await rerender();
+    };
+    li.appendChild(close);
+  }
+  return li;
+}
+
+function input(placeholder: string, value: string): HTMLInputElement {
+  const element = el('input', 'gl-input') as HTMLInputElement;
+  element.placeholder = placeholder;
+  element.value = value;
+  return element;
 }

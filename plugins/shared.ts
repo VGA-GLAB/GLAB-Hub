@@ -4,7 +4,13 @@
 // 走査) からはモジュールとして拾われない。 connector 系モジュール（施設）が
 // 共有する。
 
-import type { Context, ServiceConnector } from '../corpus/server/hub/sdk.ts';
+import { getUserToken } from '../corpus/server/hub/sdk.ts';
+import type {
+  Context,
+  ServiceConnector,
+  TokenProvider,
+} from '../corpus/server/hub/sdk.ts';
+import { DownstreamTokenError } from '../corpus/server/hub/tokens.ts';
 
 /**
  * 受信リクエストを ServiceConnector 越しに接続先サービスへ中継する。
@@ -18,11 +24,11 @@ export async function proxy(
   c: Context,
   conn: ServiceConnector,
   path: string,
+  tokenProvider: TokenProvider,
+  projectKey = conn.id,
 ): Promise<Response> {
   const method = c.req.method;
   const headers: Record<string, string> = {};
-  const auth = c.req.header('authorization');
-  if (auth) headers['authorization'] = auth;
 
   const init: RequestInit = { method, headers };
   if (method !== 'GET' && method !== 'HEAD' && method !== 'DELETE') {
@@ -33,8 +39,22 @@ export async function proxy(
   const search = new URL(c.req.url).search;
   let res: Response;
   try {
-    res = await conn.fetch(path + search, init);
+    res = await authorizedConnectorFetch(
+      c,
+      conn,
+      path + search,
+      tokenProvider,
+      projectKey,
+      init,
+    );
   } catch (e) {
+    if (e instanceof DownstreamTokenError) {
+      return Response.json({
+        error: 'downstream_token_unavailable',
+        connector: conn.id,
+        upstreamStatus: e.status,
+      }, { status: 502 });
+    }
     return new Response(
       JSON.stringify({ error: 'connector_error', connector: conn.id, detail: String(e) }),
       { status: 502, headers: { 'content-type': 'application/json' } },
@@ -47,4 +67,22 @@ export async function proxy(
       'content-type': res.headers.get('content-type') ?? 'application/json',
     },
   });
+}
+
+export async function authorizedConnectorFetch(
+  c: Context,
+  connector: ServiceConnector,
+  path: string,
+  tokenProvider: TokenProvider,
+  projectKey = connector.id,
+  init: RequestInit = {},
+): Promise<Response> {
+  const token = await tokenProvider.getDownstreamToken(getUserToken(c), {
+    service: connector.id,
+    projectKey,
+    baseUrl: connector.baseUrl,
+  });
+  const headers = new Headers(init.headers);
+  if (token) headers.set('authorization', `Bearer ${token}`);
+  return connector.fetch(path, { ...init, headers });
 }

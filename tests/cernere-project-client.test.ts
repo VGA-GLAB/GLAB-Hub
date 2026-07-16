@@ -12,10 +12,6 @@ import {
   translateVantanProfile,
   vantanUserInputSchema,
 } from '../plugins/vantan-user/profile-schema.ts';
-import {
-  CernereSurveyPermissionReader,
-  hasSurveyAuthoringPermission,
-} from '../plugins/surveys/permissions.ts';
 
 class FakeWebSocket implements WsLike {
   onopen: (() => void) | null = null;
@@ -151,36 +147,6 @@ describe('CernereProjectClient', () => {
     await writePromise;
   });
 
-  it('reads survey authoring permission from volputas_users by Cernere userId', async () => {
-    const sockets: FakeWebSocket[] = [];
-    client = new CernereProjectClient({
-      cernereBaseUrl: 'https://cernere.example.com',
-      clientId: 'glab-client',
-      clientSecret: 'secret',
-      fetchImpl: projectLoginFetch(),
-      createWebSocket: (url, protocols) => {
-        const socket = new FakeWebSocket(url, protocols);
-        sockets.push(socket);
-        return socket;
-      },
-    });
-    const permissions = new CernereSurveyPermissionReader(client);
-
-    const permissionPromise = permissions.canCreateSurveys('user-3');
-    await waitFor(() => sockets.length === 1);
-    const socket = sockets[0]!;
-    socket.connect();
-    await waitFor(() => socket.sent.length === 1);
-    const request = JSON.parse(socket.sent[0]!) as Record<string, unknown>;
-    assert.deepEqual(request.payload, {
-      userId: 'user-3',
-      targetProjectKey: 'volputas_users',
-      columns: ['can_create_surveys'],
-    });
-    socket.respond({ can_create_surveys: true });
-
-    assert.equal(await permissionPromise, true);
-  });
 });
 
 describe('vantan_user profile validation', () => {
@@ -200,10 +166,4 @@ describe('vantan_user profile validation', () => {
     });
   });
 
-  it('fails closed when survey authoring permission is absent or malformed', () => {
-    assert.equal(hasSurveyAuthoringPermission({ can_create_surveys: true }), true);
-    assert.equal(hasSurveyAuthoringPermission({ can_create_surveys: 'true' }), false);
-    assert.equal(hasSurveyAuthoringPermission({}), false);
-    assert.equal(hasSurveyAuthoringPermission(null), false);
-  });
 });

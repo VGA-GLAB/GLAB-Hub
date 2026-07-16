@@ -1,8 +1,9 @@
-// GLAB モジュール 4: 就活情報 (jobs)。
+// GLAB モジュール 4: 就活 (jobs)。
 //
-// 自前データ。 GLAB メンバーが就活情報 (企業 / 募集 / 締切 / URL) を投稿・共有する。
-// 投稿は Discord Bot (bot/) の /job からも行え、 締切が近い求人は Bot が #job へ
-// リマインドする (同じ DB を共有、 DESIGN.md §4)。 スキーマ / クエリは data.ts に集約。
+// 2 系統のデータを扱う:
+// - 求人情報 (glab_job、自前 SQLite): 投稿 / 検索 / クローズ。Discord Bot の /job と
+//   同じ DB を共有し、締切が近い求人は Bot が #job へリマインドする (DESIGN.md §4)。
+// - 本人の就活データ (`/career`): Cernere `tirocinium_student_career` が正本。
 
 import { Hono, getIdentity, cacheDisplayName } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusModule, CorpusContext, CorpusDb } from '../../corpus/server/hub/sdk.ts';
@@ -15,6 +16,9 @@ import {
   type JobRow,
   type JobQuery,
 } from '../data.ts';
+import { createCernereProjectClient } from '../cernere/create-client.ts';
+import { getStudentCareer, setStudentCareer } from './student-career-client.ts';
+import { studentCareerPatchSchema } from './student-career-schema.ts';
 
 function jobView(row: JobRow): Record<string, unknown> {
   return {
@@ -31,9 +35,7 @@ function jobView(row: JobRow): Record<string, unknown> {
   };
 }
 
-function makeRoutes(db: CorpusDb): Hono {
-  const r = new Hono();
-
+function makeJobRoutes(r: Hono, db: CorpusDb): void {
   // 求人一覧 (?status=open|closed|all、 ?category=、 ?q=)
   r.get('/', (c) => {
     const statusParam = c.req.query('status');
@@ -92,8 +94,31 @@ function makeRoutes(db: CorpusDb): Hono {
     closeJob(db, jobId);
     return c.json({ ok: true });
   });
+}
 
-  return r;
+function makeCareerRoutes(r: Hono, ctx: CorpusContext): void {
+  const client = createCernereProjectClient(ctx);
+
+  r.get('/career', async (c) => {
+    try {
+      return c.json({ career: await getStudentCareer(client, getIdentity(c).userId) });
+    } catch (error) {
+      ctx.logger.error(`student career read failed: ${errorMessage(error)}`);
+      return c.json({ error: 'cernere_unavailable' }, 503);
+    }
+  });
+
+  r.put('/career', async (c) => {
+    const parsed = studentCareerPatchSchema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: 'invalid_student_career' }, 400);
+    try {
+      await setStudentCareer(client, getIdentity(c).userId, parsed.data);
+      return c.json({ ok: true });
+    } catch (error) {
+      ctx.logger.error(`student career write failed: ${errorMessage(error)}`);
+      return c.json({ error: 'cernere_unavailable' }, 503);
+    }
+  });
 }
 
 const jobsModule: CorpusModule = {
@@ -102,10 +127,17 @@ const jobsModule: CorpusModule = {
   icon: '💼',
   setup(ctx: CorpusContext) {
     ensureSchema(ctx.db);
-    ctx.registerRoute(makeRoutes(ctx.db));
+    const routes = new Hono();
+    makeCareerRoutes(routes, ctx);
+    makeJobRoutes(routes, ctx.db);
+    ctx.registerRoute(routes);
     ctx.registerPanel({ title: '就活', icon: '💼' });
-    ctx.logger.info('jobs ready (own data, shared with Discord bot)');
+    ctx.logger.info('jobs ready (glab_job shared with Discord bot + career → Cernere)');
   },
 };
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 export default jobsModule;

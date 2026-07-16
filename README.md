@@ -8,21 +8,21 @@ GLAB 特化のプラグインパックと Discord Bot を載せた派生 hub。
 
 | 機能 | 実現方法 |
 |---|---|
-| 集会出席管理 | Web hub `attendance` → GLAB SQLite に `user_id` と現在の出席状況を保管 |
-| 施設予約 | Web hub `facility` → Aedilis の予約 API に接続 |
-| イベント通知 | Discord Bot `/event` + 定期リマインド（自前 DB、Web hub `events` と共有） |
+| 集会出席管理 | 進行中イベント + Os passkey検証後に、イベント名で出席表示 |
+| 施設予約 | 独立した施設予約パネルからAedilisの施設・予約を操作 |
+| イベント通知 | Web hubで施設名/ID・時間をGLABへ登録し、Discord Bot `/event list` + 定期リマインド（GLAB PostgreSQL共有） |
 | 就活情報の投稿 | Discord Bot `/job` + 締切リマインド（自前 DB、Web hub `jobs` と共有） |
 | 志望・内定企業 | Web hub `tirocinium` → Trの企業マスタを検索し、Cernere IDごとの志望企業・内定情報を登録 |
-| アンケート | Web hub `surveys` → Voluptas 互換の尺度・単一選択・自由記述、単回答/複数回答、Cernere 権限による作成 |
-| ゲームレビュー | Web hub `volputas` → 開発作品・市販作品の5段階評価とレビュー投稿を開く |
-| 動画レビュー | Web hub `volputas` → Volputas の動画アップロード・再生位置への感情記録 UX を開く |
+| レビュー | Web hub `volputas` → Volputasの設問を「ゲームレビュー」「ゲームアンケート」「ほかの人への質問」の3タブでCorpus表示 |
+| ステータス | 接続サービス（Cr / Ae / Vo / Di / Tr / Os）のhealthとバージョンを集約 |
 | Di | Web hub `di` → 「議論」「学習ビュー」のみを公開。議論開始時にCernere IDを監査用に関連付け |
 | LLM やりとり | Discord Bot `/chat`（claude-cli / anthropic 切替） |
 | ユーザ管理 | Cernere（Corpus が認証、初回アクセス時に名前・役職・学科を登録） |
 
-施設予約は **Aedilis** が真実の源（GLAB は接続して見せるだけ）。
-ユーザ参照・現在の出席状況・イベント・就活情報・アンケートは GLAB 自前の SQLite（`data/corpus.db`）に持ち、Web hub と Discord Bot が
-**同じ DB を WAL 共有**して双方向にやりとりする。
+施設予約は **Aedilis**、イベントは **GLAB PostgreSQL** が真実の源で、両機能は独立する。
+Web hubとDiscord Botは同じイベントストアを利用する。Cernere `user_id`参照と現在の
+出席状況、Botの求人投稿はGLAB SQLiteに保持する。在校生/OBの就活データとアンケート回答は
+**Cernere共有schema**、企業マスタと設問はそれぞれTr / Volputasを正本とする。
 
 ## 構成
 
@@ -30,8 +30,8 @@ GLAB 特化のプラグインパックと Discord Bot を載せた派生 hub。
 GLAB/
 ├── corpus/        # submodule (LUDIARS/Corpus、 触らない)
 ├── plugins/       # Web hub モジュールパック
-│   ├── attendance/  facility/  events/  jobs/  surveys/  tirocinium/  volputas/
-│   └── data.ts    # イベント / 就活 / アンケートの共有スキーマ + クエリ (bot と共用)
+│   ├── attendance/  facility/  events/  jobs/  tirocinium/  volputas/
+│   └── data.ts    # 出席・Bot求人等のSQLiteスキーマ
 ├── bot/           # Discord Bot (別プロセス、 独自 package)
 │   ├── commands/  llm/  notify/
 │   └── config-store.ts  # 暗号化 config (@ludiars/encrypted-config)

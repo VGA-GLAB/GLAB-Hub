@@ -1,5 +1,5 @@
 {
   "name": "glab-pack",
-  "description": "GLAB 運営プラグインパック — 初回プロフィール登録 + 出席 / 施設 / イベント / 就活 / 企業 / アンケート / ゲームレビュー / 動画レビュー / Di",
-  "modules": ["attendance", "di", "facility", "events", "jobs", "surveys", "tirocinium", "vantan-user", "volputas"]
+  "description": "GLAB 運営プラグインパック — 初回プロフィール登録 + 出席 / 施設 / イベント / 就活 / 企業 / Volputasレビュー / Di",
+  "modules": ["attendance", "di", "facility", "events", "jobs", "tirocinium", "vantan-user", "volputas"]
 }

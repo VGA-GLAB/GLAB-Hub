@@ -1,10 +1,11 @@
-import { Hono, HttpServiceConnector, getIdentity } from '../../corpus/server/hub/sdk.ts';
+import { Hono, getIdentity } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusContext, CorpusModule } from '../../corpus/server/hub/sdk.ts';
 import {
   createDiEntryPoints,
   normalizeDiBaseUrl,
   resolveDiLaunchUrl,
 } from './entry-points.ts';
+import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
 
 const diModule: CorpusModule = {
   id: 'di',
@@ -18,7 +19,7 @@ const diModule: CorpusModule = {
     ) ?? apiBaseUrl;
     const entryPoints = webBaseUrl ? createDiEntryPoints(webBaseUrl) : null;
 
-    ctx.registerConnector(new HttpServiceConnector({
+    ctx.registerConnector(new VersionedHttpServiceConnector({
       id: 'discutere',
       title: '議論・学習 (Di)',
       scope: 'multi',

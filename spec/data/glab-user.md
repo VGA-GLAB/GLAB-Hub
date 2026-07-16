@@ -17,6 +17,8 @@
 | `created_at` | INTEGER | NOT NULL | 初回アクセス時刻（epoch ms） |
 | `updated_at` | INTEGER | NOT NULL | 状況更新時刻（epoch ms） |
 | `updated_by` | TEXT | nullable | 最後に更新した admin の Cernere user_id |
+| `attendance_event_id` | INTEGER | nullable | 直近に出席した `glab_event.id` |
+| `attendance_checked_in_at` | INTEGER | nullable | Os attestation検証後の出席時刻（epoch ms） |
 
 初回アクセス時は `INSERT ... ON CONFLICT DO NOTHING` で `attendance_status=unknown` の行を確保する。
-現在状況だけを保持し、出席履歴や Cernere プロフィールの複製は行わない。
+現在状況と直近イベントだけを保持し、出席履歴や Cernere プロフィールの複製は行わない。

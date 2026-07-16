@@ -1,9 +1,3 @@
-export interface VolputasEntryPoints {
-  homeUrl: string;
-  videoReviewUrl: string;
-  gameReviewUrl: string;
-}
-
 export function normalizeHttpBaseUrl(value: string | undefined, envName: string): string | null {
   const candidate = value?.trim();
   if (!candidate) return null;
@@ -23,13 +17,4 @@ export function normalizeHttpBaseUrl(value: string | undefined, envName: string)
 
   url.pathname = `${url.pathname.replace(/\/+$/, '')}/`;
   return url.toString();
-}
-
-export function createVolputasEntryPoints(webBaseUrl: string): VolputasEntryPoints {
-  const baseUrl = new URL(webBaseUrl);
-  return {
-    homeUrl: baseUrl.toString(),
-    videoReviewUrl: new URL('video-reviews/new', baseUrl).toString(),
-    gameReviewUrl: new URL('game-reviews/new', baseUrl).toString(),
-  };
 }

@@ -7,6 +7,7 @@ import {
   vantanUserInputSchema,
 } from './profile-schema.ts';
 import { ensureGlabUser, ensureSchema } from '../data.ts';
+import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
 
 const vantanUserModule: CorpusModule = {
   id: 'vantan-user',
@@ -14,6 +15,13 @@ const vantanUserModule: CorpusModule = {
   icon: '👤',
   setup(ctx: CorpusContext) {
     ensureSchema(ctx.db);
+    ctx.registerConnector(new VersionedHttpServiceConnector({
+      id: 'cernere',
+      title: '認証 (Cernere / Cr)',
+      scope: 'multi',
+      baseUrl: ctx.env('CERNERE_BASE_URL') ?? '',
+      healthPath: '/health',
+    }));
     const client = createCernereProjectClient(ctx);
     const router = new Hono();
 

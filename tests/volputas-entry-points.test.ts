@@ -1,19 +1,15 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
-  createVolputasEntryPoints,
   normalizeHttpBaseUrl,
 } from '../plugins/volputas/entry-points.ts';
 
-describe('Volputas entry points', () => {
-  it('builds the review routes below the configured web root', () => {
-    const baseUrl = normalizeHttpBaseUrl('https://volputas.example/app', 'VOLPUTAS_WEB_URL');
-    assert.ok(baseUrl);
-    assert.deepEqual(createVolputasEntryPoints(baseUrl), {
-      homeUrl: 'https://volputas.example/app/',
-      videoReviewUrl: 'https://volputas.example/app/video-reviews/new',
-      gameReviewUrl: 'https://volputas.example/app/game-reviews/new',
-    });
+describe('Volputas API URL', () => {
+  it('normalizes the configured API root', () => {
+    assert.equal(
+      normalizeHttpBaseUrl('https://volputas.example/app', 'VOLPUTAS_URL'),
+      'https://volputas.example/app/',
+    );
   });
 
   it('treats an empty value as an intentionally unconfigured connector', () => {
@@ -23,15 +19,15 @@ describe('Volputas entry points', () => {
 
   it('rejects unsafe or ambiguous service URLs', () => {
     assert.throws(
-      () => normalizeHttpBaseUrl('javascript:alert(1)', 'VOLPUTAS_WEB_URL'),
+      () => normalizeHttpBaseUrl('javascript:alert(1)', 'VOLPUTAS_URL'),
       /HTTP or HTTPS/,
     );
     assert.throws(
-      () => normalizeHttpBaseUrl('https://user:pass@example.test/', 'VOLPUTAS_WEB_URL'),
+      () => normalizeHttpBaseUrl('https://user:pass@example.test/', 'VOLPUTAS_URL'),
       /credentials, query, or fragment/,
     );
     assert.throws(
-      () => normalizeHttpBaseUrl('https://example.test/?next=elsewhere', 'VOLPUTAS_WEB_URL'),
+      () => normalizeHttpBaseUrl('https://example.test/?next=elsewhere', 'VOLPUTAS_URL'),
       /credentials, query, or fragment/,
     );
   });

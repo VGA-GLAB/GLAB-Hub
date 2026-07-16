@@ -1,9 +1,10 @@
-import { Hono, HttpServiceConnector } from '../../corpus/server/hub/sdk.ts';
+import { Hono } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusContext, CorpusModule } from '../../corpus/server/hub/sdk.ts';
-import {
-  createVolputasEntryPoints,
-  normalizeHttpBaseUrl,
-} from './entry-points.ts';
+import { normalizeHttpBaseUrl } from './entry-points.ts';
+import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
+import { proxy } from '../shared.ts';
+
+const GLAB_SURVEYS_PATH = '/api/v1/integrations/glab/surveys';
 
 const volputasModule: CorpusModule = {
   id: 'volputas',
@@ -11,33 +12,37 @@ const volputasModule: CorpusModule = {
   icon: '📝',
   setup(ctx: CorpusContext) {
     const apiBaseUrl = normalizeHttpBaseUrl(ctx.env('VOLPUTAS_URL'), 'VOLPUTAS_URL');
-    const configuredWebBaseUrl = normalizeHttpBaseUrl(
-      ctx.env('VOLPUTAS_WEB_URL'),
-      'VOLPUTAS_WEB_URL',
-    );
-    const webBaseUrl = configuredWebBaseUrl ?? apiBaseUrl;
-    const entryPoints = webBaseUrl ? createVolputasEntryPoints(webBaseUrl) : null;
-
-    ctx.registerConnector(new HttpServiceConnector({
+    const connector = new VersionedHttpServiceConnector({
       id: 'volputas',
       title: 'レビュー (Volputas)',
       scope: 'multi',
       baseUrl: apiBaseUrl ?? '',
       healthPath: '/health',
-    }));
+    });
+    ctx.registerConnector(connector);
 
     const routes = new Hono();
-    routes.get('/entry-points', (c) => {
-      if (!entryPoints) {
-        return c.json({ error: 'volputas_unconfigured' }, 503);
-      }
-      return c.json(entryPoints);
-    });
+    routes.get('/surveys', (c) => proxy(
+      c, connector, GLAB_SURVEYS_PATH, ctx.tokenProvider, 'volputas',
+    ));
+    routes.get('/surveys/:id', (c) => proxy(
+      c,
+      connector,
+      `${GLAB_SURVEYS_PATH}/${encodeURIComponent(c.req.param('id'))}`,
+      ctx.tokenProvider,
+      'volputas',
+    ));
+    routes.put('/surveys/:id/response', (c) => proxy(
+      c,
+      connector,
+      `${GLAB_SURVEYS_PATH}/${encodeURIComponent(c.req.param('id'))}/response`,
+      ctx.tokenProvider,
+      'volputas',
+    ));
     ctx.registerRoute(routes);
     ctx.registerPanel({ title: 'レビュー', icon: '📝' });
-
     ctx.logger.info(
-      `game/video reviews → Volputas (${webBaseUrl ?? '未設定 = degraded'})`,
+      `survey catalog → Volputas, responses → Cernere (${apiBaseUrl ?? '未設定 = degraded'})`,
     );
   },
 };
