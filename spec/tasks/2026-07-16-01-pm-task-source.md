@@ -186,3 +186,27 @@ Calliope docs/design/glab-pm.md §H1 に裁定結果を追記して close しま
     同じ 2 ロールの confirmation に載せる。)
 
 **本タスクは close (done)。** 裁定結果は Calliope docs/design/glab-pm.md §H1 にも反映済み。
+
+## 最終裁定 (2026-07-17, neco — 並行裁定の競合解決)
+
+本設計相談は並行して 2 経路で実施され (本 md「提案」節と PR #13 `spec/faq/glab-pm-task-source.md`)、
+裁定が食い違ったため neco が最終裁定した。**以下が正であり、上記「裁定」節および PR #13 faq の
+個別裁定と矛盾する部分は本節が上書きする**:
+
+1. **タスク正本 = Actio コア `tasks` に `project_id` を新設** (group 代用はしない。PR #13 裁定を採用)。
+   - `tasks.project_id` の値は **GLAB `glab_project.id`** の不透明参照。PJ レジストリ正本は GLAB のまま、
+     Actio 側に project マスタは作らない。Calliope の `glab:<project_id>` scope と一致する。
+   - 学生の操作は **GLAB フロントの簡易 UI で完結** (学生は Actio UI を触らない)。
+2. **velocity = 申告 + 補完** (本 md 提案を採用)。E_t = 学生申告 (`estimated_minutes`)、
+   欠損は Calliope EstimationService (analogy→LLM) で補完 (必須入力化はしない)。
+   velocity = 完了実績 Θ_p (週次 rolling)、k_p 非適用 (k=1 + 広信頼帯 + 暫定表示)。
+3. **自律性 = プロデューサー + 総合ディレクター承認** (本 md R3 裁定を採用)。承認ゲートは
+   リスケ適用 + PJ スコープ判断のみ。**学生の裁量はある** — 自 PJ のタスク作成・編集・完了は
+   学生が GLAB 簡易 UI で自由に行える。ゲートするのは Calliope 発の書込だけ。
+   承認経路は GLAB Web hub 限定 (Cernere PASETO。Discord 承認は不可 — faq §0 の読みを維持)。
+
+参考 (本バックログ外の追加裁定、PR #13 faq より): Actio のモジュールリポジトリは全廃止し
+Actio 本体へ集約する方針 (Actio-SchoolModules は消滅)。本バックログでは扱わない。
+
+派生タスク: `Actio/spec/tasks/2026-07-17-01-glab-project-tasks.md` (tasks.project_id 新設 +
+外部 API tasks スコープ) を新設。GLAB-02 / Calliope-04 はこれを前提に更新済み。
