@@ -8,6 +8,8 @@
 // import 結合を避けるため、 DB は構造的な最小インターフェース (SqlDb) で受ける。
 // Corpus の CorpusDb も better-sqlite3 の Database もこれを満たす。
 
+import { randomUUID } from 'node:crypto';
+
 /** prepared statement の最小形。 */
 export interface SqlStatement {
   get(...params: unknown[]): unknown;
@@ -50,6 +52,32 @@ CREATE TABLE IF NOT EXISTS glab_job (
   deadline_notified_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS glab_job_status ON glab_job(status, deadline_at);
+
+CREATE TABLE IF NOT EXISTS glab_project (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  description TEXT,
+  status      TEXT NOT NULL DEFAULT 'active'
+    CHECK (status IN ('active', 'paused', 'closed')),
+  repo_url    TEXT,
+  created_at  INTEGER NOT NULL,
+  updated_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS glab_project_status ON glab_project(status, created_at);
+
+-- project_member は Cernere user_id の参照のみを持つ (氏名等の個人属性は複製しない。
+-- Cernere vantan_user が単一情報源。 表示名は corpus/server/db.ts の display-name
+-- キャッシュを別途引く)。 Actio 側 tasks.project_id はこの id を不透明参照するだけで、
+-- 逆方向 (このテーブルから Actio へ) のリンク列は持たない (最終裁定、pm-task-source.md)。
+CREATE TABLE IF NOT EXISTS glab_project_member (
+  project_id  TEXT NOT NULL REFERENCES glab_project(id),
+  user_id     TEXT NOT NULL,
+  role        TEXT NOT NULL DEFAULT 'member'
+    CHECK (role IN ('producer', 'member')),
+  created_at  INTEGER NOT NULL,
+  PRIMARY KEY (project_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS glab_project_member_user ON glab_project_member(user_id);
 
 `;
 
@@ -278,4 +306,141 @@ export function jobsDueForReminder(db: SqlDb, windowMs: number): JobRow[] {
        ORDER BY deadline_at ASC`,
     )
     .all(now, now + windowMs) as JobRow[];
+}
+
+// ─── 学生ゲーム制作 PJ レジストリ (glab_project / glab_project_member) ─────────
+//
+// Calliope docs/design/glab-pm.md §H2 の正本データ。 PJ 一件 = glab_project 一行。
+// id は Actio コア tasks.project_id から不透明参照される値なので、 連番ではなく
+// crypto.randomUUID() で発行する (Aedilis の予約 ID と同じ流儀)。
+// glab_project_member は Cernere user_id の参照のみを持ち、 氏名等は保持しない
+// (表示名は corpus/server/db.ts の getDisplayName キャッシュを別途引く)。
+
+export const PROJECT_STATUSES = ['active', 'paused', 'closed'] as const;
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
+
+export const PROJECT_MEMBER_ROLES = ['producer', 'member'] as const;
+export type ProjectMemberRole = (typeof PROJECT_MEMBER_ROLES)[number];
+
+export interface ProjectRow {
+  id: string;
+  name: string;
+  description: string | null;
+  status: ProjectStatus;
+  repo_url: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface ProjectMemberRow {
+  project_id: string;
+  user_id: string;
+  role: ProjectMemberRole;
+  created_at: number;
+}
+
+export interface ProjectWithMembers extends ProjectRow {
+  members: ProjectMemberRow[];
+}
+
+export interface NewProject {
+  name: string;
+  description?: string | null;
+  repoUrl?: string | null;
+}
+
+/** 部分更新入力。 未指定キーは既存値を保持する (呼び出し側で merge して渡すこと)。 */
+export interface ProjectPatch {
+  name: string;
+  description: string | null;
+  status: ProjectStatus;
+  repoUrl: string | null;
+}
+
+export function createProject(db: SqlDb, input: NewProject): ProjectRow {
+  const id = randomUUID();
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO glab_project (id, name, description, status, repo_url, created_at, updated_at)
+     VALUES (?, ?, ?, 'active', ?, ?, ?)`,
+  ).run(id, input.name, input.description ?? null, input.repoUrl ?? null, now, now);
+  const row = getProject(db, id);
+  if (!row) throw new Error('failed to create project');
+  return row;
+}
+
+export function getProject(db: SqlDb, id: string): ProjectRow | null {
+  return (db.prepare(`SELECT * FROM glab_project WHERE id = ?`).get(id) as ProjectRow) ?? null;
+}
+
+export interface ProjectQuery {
+  status?: ProjectStatus;
+}
+
+export function listProjects(db: SqlDb, query: ProjectQuery = {}): ProjectRow[] {
+  if (query.status) {
+    return db
+      .prepare(`SELECT * FROM glab_project WHERE status = ? ORDER BY created_at DESC`)
+      .all(query.status) as ProjectRow[];
+  }
+  return db
+    .prepare(`SELECT * FROM glab_project ORDER BY created_at DESC`)
+    .all() as ProjectRow[];
+}
+
+/** 呼び出し側が既存値と patch を merge した完全な値を渡す (read-modify-write)。 */
+export function updateProject(db: SqlDb, id: string, patch: ProjectPatch): ProjectRow | null {
+  const result = db.prepare(
+    `UPDATE glab_project
+     SET name = ?, description = ?, status = ?, repo_url = ?, updated_at = ?
+     WHERE id = ?`,
+  ).run(patch.name, patch.description, patch.status, patch.repoUrl, Date.now(), id);
+  return result.changes > 0 ? getProject(db, id) : null;
+}
+
+export function listProjectMembers(db: SqlDb, projectId: string): ProjectMemberRow[] {
+  return db
+    .prepare(`SELECT * FROM glab_project_member WHERE project_id = ? ORDER BY created_at ASC`)
+    .all(projectId) as ProjectMemberRow[];
+}
+
+/** メンバー追加、 既存なら role を更新する (upsert)。 */
+export function upsertProjectMember(
+  db: SqlDb,
+  projectId: string,
+  userId: string,
+  role: ProjectMemberRole,
+): ProjectMemberRow {
+  db.prepare(
+    `INSERT INTO glab_project_member (project_id, user_id, role, created_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(project_id, user_id) DO UPDATE SET role = excluded.role`,
+  ).run(projectId, userId, role, Date.now());
+  const row = db
+    .prepare(`SELECT * FROM glab_project_member WHERE project_id = ? AND user_id = ?`)
+    .get(projectId, userId) as ProjectMemberRow | undefined;
+  if (!row) throw new Error('failed to upsert project member');
+  return row;
+}
+
+export function removeProjectMember(db: SqlDb, projectId: string, userId: string): boolean {
+  return db
+    .prepare(`DELETE FROM glab_project_member WHERE project_id = ? AND user_id = ?`)
+    .run(projectId, userId).changes > 0;
+}
+
+function withMembers(db: SqlDb, row: ProjectRow): ProjectWithMembers {
+  return { ...row, members: listProjectMembers(db, row.id) };
+}
+
+export function getProjectWithMembers(db: SqlDb, id: string): ProjectWithMembers | null {
+  const row = getProject(db, id);
+  return row ? withMembers(db, row) : null;
+}
+
+export function listProjectsWithMembers(
+  db: SqlDb,
+  query: ProjectQuery = {},
+): ProjectWithMembers[] {
+  return listProjects(db, query).map((row) => withMembers(db, row));
 }
