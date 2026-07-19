@@ -12,3 +12,4 @@ bot/dist/
 bot/glab-bot.config.json
 bot/.env
 *.tsbuildinfo
+.claude/

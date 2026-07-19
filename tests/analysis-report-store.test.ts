@@ -15,7 +15,7 @@ function project(name = 'SampleGame'): ProjectRow {
 
 function summary(): object {
   const gaps = { missingInformation: [], missingImplementation: [] };
-  const narrative = (id: string, title: string) => ({ id, title, beginner: '要点', highResolution: '詳細', ...gaps });
+  const narrative = (id: string, title: string) => ({ id, title, summary: '一般読者向けの要点', ...gaps });
   const score = (label: string, value: number, marketAdvantage?: boolean, id?: string) => ({
     ...(id ? { id } : {}),
     label, score: value, maxScore: 10, rationale: '根拠', sourceRefs: ['spec/plan/review.md'], ...gaps,
@@ -23,7 +23,17 @@ function summary(): object {
     ...(marketAdvantage === undefined ? {} : { marketAdvantage }),
   });
   return {
-    schemaVersion: 2, project: 'SampleGame', generatedAt: '2026-07-19',
+    schemaVersion: 3, project: 'SampleGame', generatedAt: '2026-07-19',
+    executiveAudience: {
+      assumedAcademicDeviation: 50,
+      audience: '専門知識のない一般読者と高校生',
+      writingPolicy: ['結論から書く'],
+    },
+    overallAssessment: {
+      label: '条件付きで有望', score: 7, maxScore: 10, summary: '中心の遊びは成立している。',
+      strengths: ['遊びの核が明確'], priorityIssues: ['初見説明が不足'], confidence: '中',
+      sourceRefs: ['spec/plan/review.md'], ...gaps,
+    },
     executiveSummary: {
       'play-logic': narrative('play-logic', '遊びのロジック'), code: narrative('code', 'コード内容'),
       ux: narrative('ux', 'UX'), market: narrative('market', '市場分析'),
@@ -58,7 +68,10 @@ describe('Omnipotens analysis report store', () => {
       await writeFile(join(report, 'omnipotens-final.html'), '<!doctype html><title>Final</title>', 'utf8');
       await writeFile(join(report, 'stages', '01-play.html'), '<!doctype html><title>Play</title>', 'utf8');
 
-      assert.equal((await readAnalysisSummary(root, project())).project, 'SampleGame');
+      const loaded = await readAnalysisSummary(root, project());
+      assert.equal(loaded.project, 'SampleGame');
+      assert.equal(loaded.schemaVersion, 3);
+      assert.equal(loaded.overallAssessment.label, '条件付きで有望');
       assert.match(await readAnalysisHtml(root, project(), 'stages/01-play.html'), /Play/);
       await assert.rejects(() => readAnalysisHtml(root, project(), '../secret.html'), AnalysisReportError);
     } finally {

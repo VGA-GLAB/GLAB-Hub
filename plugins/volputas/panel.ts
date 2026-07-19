@@ -12,6 +12,7 @@ import {
   type SurveyQuestion,
   type SurveyView,
 } from './contracts.ts';
+import { createOmnipotensReviewSection } from './omnipotens-panel.ts';
 
 export async function mount(container: HTMLElement, ctx: PanelContext): Promise<void> {
   ensureStyles();
@@ -30,6 +31,8 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
     refresh.onclick = () => void render();
     header.appendChild(refresh);
     container.appendChild(header);
+
+    container.appendChild(await createOmnipotensReviewSection(ctx));
 
     const tabs = el('div', 'gl-survey-tabs');
     for (const category of SURVEY_CATEGORIES) {

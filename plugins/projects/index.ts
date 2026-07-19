@@ -103,7 +103,7 @@ function mergePatch(
 
 function makePanelRoutes(r: Hono, ctx: CorpusContext): void {
   const db = ctx.db;
-  const analysisRoot = ctx.env('GLAB_OMNIPOTENS_PROJECTS_ROOT');
+  const analysisRoot = ctx.env('GLAB_OMNIPOTENS_REVIEW_ROOT');
 
   r.get('/projects', (c) => {
     const statusParam = c.req.query('status');

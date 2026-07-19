@@ -1,4 +1,8 @@
-import { el, section, type PanelContext } from '../panel-kit.ts';
+import { el, section } from '../panel-kit.ts';
+
+export interface AnalysisApiClient {
+  api(path: string, init?: RequestInit): Promise<Response>;
+}
 
 interface ProjectOption {
   id: string;
@@ -8,8 +12,7 @@ interface ProjectOption {
 interface Narrative {
   id: string;
   title: string;
-  beginner: string;
-  highResolution: string;
+  summary: string;
   missingInformation: string[];
   missingImplementation: string[];
 }
@@ -32,6 +35,23 @@ interface ScoreRow {
 
 interface SummaryResponse {
   summary?: {
+    executiveAudience: {
+      assumedAcademicDeviation: 50;
+      audience: string;
+      writingPolicy: string[];
+    };
+    overallAssessment: {
+      label: string;
+      score: number;
+      maxScore: number;
+      summary: string;
+      strengths: string[];
+      priorityIssues: string[];
+      confidence: string;
+      sourceRefs: string[];
+      missingInformation: string[];
+      missingImplementation: string[];
+    };
     executiveSummary: Record<string, Narrative>;
     additionalAnalyses: Narrative[];
     aiFormatScores: ScoreRow[];
@@ -66,12 +86,25 @@ function gapList(title: string, items: string[]): HTMLElement {
 }
 
 function narrativeView(item: Narrative): HTMLElement {
-  const details = el('details', 'gl-bubble') as HTMLDetailsElement;
-  const heading = el('summary', undefined, item.title);
-  details.append(heading, el('h4', undefined, '学生・初学者向け'), el('p', undefined, item.beginner));
-  details.append(el('h4', undefined, '高解像度データ'), el('p', undefined, item.highResolution));
-  details.append(gapList('不足情報', item.missingInformation), gapList('不足実装', item.missingImplementation));
-  return details;
+  const card = el('article', 'gl-bubble');
+  card.append(el('h4', undefined, item.title), el('p', undefined, item.summary));
+  card.append(gapList('不足情報', item.missingInformation), gapList('不足実装', item.missingImplementation));
+  return card;
+}
+
+function overallAssessmentView(summary: NonNullable<SummaryResponse['summary']>): HTMLElement {
+  const item = summary.overallAssessment;
+  const card = el('article', 'gl-notice');
+  card.appendChild(el('h3', undefined, `総合評価：${item.label}`));
+  card.appendChild(el('p', undefined, `${item.score} / ${item.maxScore}`));
+  card.appendChild(el('p', undefined, item.summary));
+  card.appendChild(el('strong', undefined, '主な強み'));
+  card.appendChild(el('p', 'gl-muted', item.strengths.join('／')));
+  card.appendChild(el('strong', undefined, '優先して解く課題'));
+  card.appendChild(el('p', 'gl-muted', item.priorityIssues.join('／')));
+  card.appendChild(el('p', 'gl-muted', `評価の確度: ${item.confidence}`));
+  card.append(gapList('不足情報', item.missingInformation), gapList('不足実装', item.missingImplementation));
+  return card;
 }
 
 function scoreTable(title: string, rows: ScoreRow[], market: boolean): HTMLElement {
@@ -124,8 +157,8 @@ function ludusView(summary: NonNullable<SummaryResponse['summary']>): HTMLElemen
   return wrap;
 }
 
-export function createAnalysisSummarySection(projects: ProjectOption[], ctx: PanelContext): HTMLElement {
-  const current = section('Omnipotens 解析サマリ');
+export function createAnalysisSummarySection(projects: ProjectOption[], client: AnalysisApiClient): HTMLElement {
+  const current = section('Omnipotens プロジェクトレビュー');
   const controls = el('div', 'gl-row');
   const select = el('select', 'gl-select') as HTMLSelectElement;
   for (const project of projects) {
@@ -140,7 +173,7 @@ export function createAnalysisSummarySection(projects: ProjectOption[], ctx: Pan
     load.setAttribute('disabled', 'true');
     result.replaceChildren(el('p', 'gl-muted', '解析サマリを読み込み中…'));
     try {
-      const response = await ctx.api(`/projects/${encodeURIComponent(select.value)}/analysis-summary`);
+      const response = await client.api(`/projects/${encodeURIComponent(select.value)}/analysis-summary`);
       const payload = await response.json() as SummaryResponse;
       if (!response.ok || !payload.summary) {
         result.replaceChildren(el('p', 'gl-muted', payload.message ?? `解析結果を取得できませんでした (${response.status})。`));
@@ -154,11 +187,23 @@ export function createAnalysisSummarySection(projects: ProjectOption[], ctx: Pan
         link.rel = 'noopener noreferrer';
         result.appendChild(link);
       }
+      const audience = payload.summary.executiveAudience;
+      result.appendChild(el(
+        'p',
+        'gl-muted',
+        `一般読者・高校生向け（偏差値${audience.assumedAcademicDeviation}想定）: ${audience.audience}`,
+      ));
+      result.appendChild(overallAssessmentView(payload.summary));
+      result.appendChild(el('h3', undefined, '各項目のまとめ'));
       const directions = [
         ...Object.values(payload.summary.executiveSummary),
         ...payload.summary.additionalAnalyses,
       ];
       for (const direction of directions) result.appendChild(narrativeView(direction));
+      const boundary = el('div', 'gl-notice');
+      boundary.appendChild(el('h3', undefined, '各レイヤでの解析データは以下'));
+      boundary.appendChild(el('p', 'gl-muted', 'ここから先は、評価値、実装証拠、不足情報、不足実装をレイヤごとに表示します。'));
+      result.appendChild(boundary);
       result.append(scoreTable('遊びの構造スコア', payload.summary.playStructureScores, false));
       const simulation = payload.summary.uxEvaluation.publicResponseSimulation;
       result.appendChild(el('h3', undefined, 'UXスコア（AI平均反応シミュレーション）'));

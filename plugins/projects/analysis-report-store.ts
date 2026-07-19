@@ -13,7 +13,7 @@ const averageImprovementSchema = z.object({
   rationale: z.string(),
 }).strict();
 const narrativeSchema = z.object({
-  id: z.string(), title: z.string(), beginner: z.string(), highResolution: z.string(), ...gapFields,
+  id: z.string(), title: z.string(), summary: z.string(), ...gapFields,
 }).strict();
 const scoreSchema = z.object({
   label: z.string(), score: z.number().nonnegative(), maxScore: z.number().positive(), rationale: z.string(),
@@ -22,9 +22,25 @@ const scoreSchema = z.object({
 }).strict();
 const vitiaScoreSchema = scoreSchema.extend({ marketAdvantage: z.boolean() });
 const analysisSummarySchema = z.object({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(3),
   project: z.string(),
   generatedAt: z.string(),
+  executiveAudience: z.object({
+    assumedAcademicDeviation: z.literal(50),
+    audience: z.string(),
+    writingPolicy: z.array(z.string()).min(1),
+  }).strict(),
+  overallAssessment: z.object({
+    label: z.string(),
+    score: z.number().nonnegative(),
+    maxScore: z.number().positive(),
+    summary: z.string(),
+    strengths: z.array(z.string()).min(1),
+    priorityIssues: z.array(z.string()).min(1),
+    confidence: z.string(),
+    sourceRefs: z.array(z.string()),
+    ...gapFields,
+  }).strict().refine((value) => value.score <= value.maxScore),
   executiveSummary: z.object({
     'play-logic': narrativeSchema,
     code: narrativeSchema,
@@ -98,9 +114,9 @@ function projectSegments(project: ProjectRow): string[] {
   return segments;
 }
 
-async function reportDirectory(workspaceRoot: string | undefined, project: ProjectRow): Promise<string> {
-  if (!workspaceRoot?.trim()) throw new AnalysisReportError('not_configured', '解析レポートのルートが未設定です。');
-  const configuredRoot = resolve(workspaceRoot);
+async function reportDirectory(reviewRoot: string | undefined, project: ProjectRow): Promise<string> {
+  if (!reviewRoot?.trim()) throw new AnalysisReportError('not_configured', 'Omnipotens Reviewルートが未設定です。');
+  const configuredRoot = resolve(reviewRoot);
   let root: string;
   try {
     root = await realpath(configuredRoot);
@@ -132,10 +148,10 @@ async function boundedText(path: string, maximumBytes: number): Promise<string> 
 }
 
 export async function readAnalysisSummary(
-  workspaceRoot: string | undefined,
+  reviewRoot: string | undefined,
   project: ProjectRow,
 ): Promise<AnalysisSummary> {
-  const report = await reportDirectory(workspaceRoot, project);
+  const report = await reportDirectory(reviewRoot, project);
   try {
     const summaryPath = join(report, 'omnipotens-summary.json');
     if ((await lstat(summaryPath)).isSymbolicLink()) throw new Error('summary must not be a symbolic link');
@@ -153,7 +169,7 @@ export async function readAnalysisSummary(
 }
 
 export async function readAnalysisHtml(
-  workspaceRoot: string | undefined,
+  reviewRoot: string | undefined,
   project: ProjectRow,
   requestedPath: string,
 ): Promise<string> {
@@ -161,7 +177,7 @@ export async function readAnalysisHtml(
   if (portable !== 'omnipotens-final.html' && !/^stages\/[^/]+\.html$/u.test(portable)) {
     throw new AnalysisReportError('not_found', '指定された解析ページはありません。');
   }
-  const report = await reportDirectory(workspaceRoot, project);
+  const report = await reportDirectory(reviewRoot, project);
   try {
     const candidate = await realpath(join(report, ...portable.split('/')));
     if (!isInside(report, candidate)) throw new Error('outside report directory');
