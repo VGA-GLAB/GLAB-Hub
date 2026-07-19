@@ -16,19 +16,33 @@ function project(name = 'SampleGame'): ProjectRow {
 function summary(): object {
   const gaps = { missingInformation: [], missingImplementation: [] };
   const narrative = (id: string, title: string) => ({ id, title, beginner: '要点', highResolution: '詳細', ...gaps });
-  const score = (label: string, value: number, marketAdvantage?: boolean) => ({
+  const score = (label: string, value: number, marketAdvantage?: boolean, id?: string) => ({
+    ...(id ? { id } : {}),
     label, score: value, maxScore: 10, rationale: '根拠', sourceRefs: ['spec/plan/review.md'], ...gaps,
+    averageImprovement: { decision: value < 7 ? 'improve' : 'hold', proposal: value < 7 ? '平均的な改善' : '現状維持', rationale: 'スコアに基づく判断' },
     ...(marketAdvantage === undefined ? {} : { marketAdvantage }),
   });
   return {
-    schemaVersion: 1, project: 'SampleGame', generatedAt: '2026-07-19',
+    schemaVersion: 2, project: 'SampleGame', generatedAt: '2026-07-19',
     executiveSummary: {
       'play-logic': narrative('play-logic', '遊びのロジック'), code: narrative('code', 'コード内容'),
       ux: narrative('ux', 'UX'), market: narrative('market', '市場分析'),
     },
     additionalAnalyses: [], aiFormatScores: [score('整合性', 7)], vitiaScores: [score('訴求力', 8, true)],
+    uxEvaluation: {
+      publicResponseSimulation: { audienceModel: '一般的な初見プレイヤー', assumptions: ['主要導線を体験'], limitations: ['実測ではない'] },
+      scores: [
+        score('体験設計のコアと実装の方向一致', 7, undefined, 'core-implementation-alignment'),
+        score('表現の納得性・パフォーマンス', 6, undefined, 'expression-conviction-performance'),
+      ],
+    },
+    playStructureScores: [
+      score('発想', 8, undefined, 'idea'),
+      score('構造', 7, undefined, 'structure'),
+      score('量産性', 6, undefined, 'scalability'),
+    ],
     ludus: {
-      novelty: { score: 7, maxScore: 10, rationale: '新規性', sourceRefs: ['spec/plan/ludus.md'], ...gaps },
+      novelty: { score: 7, maxScore: 10, rationale: '新規性', sourceRefs: ['spec/plan/ludus.md'], averageImprovement: { decision: 'hold', proposal: '現状維持', rationale: 'スコアに基づく判断' }, ...gaps },
       recommendedImplementations: [{ title: '予告', dictionaryEntries: ['choice.telegraph'], proposal: '事前表示', uxConnection: '納得感', priority: '高', ...gaps }],
     },
   };

@@ -19,9 +19,15 @@ interface ScoreRow {
   score: number;
   maxScore: number;
   rationale: string;
+  sourceRefs: string[];
   marketAdvantage?: boolean;
   missingInformation: string[];
   missingImplementation: string[];
+  averageImprovement: {
+    decision: 'improve' | 'hold';
+    proposal: string;
+    rationale: string;
+  };
 }
 
 interface SummaryResponse {
@@ -30,6 +36,11 @@ interface SummaryResponse {
     additionalAnalyses: Narrative[];
     aiFormatScores: ScoreRow[];
     vitiaScores: ScoreRow[];
+    uxEvaluation: {
+      publicResponseSimulation: { audienceModel: string; assumptions: string[]; limitations: string[] };
+      scores: ScoreRow[];
+    };
+    playStructureScores: ScoreRow[];
     ludus: {
       novelty: Omit<ScoreRow, 'label' | 'marketAdvantage'>;
       recommendedImplementations: Array<{
@@ -68,7 +79,7 @@ function scoreTable(title: string, rows: ScoreRow[], market: boolean): HTMLEleme
   wrap.appendChild(el('h3', undefined, title));
   const table = el('table', 'gl-table');
   const head = el('tr');
-  for (const label of ['評価項目', 'スコア', '根拠', '不足情報', '不足実装']) head.appendChild(el('th', undefined, label));
+  for (const label of ['評価項目', 'スコア', '正直な診断', '判断', '平均的改善提案', '参照', '不足情報', '不足実装']) head.appendChild(el('th', undefined, label));
   const thead = el('thead');
   thead.appendChild(head);
   const tbody = el('tbody');
@@ -80,6 +91,9 @@ function scoreTable(title: string, rows: ScoreRow[], market: boolean): HTMLEleme
       name,
       el('td', undefined, `${row.score} / ${row.maxScore}`),
       el('td', undefined, row.rationale),
+      el('td', undefined, row.averageImprovement.decision === 'improve' ? '改善する' : '現状維持'),
+      el('td', undefined, `${row.averageImprovement.proposal}（${row.averageImprovement.rationale}）`),
+      el('td', undefined, row.sourceRefs.join('／')),
       el('td', undefined, row.missingInformation.join('／') || 'なし'),
       el('td', undefined, row.missingImplementation.join('／') || 'なし'),
     );
@@ -94,6 +108,7 @@ function ludusView(summary: NonNullable<SummaryResponse['summary']>): HTMLElemen
   const wrap = el('div');
   wrap.appendChild(el('h3', undefined, 'Ludus 新規性評価'));
   wrap.appendChild(el('p', undefined, `${summary.ludus.novelty.score} / ${summary.ludus.novelty.maxScore} — ${summary.ludus.novelty.rationale}`));
+  wrap.appendChild(el('p', undefined, `${summary.ludus.novelty.averageImprovement.decision === 'improve' ? '改善する' : '現状維持'}: ${summary.ludus.novelty.averageImprovement.proposal}（${summary.ludus.novelty.averageImprovement.rationale}）`));
   wrap.append(gapList('不足情報', summary.ludus.novelty.missingInformation), gapList('不足実装', summary.ludus.novelty.missingImplementation));
   wrap.appendChild(el('h3', undefined, '遊びの辞書からUXへつなぐ実装提案'));
   for (const item of summary.ludus.recommendedImplementations) {
@@ -144,6 +159,12 @@ export function createAnalysisSummarySection(projects: ProjectOption[], ctx: Pan
         ...payload.summary.additionalAnalyses,
       ];
       for (const direction of directions) result.appendChild(narrativeView(direction));
+      result.append(scoreTable('遊びの構造スコア', payload.summary.playStructureScores, false));
+      const simulation = payload.summary.uxEvaluation.publicResponseSimulation;
+      result.appendChild(el('h3', undefined, 'UXスコア（AI平均反応シミュレーション）'));
+      result.appendChild(el('p', undefined, `想定する大衆像: ${simulation.audienceModel}`));
+      result.appendChild(el('p', 'gl-muted', `前提: ${simulation.assumptions.join('／')}　限界: ${simulation.limitations.join('／')}`));
+      result.append(scoreTable('UXの2軸', payload.summary.uxEvaluation.scores, false));
       result.append(scoreTable('AI Format スコア', payload.summary.aiFormatScores, false));
       result.append(scoreTable('Vitia 市場性スコア（高い順）', payload.summary.vitiaScores, true));
       result.append(ludusView(payload.summary));

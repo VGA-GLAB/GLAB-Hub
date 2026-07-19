@@ -7,16 +7,22 @@ const gapFields = {
   missingInformation: z.array(z.string()),
   missingImplementation: z.array(z.string()),
 };
+const averageImprovementSchema = z.object({
+  decision: z.enum(['improve', 'hold']),
+  proposal: z.string(),
+  rationale: z.string(),
+}).strict();
 const narrativeSchema = z.object({
   id: z.string(), title: z.string(), beginner: z.string(), highResolution: z.string(), ...gapFields,
 }).strict();
 const scoreSchema = z.object({
   label: z.string(), score: z.number().nonnegative(), maxScore: z.number().positive(), rationale: z.string(),
   sourceRefs: z.array(z.string()), ...gapFields,
+  averageImprovement: averageImprovementSchema,
 }).strict();
 const vitiaScoreSchema = scoreSchema.extend({ marketAdvantage: z.boolean() });
 const analysisSummarySchema = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   project: z.string(),
   generatedAt: z.string(),
   executiveSummary: z.object({
@@ -28,10 +34,27 @@ const analysisSummarySchema = z.object({
   additionalAnalyses: z.array(narrativeSchema),
   aiFormatScores: z.array(scoreSchema).min(1),
   vitiaScores: z.array(vitiaScoreSchema).min(1),
+  uxEvaluation: z.object({
+    publicResponseSimulation: z.object({
+      audienceModel: z.string(),
+      assumptions: z.array(z.string()).min(1),
+      limitations: z.array(z.string()).min(1),
+    }).strict(),
+    scores: z.tuple([
+      scoreSchema.extend({ id: z.literal('core-implementation-alignment') }),
+      scoreSchema.extend({ id: z.literal('expression-conviction-performance') }),
+    ]),
+  }).strict(),
+  playStructureScores: z.tuple([
+    scoreSchema.extend({ id: z.literal('idea') }),
+    scoreSchema.extend({ id: z.literal('structure') }),
+    scoreSchema.extend({ id: z.literal('scalability') }),
+  ]),
   ludus: z.object({
     novelty: z.object({
       score: z.number().nonnegative(), maxScore: z.number().positive(), rationale: z.string(),
       sourceRefs: z.array(z.string()), ...gapFields,
+      averageImprovement: averageImprovementSchema,
     }).strict(),
     recommendedImplementations: z.array(z.object({
       title: z.string(), dictionaryEntries: z.array(z.string()), proposal: z.string(), uxConnection: z.string(),
