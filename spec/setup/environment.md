@@ -25,6 +25,7 @@ GLAB は 2 系統の設定を持つ：**hub** は通常Excubitor spawn env（単
 | `DISCUTERE_URL` | （空 = degraded） | | Di API の内部 base URL（Ex topology は `http://localhost:3110` を注入） |
 | `DISCUTERE_WEB_URL` | `DISCUTERE_URL` | | Di Web UI が API と別 origin の場合の public base URL |
 | `TIROCINIUM_URL` | （空 = degraded） | | Tr API の内部 base URL（Ex topology は `http://localhost:8084` を注入） |
+| `GLAB_OMNIPOTENS_PROJECTS_ROOT` | （空 = 解析閲覧無効） | | プロジェクト本体フォルダを直下に持つワークスペース。登録済みリポジトリ名からだけ参照し、worktreeや任意パスは受け付けない |
 
 ExはCernereの`POST /api/auth/project-launch-credential`をspawn直前に呼ぶ。Exが生成した
 secretはCernereで暗号化永続化され、GLAB子プロセスenvへだけ渡る。旧secretは次回起動時に

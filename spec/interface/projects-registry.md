@@ -26,6 +26,9 @@ Actio コア `tasks.project_id`（`Actio/spec/tasks/2026-07-17-01-glab-project-t
 |---|---|---|---|
 | GET | `/projects` | 認証済み全員 | 一覧（`?status=active\|paused\|closed` で絞込）。各要素に `members[]` を含む |
 | GET | `/projects/:id` | 認証済み全員 | 詳細 + メンバー |
+| GET | `/projects/:id/analysis-summary` | 認証済み全員 | 検証済み `report/omnipotens-summary.json` と最終レポートURL |
+| GET | `/projects/:id/analysis-files/omnipotens-final.html` | 認証済み全員 | Omnipotens最終HTML |
+| GET | `/projects/:id/analysis-files/stages/:file.html` | 認証済み全員 | 最終HTMLから参照する工程別HTML |
 | POST | `/projects` | admin | 新規登録 `{name, description?, repoUrl?}` |
 | PATCH | `/projects/:id` | admin | 部分更新 `{name?, description?, status?, repoUrl?}` |
 | PUT | `/projects/:id/members/:userId` | admin | メンバー割当/役割変更 `{role: 'producer'\|'member'}`（upsert） |
@@ -39,6 +42,12 @@ admin 判定は Corpus 既存の `requireAdmin`（Cernere `role`/`CORPUS_ADMIN_I
 v0.1 は運営者 (admin) のみが登録・編集・メンバー割当を行う。学生本人によるプロデューサー
 自己編集は follow-up（`pm-task-source.md` R3 系の"学生の裁量"は **タスク**操作の話であり、
 レジストリ自体の書込権限は別軸）。
+
+## Omnipotens解析レポート
+
+パネルではプロジェクト名を選択し、Omnipotensの解析サマリと最終HTMLを閲覧できる。HTMLを解析して値を推測せず、Omnipotensが検証・正規化した `report/omnipotens-summary.json` を唯一のサマリ入力とする。
+
+`GLAB_OMNIPOTENS_PROJECTS_ROOT` はプロジェクト本体フォルダ群の親だけを指定する。読取先は登録済み `repo_url` のリポジトリ名（無い場合はプロジェクト名）から決定し、任意パス、`..`、シンボリックリンク／ジャンクション、ルート外の実体、想定外のファイル種別を拒否する。未設定は503、未生成は404、契約不正は422を返す。
 
 ## 外部サービス向け read API（service token 認可）
 

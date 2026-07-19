@@ -11,6 +11,7 @@ import {
   requireVantanUserRegistration,
   type PanelContext,
 } from '../panel-kit.ts';
+import { createAnalysisSummarySection } from './analysis-summary-panel.ts';
 
 type ProjectStatus = 'active' | 'paused' | 'closed';
 type ProjectMemberRole = 'producer' | 'member';
@@ -80,6 +81,7 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
     if (projects.length === 0) {
       listSec.body.appendChild(el('p', 'gl-muted', '登録されたプロジェクトはありません。'));
     } else {
+      container.appendChild(createAnalysisSummarySection(projects, ctx));
       let knownUsers: KnownUser[] | null = null;
       if (ctx.identity.isAdmin) {
         const knownRes = await ctx.api('/known-users');

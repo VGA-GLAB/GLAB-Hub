@@ -40,6 +40,11 @@ import {
   type ProjectWithMembers,
 } from '../data.ts';
 import { requireServiceToken } from './service-auth.ts';
+import {
+  AnalysisReportError,
+  readAnalysisHtml,
+  readAnalysisSummary,
+} from './analysis-report-store.ts';
 
 const projectInputSchema = z.object({
   name: z.string().trim().min(1).max(200),
@@ -98,6 +103,7 @@ function mergePatch(
 
 function makePanelRoutes(r: Hono, ctx: CorpusContext): void {
   const db = ctx.db;
+  const analysisRoot = ctx.env('GLAB_OMNIPOTENS_PROJECTS_ROOT');
 
   r.get('/projects', (c) => {
     const statusParam = c.req.query('status');
@@ -112,6 +118,37 @@ function makePanelRoutes(r: Hono, ctx: CorpusContext): void {
     const found = getProjectWithMembers(db, c.req.param('id'));
     if (!found) return c.json({ error: 'not_found' }, 404);
     return c.json({ project: projectWithMembersView(db, found) });
+  });
+
+  r.get('/projects/:id/analysis-summary', async (c) => {
+    const project = getProject(db, c.req.param('id'));
+    if (!project) return c.json({ error: 'not_found' }, 404);
+    try {
+      const summary = await readAnalysisSummary(analysisRoot, project);
+      const reportUrl = new URL(c.req.url);
+      reportUrl.pathname = reportUrl.pathname.replace(/analysis-summary$/, 'analysis-files/omnipotens-final.html');
+      return c.json({ summary, reportUrl: `${reportUrl.pathname}${reportUrl.search}` });
+    } catch (error) {
+      if (!(error instanceof AnalysisReportError)) throw error;
+      const status = error.code === 'not_configured' ? 503 : error.code === 'not_found' ? 404 : 422;
+      return c.json({ error: error.code, message: error.message }, status);
+    }
+  });
+
+  r.get('/projects/:id/analysis-files/*', async (c) => {
+    const project = getProject(db, c.req.param('id'));
+    if (!project) return c.json({ error: 'not_found' }, 404);
+    try {
+      const html = await readAnalysisHtml(analysisRoot, project, c.req.param('*') ?? '');
+      c.header('content-type', 'text/html; charset=utf-8');
+      c.header('content-security-policy', "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src 'none'");
+      c.header('x-content-type-options', 'nosniff');
+      return c.body(html);
+    } catch (error) {
+      if (!(error instanceof AnalysisReportError)) throw error;
+      const status = error.code === 'not_configured' ? 503 : error.code === 'not_found' ? 404 : 422;
+      return c.json({ error: error.code, message: error.message }, status);
+    }
   });
 
   r.post('/projects', requireAdmin, async (c) => {
