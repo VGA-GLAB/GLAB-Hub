@@ -82,7 +82,7 @@ function eventForm(
   const startsAt = el('input', 'gl-input');
   startsAt.type = 'datetime-local';
   const facility = el('select', 'gl-select');
-  const placeholder = el('option', undefined, '使用施設を選択');
+  const placeholder = el('option', undefined, '使用施設 (任意)');
   placeholder.value = '';
   facility.appendChild(placeholder);
   appendFacilityGroup(facility, 'GLAB施設', catalog.items);
@@ -94,18 +94,32 @@ function eventForm(
     option.value = String(value);
     hours.appendChild(option);
   }
+  // 終日イベント: チェック時は開始日の 00:00〜23:59 を実施時間とし、 時間長 (hours) は無視する。
+  const allDay = el('input');
+  allDay.type = 'checkbox';
+  const allDayLabel = el('label', 'gl-check');
+  allDayLabel.append(allDay, ' 終日');
+  allDay.onchange = () => { hours.disabled = allDay.checked; };
   const description = el('textarea', 'gl-textarea');
   description.placeholder = '詳細 (任意)';
   const submit = el('button', 'gl-btn', 'イベントを登録');
   submit.type = 'button';
   const message = el('p', 'gl-muted');
   submit.onclick = () => {
-    if (!title.value.trim() || !startsAt.value || !facility.value) {
-      message.textContent = 'イベント名、開始日時、使用施設を選択してください。';
+    if (!title.value.trim() || !startsAt.value) {
+      message.textContent = 'イベント名、開始日時を入力してください。';
       return;
     }
-    const start = new Date(startsAt.value);
-    const end = new Date(start.getTime() + Number(hours.value) * 60 * 60 * 1_000);
+    let start: Date;
+    let end: Date;
+    if (allDay.checked) {
+      const base = new Date(startsAt.value);
+      start = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 0, 0, 0, 0);
+      end = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 23, 59, 59, 999);
+    } else {
+      start = new Date(startsAt.value);
+      end = new Date(start.getTime() + Number(hours.value) * 60 * 60 * 1_000);
+    }
     submit.disabled = true;
     message.textContent = 'イベントを登録中…';
     void ctx.api('/events', {
@@ -116,7 +130,7 @@ function eventForm(
         body: description.value || undefined,
         startsAt: start.toISOString(),
         endsAt: end.toISOString(),
-        facilityId: facility.value,
+        facilityId: facility.value || undefined,
       }),
     }).then(async (response) => {
       if (!response.ok) {
@@ -138,7 +152,7 @@ function eventForm(
     });
   };
   const row = el('div', 'gl-row');
-  row.append(title, startsAt, facility, hours, submit);
+  row.append(title, startsAt, facility, hours, allDayLabel, submit);
   if (!catalog.aedilisAvailable) {
     message.textContent = catalog.items.length > 0
       ? 'Aedilisに接続できないため、登録時の予約作成に失敗する可能性があります。'
