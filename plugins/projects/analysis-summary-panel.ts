@@ -9,12 +9,29 @@ interface ProjectOption {
   name: string;
 }
 
-interface Narrative {
+interface NarrativeV3 {
   id: string;
   title: string;
   summary: string;
   missingInformation: string[];
   missingImplementation: string[];
+}
+
+interface NarrativeV4 {
+  id: string;
+  title: string;
+  beginner: string;
+  highResolution: string;
+  missingInformation: string[];
+  missingImplementation: string[];
+}
+
+type SummaryProfile = 'beginner' | 'highResolution';
+
+interface AssessmentProfile {
+  summary: string;
+  strengths: string[];
+  priorityIssues: string[];
 }
 
 interface ScoreRow {
@@ -33,27 +50,18 @@ interface ScoreRow {
   };
 }
 
-interface SummaryResponse {
-  summary?: {
-    executiveAudience: {
-      assumedAcademicDeviation: 50;
-      audience: string;
-      writingPolicy: string[];
-    };
+interface SummaryBase {
+    project: string;
+    generatedAt: string;
     overallAssessment: {
       label: string;
       score: number;
       maxScore: number;
-      summary: string;
-      strengths: string[];
-      priorityIssues: string[];
       confidence: string;
       sourceRefs: string[];
       missingInformation: string[];
       missingImplementation: string[];
     };
-    executiveSummary: Record<string, Narrative>;
-    additionalAnalyses: Narrative[];
     aiFormatScores: ScoreRow[];
     vitiaScores: ScoreRow[];
     uxEvaluation: {
@@ -73,9 +81,46 @@ interface SummaryResponse {
         missingImplementation: string[];
       }>;
     };
-  };
+}
+
+interface SummaryV3 extends SummaryBase {
+    schemaVersion: 3;
+    executiveAudience: {
+      assumedAcademicDeviation: 50;
+      audience: string;
+      writingPolicy: string[];
+    };
+    overallAssessment: SummaryBase['overallAssessment'] & AssessmentProfile;
+    executiveSummary: Record<string, NarrativeV3>;
+    additionalAnalyses: NarrativeV3[];
+}
+
+interface SummaryV4 extends SummaryBase {
+    schemaVersion: 4;
+    overallAssessment: SummaryBase['overallAssessment'] & {
+      beginner: AssessmentProfile;
+      highResolution: AssessmentProfile;
+    };
+    executiveSummary: Record<string, NarrativeV4>;
+    additionalAnalyses: NarrativeV4[];
+}
+
+type AnalysisSummary = SummaryV3 | SummaryV4;
+type Narrative = NarrativeV3 | NarrativeV4;
+
+interface SummaryResponse {
+  summary?: AnalysisSummary;
   reportUrl?: string;
   message?: string;
+}
+
+function assessmentProfile(summary: AnalysisSummary, profile: SummaryProfile): AssessmentProfile {
+  if (summary.schemaVersion === 4) return summary.overallAssessment[profile];
+  return {
+    summary: summary.overallAssessment.summary,
+    strengths: summary.overallAssessment.strengths,
+    priorityIssues: summary.overallAssessment.priorityIssues,
+  };
 }
 
 function gapList(title: string, items: string[]): HTMLElement {
@@ -85,26 +130,76 @@ function gapList(title: string, items: string[]): HTMLElement {
   return wrap;
 }
 
-function narrativeView(item: Narrative): HTMLElement {
+function narrativeView(item: Narrative, profile: SummaryProfile): HTMLElement {
   const card = el('article', 'gl-bubble');
-  card.append(el('h4', undefined, item.title), el('p', undefined, item.summary));
+  const text = 'summary' in item ? item.summary : item[profile];
+  card.append(el('h4', undefined, item.title), el('p', undefined, text));
   card.append(gapList('不足情報', item.missingInformation), gapList('不足実装', item.missingImplementation));
   return card;
 }
 
-function overallAssessmentView(summary: NonNullable<SummaryResponse['summary']>): HTMLElement {
+function overallAssessmentView(summary: AnalysisSummary, profile: SummaryProfile): HTMLElement {
   const item = summary.overallAssessment;
+  const content = assessmentProfile(summary, profile);
   const card = el('article', 'gl-notice');
   card.appendChild(el('h3', undefined, `総合評価：${item.label}`));
   card.appendChild(el('p', undefined, `${item.score} / ${item.maxScore}`));
-  card.appendChild(el('p', undefined, item.summary));
+  card.appendChild(el('p', undefined, content.summary));
   card.appendChild(el('strong', undefined, '主な強み'));
-  card.appendChild(el('p', 'gl-muted', item.strengths.join('／')));
+  card.appendChild(el('p', 'gl-muted', content.strengths.join('／')));
   card.appendChild(el('strong', undefined, '優先して解く課題'));
-  card.appendChild(el('p', 'gl-muted', item.priorityIssues.join('／')));
+  card.appendChild(el('p', 'gl-muted', content.priorityIssues.join('／')));
   card.appendChild(el('p', 'gl-muted', `評価の確度: ${item.confidence}`));
   card.append(gapList('不足情報', item.missingInformation), gapList('不足実装', item.missingImplementation));
   return card;
+}
+
+function narratives(summary: AnalysisSummary): Narrative[] {
+  if (summary.schemaVersion === 4) {
+    return [...Object.values(summary.executiveSummary), ...summary.additionalAnalyses];
+  }
+  return [...Object.values(summary.executiveSummary), ...summary.additionalAnalyses];
+}
+
+function summaryProfileView(summary: AnalysisSummary, profile: SummaryProfile): HTMLElement {
+  const panel = el('div');
+  panel.dataset.profile = profile;
+  panel.hidden = summary.schemaVersion === 4 && profile === 'highResolution';
+  panel.appendChild(overallAssessmentView(summary, profile));
+  panel.appendChild(el('h3', undefined, '各項目のまとめ'));
+  for (const direction of narratives(summary)) panel.appendChild(narrativeView(direction, profile));
+  return panel;
+}
+
+function executiveSummaryView(summary: AnalysisSummary): HTMLElement {
+  const wrap = el('section');
+  wrap.appendChild(el('h3', undefined, 'エグゼクティブサマリ'));
+  if (summary.schemaVersion === 3) {
+    wrap.appendChild(summaryProfileView(summary, 'beginner'));
+    return wrap;
+  }
+
+  const controls = el('div', 'gl-row');
+  const beginner = el('button', 'gl-btn', '学生・初学者向け');
+  const highResolution = el('button', 'gl-btn ghost', '高解像度データ');
+  beginner.setAttribute('aria-selected', 'true');
+  highResolution.setAttribute('aria-selected', 'false');
+  const beginnerPanel = summaryProfileView(summary, 'beginner');
+  const highResolutionPanel = summaryProfileView(summary, 'highResolution');
+  const selectProfile = (profile: SummaryProfile): void => {
+    const isBeginner = profile === 'beginner';
+    beginner.setAttribute('aria-selected', String(isBeginner));
+    highResolution.setAttribute('aria-selected', String(!isBeginner));
+    beginner.className = isBeginner ? 'gl-btn' : 'gl-btn ghost';
+    highResolution.className = isBeginner ? 'gl-btn ghost' : 'gl-btn';
+    beginnerPanel.hidden = !isBeginner;
+    highResolutionPanel.hidden = isBeginner;
+  };
+  beginner.onclick = () => selectProfile('beginner');
+  highResolution.onclick = () => selectProfile('highResolution');
+  controls.append(beginner, highResolution);
+  wrap.append(controls, beginnerPanel, highResolutionPanel);
+  return wrap;
 }
 
 function scoreTable(title: string, rows: ScoreRow[], market: boolean): HTMLElement {
@@ -187,19 +282,7 @@ export function createAnalysisSummarySection(projects: ProjectOption[], client: 
         link.rel = 'noopener noreferrer';
         result.appendChild(link);
       }
-      const audience = payload.summary.executiveAudience;
-      result.appendChild(el(
-        'p',
-        'gl-muted',
-        `一般読者・高校生向け（偏差値${audience.assumedAcademicDeviation}想定）: ${audience.audience}`,
-      ));
-      result.appendChild(overallAssessmentView(payload.summary));
-      result.appendChild(el('h3', undefined, '各項目のまとめ'));
-      const directions = [
-        ...Object.values(payload.summary.executiveSummary),
-        ...payload.summary.additionalAnalyses,
-      ];
-      for (const direction of directions) result.appendChild(narrativeView(direction));
+      result.appendChild(executiveSummaryView(payload.summary));
       const boundary = el('div', 'gl-notice');
       boundary.appendChild(el('h3', undefined, '各レイヤでの解析データは以下'));
       boundary.appendChild(el('p', 'gl-muted', 'ここから先は、評価値、実装証拠、不足情報、不足実装をレイヤごとに表示します。'));

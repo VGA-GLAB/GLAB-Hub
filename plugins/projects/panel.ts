@@ -170,6 +170,11 @@ function projectCard(
     link.rel = 'noopener noreferrer';
     card.appendChild(link);
   }
+  const reviewLink = el('a', 'gl-btn ghost', 'Omnipotensレビューを見る') as HTMLAnchorElement;
+  reviewLink.href = `/api/x/projects/projects/${encodeURIComponent(project.id)}/analysis-files/omnipotens-final.html`;
+  reviewLink.target = '_blank';
+  reviewLink.rel = 'noopener noreferrer';
+  card.appendChild(reviewLink);
   card.appendChild(el('div', 'gl-muted', `登録: ${fmtDateTime(project.createdAt)}`));
 
   const memberList = el('ul', 'gl-list');

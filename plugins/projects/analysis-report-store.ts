@@ -12,8 +12,11 @@ const averageImprovementSchema = z.object({
   proposal: z.string(),
   rationale: z.string(),
 }).strict();
-const narrativeSchema = z.object({
+const narrativeV3Schema = z.object({
   id: z.string(), title: z.string(), summary: z.string(), ...gapFields,
+}).strict();
+const narrativeV4Schema = z.object({
+  id: z.string(), title: z.string(), beginner: z.string(), highResolution: z.string(), ...gapFields,
 }).strict();
 const scoreSchema = z.object({
   label: z.string(), score: z.number().nonnegative(), maxScore: z.number().positive(), rationale: z.string(),
@@ -21,33 +24,26 @@ const scoreSchema = z.object({
   averageImprovement: averageImprovementSchema,
 }).strict();
 const vitiaScoreSchema = scoreSchema.extend({ marketAdvantage: z.boolean() });
-const analysisSummarySchema = z.object({
-  schemaVersion: z.literal(3),
-  project: z.string(),
-  generatedAt: z.string(),
-  executiveAudience: z.object({
-    assumedAcademicDeviation: z.literal(50),
-    audience: z.string(),
-    writingPolicy: z.array(z.string()).min(1),
-  }).strict(),
-  overallAssessment: z.object({
-    label: z.string(),
-    score: z.number().nonnegative(),
-    maxScore: z.number().positive(),
-    summary: z.string(),
-    strengths: z.array(z.string()).min(1),
-    priorityIssues: z.array(z.string()).min(1),
-    confidence: z.string(),
-    sourceRefs: z.array(z.string()),
-    ...gapFields,
-  }).strict().refine((value) => value.score <= value.maxScore),
-  executiveSummary: z.object({
-    'play-logic': narrativeSchema,
-    code: narrativeSchema,
-    ux: narrativeSchema,
-    market: narrativeSchema,
-  }).strict(),
-  additionalAnalyses: z.array(narrativeSchema),
+const overallAssessmentFields = {
+  label: z.string(),
+  score: z.number().nonnegative(),
+  maxScore: z.number().positive(),
+  confidence: z.string(),
+  sourceRefs: z.array(z.string()),
+  ...gapFields,
+};
+const assessmentProfileSchema = z.object({
+  summary: z.string(),
+  strengths: z.array(z.string()).min(1),
+  priorityIssues: z.array(z.string()).min(1),
+}).strict();
+const executiveDirections = <T extends z.ZodType>(narrative: T) => z.object({
+  'play-logic': narrative,
+  code: narrative,
+  ux: narrative,
+  market: narrative,
+}).strict();
+const analysisLayerFields = {
   aiFormatScores: z.array(scoreSchema).min(1),
   vitiaScores: z.array(vitiaScoreSchema).min(1),
   uxEvaluation: z.object({
@@ -77,7 +73,40 @@ const analysisSummarySchema = z.object({
       priority: z.string(), ...gapFields,
     }).strict()).min(1),
   }).strict(),
+};
+const analysisSummaryV3Schema = z.object({
+  schemaVersion: z.literal(3),
+  project: z.string(),
+  generatedAt: z.string(),
+  executiveAudience: z.object({
+    assumedAcademicDeviation: z.literal(50),
+    audience: z.string(),
+    writingPolicy: z.array(z.string()).min(1),
+  }).strict(),
+  overallAssessment: z.object({
+    ...overallAssessmentFields,
+    summary: z.string(),
+    strengths: z.array(z.string()).min(1),
+    priorityIssues: z.array(z.string()).min(1),
+  }).strict().refine((value) => value.score <= value.maxScore),
+  executiveSummary: executiveDirections(narrativeV3Schema),
+  additionalAnalyses: z.array(narrativeV3Schema),
+  ...analysisLayerFields,
 }).strict();
+const analysisSummaryV4Schema = z.object({
+  schemaVersion: z.literal(4),
+  project: z.string(),
+  generatedAt: z.string(),
+  overallAssessment: z.object({
+    ...overallAssessmentFields,
+    beginner: assessmentProfileSchema,
+    highResolution: assessmentProfileSchema,
+  }).strict().refine((value) => value.score <= value.maxScore),
+  executiveSummary: executiveDirections(narrativeV4Schema),
+  additionalAnalyses: z.array(narrativeV4Schema),
+  ...analysisLayerFields,
+}).strict();
+const analysisSummarySchema = z.discriminatedUnion('schemaVersion', [analysisSummaryV3Schema, analysisSummaryV4Schema]);
 
 export type AnalysisSummary = z.infer<typeof analysisSummarySchema>;
 
