@@ -1,0 +1,39 @@
+# Excubitor catalog 断片 — GLAB 自身のサービス定義。
+# Excubitor が ${ARS_ROOT} 配下を走査して集積する
+# (Excubitor/catalog/FRAGMENTS.md 参照)。
+#
+# GLAB は VGA-GLAB organization のリポジトリで、下記の privileged fields を
+# 利用するため、Excubitor 側でこのリポジトリを明示的に信頼する必要がある。
+#   EXCUBITOR_ARS_ROOT=<workspace root>
+#   EXCUBITOR_TRUSTED_FRAGMENT_REPOS=GLAB
+services:
+  - code: glab
+    name: GLAB (学校運営 hub)
+    tier: saas
+    project_code: glab
+    component: server
+    port: 5187
+    repo: VGA-GLAB/GLAB-Hub
+    runtime: node
+    cwd: ${ARS_ROOT}/GLAB
+    command: npm run dev
+    allow_hot_reload: true
+    # GLAB は Corpus (submodule) を in-process 起動する派生 hub。
+    # Corpus プラグインが接続する実依存を起動順へ反映する。
+    depends_on: [cernere, cernere-frontend, aedilis, tirocinium, discutere, volputas, ostiarius]
+    autostart: false
+    env:
+      CORPUS_PUBLIC_URL: http://localhost:5187
+      CORPUS_TOKEN_MODE: cernere-project-token
+      GLAB_OMNIPOTENS_REVIEW_ROOT: ${ARS_ROOT}/Omnipotents/Review
+    required_env: [CERNERE_BASE_URL, CERNERE_FRONTEND_URL, CORPUS_PUBLIC_URL, CORPUS_TOKEN_MODE, GLAB_OMNIPOTENS_REVIEW_ROOT]
+    requires_secret:
+      - service: cernere
+        keys: [EXCUBITOR_CERNERE_CLIENT_ID, EXCUBITOR_CERNERE_CLIENT_SECRET]
+    cernere_launch_credentials:
+      target_project: glab
+    health:
+      type: tcp
+      interval_sec: 30
+    provides:
+      GLAB_URL: http://${host}:${port}
