@@ -12,6 +12,8 @@ import type {
 } from '../corpus/server/hub/sdk.ts';
 import { DownstreamTokenError } from '../corpus/server/hub/tokens.ts';
 
+const PRIVATE_NO_STORE = 'private, no-store';
+
 /**
  * 受信リクエストを ServiceConnector 越しに接続先サービスへ中継する。
  *
@@ -53,17 +55,27 @@ export async function proxy(
         error: 'downstream_token_unavailable',
         connector: conn.id,
         upstreamStatus: e.status,
-      }, { status: 502 });
+      }, {
+        status: 502,
+        headers: { 'cache-control': PRIVATE_NO_STORE },
+      });
     }
     return new Response(
       JSON.stringify({ error: 'connector_error', connector: conn.id, detail: String(e) }),
-      { status: 502, headers: { 'content-type': 'application/json' } },
+      {
+        status: 502,
+        headers: {
+          'cache-control': PRIVATE_NO_STORE,
+          'content-type': 'application/json',
+        },
+      },
     );
   }
   const text = await res.text();
   return new Response(text, {
     status: res.status,
     headers: {
+      'cache-control': PRIVATE_NO_STORE,
       'content-type': res.headers.get('content-type') ?? 'application/json',
     },
   });
