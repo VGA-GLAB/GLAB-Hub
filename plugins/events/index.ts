@@ -19,7 +19,7 @@ const eventInputSchema = z.object({
   body: z.string().max(4_000).optional(),
   startsAt: z.union([z.string(), z.number()]),
   endsAt: z.union([z.string(), z.number()]),
-  facilityId: z.string().trim().min(1).max(255),
+  facilityId: z.string().trim().max(255).optional(),
 }).strict();
 
 function eventView(row: EventRow): Record<string, unknown> {
@@ -116,28 +116,32 @@ export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient): Hon
       return c.json({ error: 'invalid_event_period' }, 400);
     }
 
-    let facility: GlabFacility | null;
-    try {
-      facility = await resolveFacility(c, aedilis, parsed.data.facilityId);
-    } catch (error) {
-      return error instanceof AedilisRequestError
-        ? aedilisFailure(error)
-        : c.json({ error: 'facility_lookup_failed' }, 502);
-    }
-    if (!facility) return c.json({ error: 'facility_not_found' }, 400);
+    // 施設は任意。 指定された場合のみ Aedilis で解決し、 施設予約を作成する。
+    const facilityIdInput = parsed.data.facilityId?.trim();
+    let facility: GlabFacility | null = null;
+    let reservationId: string | null = null;
+    if (facilityIdInput) {
+      try {
+        facility = await resolveFacility(c, aedilis, facilityIdInput);
+      } catch (error) {
+        return error instanceof AedilisRequestError
+          ? aedilisFailure(error)
+          : c.json({ error: 'facility_lookup_failed' }, 502);
+      }
+      if (!facility) return c.json({ error: 'facility_not_found' }, 400);
 
-    let reservationId: string;
-    try {
-      reservationId = await aedilis.createReservation(c, {
-        facilityId: facility.aedilisFacilityId,
-        startsAt,
-        endsAt,
-        purpose: parsed.data.title,
-      });
-    } catch (error) {
-      return error instanceof AedilisRequestError
-        ? aedilisFailure(error)
-        : c.json({ error: 'aedilis_reservation_failed' }, 502);
+      try {
+        reservationId = await aedilis.createReservation(c, {
+          facilityId: facility.aedilisFacilityId,
+          startsAt,
+          endsAt,
+          purpose: parsed.data.title,
+        });
+      } catch (error) {
+        return error instanceof AedilisRequestError
+          ? aedilisFailure(error)
+          : c.json({ error: 'aedilis_reservation_failed' }, 502);
+      }
     }
 
     let eventId: number;
@@ -145,15 +149,15 @@ export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient): Hon
       eventId = await events.create({
         title: parsed.data.title,
         body: parsed.data.body?.trim() || null,
-        location: facility.displayName,
+        location: facility?.displayName ?? null,
         startsAt,
         endsAt,
-        facilityId: facility.id,
+        facilityId: facility?.id ?? null,
         reservationId,
         createdBy: identity.userId,
       });
     } catch (error) {
-      await aedilis.cancelReservation(c, reservationId).catch(() => undefined);
+      if (reservationId) await aedilis.cancelReservation(c, reservationId).catch(() => undefined);
       throw error;
     }
     if (identity.displayName) cacheDisplayName(ctx.db, identity.userId, identity.displayName);
