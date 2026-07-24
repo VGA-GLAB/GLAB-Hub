@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build:corpus-web": "npm --prefix corpus run build:web",
-    "build:panels": "esbuild plugins/attendance/panel.ts plugins/di/panel.ts plugins/facility/panel.ts plugins/events/panel.ts plugins/jobs/panel.ts plugins/projects/panel.ts plugins/tirocinium/panel.ts plugins/vantan-user/panel.ts plugins/volputas/panel.ts --bundle --format=esm --target=es2020 --outdir=plugins --outbase=plugins --sourcemap",
+    "build:panels": "esbuild plugins/attendance/panel.ts plugins/cernere-admin/panel.ts plugins/di/panel.ts plugins/facility/panel.ts plugins/events/panel.ts plugins/jobs/panel.ts plugins/projects/panel.ts plugins/tirocinium/panel.ts plugins/vantan-user/panel.ts plugins/volputas/panel.ts --bundle --format=esm --target=es2020 --outdir=plugins --outbase=plugins --sourcemap",
     "build": "npm run build:corpus-web && npm run build:panels",
     "predev": "npm run build",
     "dev": "tsx watch --env-file-if-exists=.env.secrets --env-file-if-exists=.env server.ts",
