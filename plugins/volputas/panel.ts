@@ -209,7 +209,9 @@ function renderQuestion(question: SurveyQuestion, existing: string | number | un
   if (question.type === 'choice') {
     const select = el('select', 'gl-select');
     select.required = question.required;
-    select.appendChild(el('option', undefined, '選択してください'));
+    const placeholder = el('option', undefined, '選択してください');
+    placeholder.value = '';
+    select.appendChild(placeholder);
     for (const choice of question.options?.choices ?? []) {
       const option = el('option', undefined, choice);
       option.value = choice;
