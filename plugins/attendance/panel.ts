@@ -90,18 +90,6 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
         badge.appendChild(el('strong', undefined, '本日出席済み ✅'));
         badge.appendChild(el('span', 'gl-muted', ` (${fmtDateTime(u.updatedAt)})`));
         mine.body.appendChild(badge);
-      } else {
-        const cta = el('div', 'gl-row');
-        const btn = el('button', 'gl-btn', '本日の出席を記録');
-        btn.onclick = () => {
-          btn.disabled = true;
-          void ctx.api('/mine/checkin', { method: 'POST' })
-            .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return render(); })
-            .catch(() => { btn.disabled = false; });
-        };
-        cta.appendChild(btn);
-        cta.appendChild(el('span', 'gl-muted', '本日はまだ出席記録がありません。'));
-        mine.body.appendChild(cta);
       }
       mine.body.appendChild(attendanceRow(u, false, ctx, render, ctx.identity.displayName));
     }

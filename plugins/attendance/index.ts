@@ -64,7 +64,7 @@ function passthrough(response: Response, body: string): Response {
   });
 }
 
-function makeRoutes(
+export function makeRoutes(
   ctx: CorpusContext,
   ostiarius: VersionedHttpServiceConnector,
   aedilis: VersionedHttpServiceConnector,
@@ -129,16 +129,6 @@ function makeRoutes(
   router.get('/mine', async (c) => {
     const identity = getIdentity(c);
     return c.json({ user: await attendanceView(db, ensureGlabUser(db, identity.userId)) });
-  });
-
-  // 本人による出席記録 (self-service)。 管理者操作 (PUT /:userId/status) とは別に、
-  // ログイン中ユーザが自分の出席を 'present' として記録できる。
-  router.post('/mine/checkin', async (c) => {
-    const identity = getIdentity(c);
-    ensureGlabUser(db, identity.userId);
-    const updated = setAttendanceStatus(db, identity.userId, 'present', identity.userId);
-    if (!updated) return c.json({ error: 'not_found' }, 404);
-    return c.json({ ok: true, user: await attendanceView(db, updated) });
   });
 
   router.get('/list', requireAdmin, async (c) => {
