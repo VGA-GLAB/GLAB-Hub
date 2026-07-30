@@ -21,6 +21,7 @@ const HINTS: Record<string, string> = {
   GLAB_DATABASE_URL: 'GLABイベントの PostgreSQL URL (postgresql://...)',
   GLAB_EVENT_CHANNEL_ID: 'イベント通知チャンネル ID',
   GLAB_JOB_CHANNEL_ID: '就活情報チャンネル ID',
+  GLAB_REVIEW_CHANNEL_ID: '感想リレー通知チャンネル ID',
   GLAB_ADMIN_USER_IDS: 'admin ユーザ ID (カンマ区切り)',
   GLAB_LLM_BACKEND: 'LLM backend: claude-cli | anthropic | mock',
   GLAB_LLM_MODEL: 'LLM モデル (既定 claude-opus-4-8)',

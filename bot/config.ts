@@ -20,7 +20,7 @@ export interface BotConfig {
   dbPath: string;
   /** GLAB所有イベントのPostgreSQL。 */
   databaseUrl: string;
-  channels: { event: string; job: string };
+  channels: { event: string; job: string; review: string };
   /** admin 扱いする Discord ユーザ id。 */
   adminUserIds: string[];
   llm: {
@@ -74,6 +74,7 @@ export function loadConfig(): BotConfig {
     channels: {
       event: pick('GLAB_EVENT_CHANNEL_ID'),
       job: pick('GLAB_JOB_CHANNEL_ID'),
+      review: pick('GLAB_REVIEW_CHANNEL_ID'),
     },
     adminUserIds: pick('GLAB_ADMIN_USER_IDS')
       .split(',')

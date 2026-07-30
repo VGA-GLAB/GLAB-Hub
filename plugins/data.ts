@@ -115,17 +115,98 @@ export interface JobRow {
   deadline_notified_at: number | null;
 }
 
+/** Volputas から受け取り、Discord へ未投稿のコミュニティ感想。 */
+export interface ReviewRelayRow {
+  reviewId: string;
+  projectId: string | null;
+  gameTitle: string;
+  recommend: number | null;
+  excerpt: string;
+  author: string;
+  url: string;
+  createdAt: number;
+  postedAt: number | null;
+  messageId: string | null;
+}
+
 /** スキーマ初期化 (冪等)。 plugins は ctx.db で、 bot は自前接続で 1 度呼ぶ。 */
 export function ensureSchema(db: SqlDb): void {
   db.exec(GLAB_SCHEMA);
   ensureAttendanceEventColumns(db);
   ensureProjectGitHubColumns(db);
+  ensureReviewRelaySchema(db);
   db.exec(`CREATE TABLE IF NOT EXISTS glab_project_release (
     project_id TEXT NOT NULL REFERENCES glab_project(id), release_id INTEGER NOT NULL,
     tag TEXT NOT NULL, name TEXT NOT NULL, published_at TEXT NOT NULL, assets_json TEXT NOT NULL,
     synced_at INTEGER NOT NULL, notified_at INTEGER, PRIMARY KEY (project_id, release_id)
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS glab_project_release_project ON glab_project_release(project_id, published_at DESC)');
+}
+
+function ensureReviewRelaySchema(db: SqlDb): void {
+  db.exec(`CREATE TABLE IF NOT EXISTS glab_review_relay (
+    review_id TEXT PRIMARY KEY,
+    project_id TEXT NULL,
+    game_title TEXT NOT NULL,
+    recommend INTEGER NULL,
+    excerpt TEXT NOT NULL,
+    author TEXT NOT NULL,
+    url TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    posted_at INTEGER NULL,
+    message_id TEXT NULL
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS glab_review_relay_posted_at ON glab_review_relay(posted_at)');
+}
+
+export interface NewReviewRelay {
+  reviewId: string;
+  projectId: string | null;
+  gameTitle: string;
+  recommend: boolean | null;
+  excerpt: string;
+  author: string;
+  url: string;
+}
+
+/** review_id を一意キーにして、再送 webhook を安全に無視する。 */
+export function queueReviewRelay(db: SqlDb, review: NewReviewRelay): boolean {
+  const result = db.prepare(
+    `INSERT INTO glab_review_relay
+      (review_id, project_id, game_title, recommend, excerpt, author, url, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(review_id) DO NOTHING`,
+  ).run(
+    review.reviewId,
+    review.projectId,
+    review.gameTitle,
+    review.recommend === null ? null : review.recommend ? 1 : 0,
+    review.excerpt,
+    review.author,
+    review.url,
+    Date.now(),
+  );
+  return result.changes > 0;
+}
+
+/** 未投稿の感想を古い順に取得する。 */
+export function reviewsForNotification(db: SqlDb, limit = 10): ReviewRelayRow[] {
+  return db.prepare(
+    `SELECT review_id AS reviewId, project_id AS projectId, game_title AS gameTitle,
+      recommend, excerpt, author, url, created_at AS createdAt, posted_at AS postedAt,
+      message_id AS messageId
+     FROM glab_review_relay
+     WHERE posted_at IS NULL
+     ORDER BY created_at ASC
+     LIMIT ?`,
+  ).all(limit) as ReviewRelayRow[];
+}
+
+/** Discord API が成功を返した感想だけを投稿済みにする。 */
+export function markReviewRelayPosted(db: SqlDb, reviewId: string, messageId: string): void {
+  db.prepare(
+    'UPDATE glab_review_relay SET posted_at = ?, message_id = ? WHERE review_id = ?',
+  ).run(Date.now(), messageId, reviewId);
 }
 
 function ensureAttendanceEventColumns(db: SqlDb): void {

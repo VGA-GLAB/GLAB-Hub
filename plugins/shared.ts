@@ -12,7 +12,7 @@ import type {
 } from '../corpus/server/hub/sdk.ts';
 import { DownstreamTokenError } from '../corpus/server/hub/tokens.ts';
 
-const PRIVATE_NO_STORE = 'private, no-store';
+export const PRIVATE_NO_STORE = 'private, no-store';
 
 /**
  * 受信リクエストを ServiceConnector 越しに接続先サービスへ中継する。
