@@ -1,7 +1,7 @@
 # GLab コミュニティ活性化 統合設計 (v0.3 系)
 
 Status: approved (2026-07-30 neco 裁定、§6 参照。実装は Codex 委託)
-Date: 2026-07-30
+Date: 2026-07-30 (最終更新 2026-07-31 — §1.2 / §3.2 に P2 / P4a の実装確定事項を反映、§5 に進捗)
 発案: neco / 起草: Claude (4リポ並行調査に基づく)
 
 ---
@@ -13,9 +13,9 @@ GLab を「学生がゲームを作り・遊び・語る場」として活性化
 
 | # | 要件 | 正本データ | UI | 補助サービス |
 |---|---|---|---|---|
-| 1 | 遊んだゲームの感想投稿 (お勧め/しない付き) | Volputas (voices 拡張) | GLAB volputas プラグイン + Volputas SPA | Nuntius (Discord リレー) |
+| 1 | 遊んだゲームの感想投稿 (お勧め/しない付き) | Volputas (voices 拡張) | GLAB volputas プラグイン + Volputas SPA | GLab bot (Discord リレー) |
 | 2 | GLab ゲームリスト (ビルド配布/更新/リモートプレイ/感想) | GLAB `glab_project` 拡張 + GitHub | GLAB projects プラグイン拡張 | GitHub Actions (ビルド), Custos (リモートプレイ), Volputas (感想) |
-| 3 | インスタント相談チャンネル + おれひまフラグ | GLAB (チャンネル台帳) + Cernere (フラグ) | GLAB 新 consult プラグイン + Discord | GLab bot (フォーラムスレッド), Nuntius (メンション) |
+| 3 | インスタント相談チャンネル + おれひまフラグ | GLAB (チャンネル台帳) + Cernere (フラグ) | GLAB 新 consult プラグイン + Discord | GLab bot (フォーラムスレッド + メンション) |
 | 4 | テクニカル情報共有 (Memoria-Share) | GLAB 新 `glab_tech_link` | GLAB 新 tech-links プラグイン | Memoria (outbound アダプタ) |
 
 ### 全体データフロー
@@ -28,7 +28,7 @@ GLab を「学生がゲームを作り・遊び・語る場」として活性化
    │        ├ consult ──→ GLab bot ──→ Discord フォーラムスレッド
    │        └ tech-links (正本) ←── Memoria (5180) outbound アダプタ
    │
-   └ Discord ←─ Nuntius (感想リレー/おれひまメンション) ←─ Volputas/GLAB
+   └ Discord ←─ GLab bot (感想リレー/相談スレッド/おれひま招集) ←─ GLAB (Volputas から中継)
 ```
 
 ### 設計原則 (既存規約の継承)
@@ -72,20 +72,49 @@ GLab を「学生がゲームを作り・遊び・語る場」として活性化
 - 既存の不一致修正を同梱: `gameReview.js:63` の `volputas_web_game_review` と
   `mediaPolicy.js:105` の `volputas_web_review` の文字列不一致を解消。
 
-### 1.2 Discord リレー — Nuntius topics 経由
+### 1.2 Discord リレー — GLab bot 経由
 
-- 経路: Volputas 投稿完了 (visibility=community のみ) → **Nuntius `POST /api/topics/game-impressions/publish`**。
-  Concordia はセッション結合が重いため使わない。webhook URL 直持ちもしない
-  (Nuntius が credential を管理、`@everyone` 無効化・2000字切り詰めも既存)。
-- best-effort: リレー失敗で投稿本体のトランザクションを壊さない (GLab bot `postToChannel` と同方針)。
-- 二重送信防止: 感想レコードに `relayed_at` を持ち、送信成功時のみ更新
-  (GLab bot scheduler の `notified_at` パターン)。
-- 投稿フォーマット: ゲーム名 / お勧め・しない / 本文抜粋 / GLAB の該当ゲームページ URL。
-  Nuntius templates (`{{var}}`) で整形。
+**Nuntius は使わない** (neco 裁定 2026-07-31)。今後フォーラム操作も GLab bot に
+実装するため、**Discord への出口を GLab bot に一本化**する。
+
+- 経路:
+  ```
+  Volputas 投稿完了 (visibility=community のみ)
+    → POST {GLAB_URL}/api/x/volputas/external/review-relay  (X-Glab-Service-Token)
+    → GLAB hub が glab_review_relay に積む
+    → GLab bot の scheduler が posted_at IS NULL を拾って専用チャンネルへ投稿
+    → 投稿成功時のみ posted_at / message_id を更新
+  ```
+  hub と bot は別プロセスで `data/corpus.db` を WAL 共有しているため、既存の
+  「テーブルに積んで `notified_at` で二重防止」パターン (`bot/notify/scheduler.ts`) に乗る。
+- 認証: 外部サービス受け口の既存作法どおり `requireServiceToken`
+  (`X-Glab-Service-Token`、`timingSafeEqual`、**env 未設定は 503**)。
+  token は projects の外部 read API と同じ env `GLAB_PROJECTS_SERVICE_TOKEN` を再利用する
+  (受け口ごとの契約は `spec/interface/review-relay.md`)。
+- **冪等**: `glab_review_relay.review_id` を**主キー**にし `ON CONFLICT DO NOTHING`。
+  新規は 201 `{queued:true}`、再送は INSERT されず 200
+  `{queued:false, reason:'already-queued'}` を返す。Volputas 側の `relayed_at`
+  (送信成功時のみ更新) と合わせて**二重防御**。
+- best-effort: リレー失敗で投稿本体を壊さない。**表示名解決の失敗も含めて**
+  投稿レスポンスは 2xx を維持する。
+- 責務分界: Volputas は生データ (`recommend` は boolean|null) を送るだけで、
+  **日本語化・整形は表示側 = GLAB の `bot/format.ts`** が行う。
+- 投稿フォーマット: ゲーム名 / おすすめ・おすすめしない / 本文抜粋 /
+  投稿者 (匿名可) / GLAB の該当ゲームページ URL。**2,000 字を超えないよう切り詰める**
+  (削るのは可変長の本文だけで、投稿者と URL は常に残す)。
 - 投稿先チャンネル: **GLab 専用チャンネル** (neco 裁定)。Discutere の「ゲーム感想」
   カテゴリとは共用しない — Di は Di で収集チャンネルを用意するか、この専用チャンネルに
-  Di 側が相乗りする (Di 側の判断、この設計のスコープ外)。チャンネル ID は
-  GLab bot の暗号化 config (`bot/config.ts` の `channels` に `review` を追加) で持つ。
+  Di 側が相乗りする (Di 側の判断、この設計のスコープ外)。
+  チャンネル ID は **GLab bot の暗号化 config (`GLAB_REVIEW_CHANNEL_ID` → `channels.review`)**
+  が正本 (`npm run config-setup` で登録)。未設定なら投稿を試みず (起動時に警告 1 回)、
+  キューに滞留させる = 設定後に古い順から配信される (degraded)。
+- **メンション対策は多層**: ① Volputas 側で `@everyone`/`@here`/`<@…>` を
+  ゼロ幅スペースで中和 ② bot 投稿時に `allowedMentions: { parse: [] }` で
+  **Discord API レベルで全メンションを無効化**。②が本命で、①は保険。
+  `postToChannel` は `allowedMentions` をオプション引数で受けるよう拡張し、
+  既存の event/job 通知の挙動は変えない。
+- 設定: Volputas 側は `GLAB_URL` / `GLAB_SERVICE_TOKEN` の 2 キーのみ
+  (`NUNTIUS_*` は廃止)。
 
 ### 1.3 GLAB 側 UI
 
@@ -196,8 +225,9 @@ Unity bridge は製品ビルドから除外**。
   - 解決したら「解決済み」→ スレッドにタグ付与 + archive。
 - **Discord 投稿時のメンション制御**: 相談の title/body はユーザ入力なので、bot の投稿は
   `allowedMentions` で `@everyone`/`@here`/ロールメンションを無効化し、招集で組み立てた
-  個人メンション (users allowlist) のみ許可する。現状の `bot/channels.ts` の `postToChannel`
-  は `allowedMentions` を指定していないため、この経路を足す際に併せて明示指定を入れる。
+  個人メンション (users allowlist) のみ許可する。`bot/channels.ts` の `postToChannel` は
+  P2 で `allowedMentions` をオプション引数で受けるよう拡張済みなので、この経路でも明示指定する
+  (未指定時の既定は従来どおりで、event/job 通知の挙動は変わらない)。
 - 乱用防止: 1 ユーザあたりの相談作成レートを制限し (例 短時間の連続作成を拒否)、
   1 相談で組み立てる個人メンション数にも上限を設ける (超過分は表示名の列挙に落とす)。
 - **同期範囲は Phase 1 では片方向** (GLab → Discord 作成/状態変更 + Discord への深いリンク)。
@@ -214,22 +244,36 @@ Unity bridge は製品ビルドから除外**。
 - 時限式: `available_until` 経過後は自動的に非ひま扱い (読み出し時に判定、バッチ不要)。
 - 設定 UI: GLAB ヘッダに「おれひま」トグル (今から N 時間ひま)。
 - **相談作成時の招集フロー**:
-  1. GLAB が Cernere から `available_now` かつ期限内のユーザ一覧を取得
-  2. Discord メンションに解決して相談スレッドの初回投稿に含める → 通知が飛ぶ
-  3. メンション解決は Nuntius `discord-mentions.ts` (`<@id>` 解決) を利用
+  1. GLAB が Cernere の **`glab_presence.list_available`** (GLAB 限定 RPC、P4a で実装済み)
+     を呼ぶ。`available_now` かつ期限内のユーザだけが `{userId, displayName, discordId}`
+     で返る (期限判定は Cernere 側の SQL。バッチは無い)。
+  2. `discordId` を `<@id>` に組み立てて相談スレッドの初回投稿に含める → 通知が飛ぶ。
+     **未 link のユーザはメンションできない**ので表示名の列挙に落とす
+     (`toMentionTargets` が mentions と unlinked に分けて返す)。
+  3. Discord からの操作 (`/orehima`) は **`glab_presence.resolve_by_discord_id`** で
+     実行者を特定し、**`glab_presence.set_availability`** で Cernere を更新する。
+     GLAB Web と Discord のどちらから切り替えても**正本は Cernere の 1 系統**。
 - **Cernere ユーザ ⇔ Discord ユーザの連携を最初から実装する** (neco 裁定 —
   ロール方式 MVP は採らず、突合込みのフルセットで作る):
-  - **Cernere に `discord_id` 列 + Discord OAuth link を追加** (`google_id` の前例
-    `002_google_auth_and_password.sql` パターン)。Volputas の Discord OAuth identity source
-    (`src/config/index.js:132`) が org 内唯一の既存経路なので endpoint/設定の作りを流用。
-    link/unlink UI は Cernere のアカウント設定画面に置く (google link と同列)。
-  - GLAB は Cernere から「available_now かつ期限内」のユーザの `discord_id` を取得して
-    `<@id>` メンションを組み立てる (個人メンション)。未 link のひまユーザは
-    メンション不可なので、表示名の列挙 (メンションなし) で招集文面に含める。
-  - bot の `/orehima on|off [hours]` slash command も提供: bot は実行者の Discord user id
-    から Cernere `discord_id` 逆引きで user を特定し、GLAB external API 経由で
-    Cernere `available_now`/`available_until` を更新する (未 link なら link 手順を案内)。
-    これで GLAB Web と Discord のどちらから切り替えても**正本は Cernere の 1 系統**。
+  - **Cernere に `discord_id` 列 + Discord OAuth link を追加** — P4a で実装済み
+    (migration 037)。実装時の確定事項:
+    - **Discord のアクセストークンは保存しない** (用途は識別子の紐付けとメンション組み立て
+      だけなので、持つと攻撃面が増える)。`discord_id` と表示用 `discord_username` のみ。
+    - **Discord 単体でのサインアップは不可**。link 専用で、未 link の discord_id で
+      callback に来たらエラーにする (学内アカウントの正は GitHub/Google/passkey)。
+    - state は cookie `cernere_csrf_state` と**厳密一致必須**。link の宛先 userId は
+      URL (state) に載せず Redis `oauthlink:<state>` から引く。
+    - `discord_id` は `profile.get` には**足さない**。GLAB 限定 RPC 経由でのみ露出する
+      (全 project への無差別配布を避ける)。
+    - link/unlink UI は Cernere のアカウント設定画面 (`ProfilePage`) に
+      `LinkedAccountsSection` として追加。**最後のログイン手段を奪う unlink は 409 で拒否**。
+    - 併せて `/auth/link/:provider` と `/api/auth/unlink` を新規実装した
+      (frontend に呼び出しコードはあったがサーバルートが無いデッドコードだった)。
+  - bot の `/orehima on|off [hours]` slash command も提供 (上記フロー 3 の実体)。
+    bot は Cernere を直接叩かず **GLAB external API 経由**で
+    `glab_presence.resolve_by_discord_id` → `glab_presence.set_availability` を呼ぶ
+    (Cernere の GLAB 限定 RPC credential を bot 側に配らないため)。
+    未 link の実行者には link 手順を案内する。
 
 ---
 
@@ -282,12 +326,14 @@ glab_tech_link_comment: id / link_id / user_id / body / created_at   -- 解説/�
 
 ## 5. フェーズ分割
 
+状態: ✅ main マージ済み / 🔍 実装完了・レビュー待ち / 無印 未着手。
+
 | Phase | 内容 | 主リポ |
 |---|---|---|
-| **P1** | 感想投稿コア: voices 拡張 (recommend/glabProjectId/visibility) + 公開フィード API + GLAB 感想タブ | Volputas, GLAB |
-| **P2** | Discord リレー: Nuntius topic + relayed_at + GLab 専用チャンネル + 投稿フォーマット | Volputas, Nuntius |
-| **P3** | ゲームリスト基盤: GitHub client (public API + PAT) + 概要/メンバー自動取得 + Release 表示/直リンク配布 + 更新バッジ | GLAB |
-| **P4a** | Discord 連携基盤: Cernere `discord_id` + OAuth link + link/unlink UI | Cernere |
+| **P1** ✅ | 感想投稿コア: voices 拡張 (recommend/glabProjectId/visibility) + 公開フィード API + GLAB 感想タブ | Volputas, GLAB |
+| **P2** ✅ | Discord リレー: GLAB 受け口 + GLab bot 投稿 + relayed_at + GLab 専用チャンネル | Volputas, GLAB |
+| **P3** ✅ | ゲームリスト基盤: GitHub client (public API + PAT) + 概要/メンバー自動取得 + Release 表示/直リンク配布 + 更新バッジ | GLAB |
+| **P4a** 🔍 | Discord 連携基盤: Cernere `discord_id` + OAuth link/unlink + presence 列 + GLAB 限定 RPC | Cernere |
 | **P4b** | 相談チャンネル + v0.2 全実装: consult プラグイン + bot フォーラムスレッド + おれひま (Cernere 連携 + `/orehima`) + **v0.2 forum/roles/presence** (`glab-hub-v0.2-implementation.md` Phase 0-4。Phase 5 顔認証は着手ゲート下で対象外) | GLAB |
 | **P5** | テクニカル共有: tech-links プラグイン + Memoria outbound アダプタ + 削除同期 | GLAB, Memoria |
 | **P6** | リモートプレイ (後回し、neco 裁定): 占有制 + GLAB proxy + inAppBridge 入力 | GLAB, Custos |
@@ -298,6 +344,32 @@ P4a は P4b の前提 (おれひまの個人メンションが discord_id に依
 consult は v0.2 forum と**別物として設計**するが、**実装開始は v0.2 全実装と同時**
 (neco 裁定) — P4b にまとめる。
 各 Phase = 1 PR 集約 (リポをまたぐ場合はリポごとに 1 PR)。
+
+### 進捗 (2026-07-31 時点)
+
+- **P1 / P2 / P3 は main マージ済み** (GLAB: 設計書 → P3 → P1b → P2 GLAB 側、Volputas: P1a / P2 送信側)。
+- **P2 の GLAB 側**は受け口 (`/api/x/volputas/external/review-relay`)、`glab_review_relay`
+  テーブル、bot 投稿 (`channels.review` / `postToChannel` の `allowedMentions` 拡張) まで
+  実装済み (`spec/interface/review-relay.md`、`tests/review-relay-contract.test.ts`)。
+  あとは下表の運用設定 (`GLAB_PROJECTS_SERVICE_TOKEN` / `GLAB_REVIEW_CHANNEL_ID` /
+  Volputas 側 `GLAB_URL` / `GLAB_SERVICE_TOKEN`) が入れば Discord に流れる。
+- **P4a は Cernere 側で実装完了・レビュー待ち** (migration 037)。main マージはまだ。
+- **稼働前に必要な運用作業** (コードでは閉じない。未実施でも起動は落ちない:
+  Discord 連携とリレーが degraded になるだけ):
+
+  | 置き場所 | キー | 中身 |
+  |---|---|---|
+  | GLab bot 暗号化 config (`npm run config-setup`) | `DISCORD_TOKEN` / `DISCORD_CLIENT_ID` / `DISCORD_GUILD_ID` / `GLAB_EVENT_CHANNEL_ID` / `GLAB_JOB_CHANNEL_ID` | bot のログインと投稿先。**Infisical ではない** |
+  | 同上 | `GLAB_REVIEW_CHANNEL_ID` (`channels.review`) | 感想リレーの投稿先。未設定ならキューに滞留し、設定後に古い順から配信される |
+  | Infisical (Cernere) | `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` / `DISCORD_REDIRECT_URI` | OAuth 連携。bot と**同じ Discord アプリ**から取れる |
+  | Infisical (GLAB) | `GLAB_GITHUB_TOKEN` | public read のみ。未設定でも動く (60req/h に縮退) |
+  | Infisical (GLAB) | `GLAB_PROJECTS_SERVICE_TOKEN` | 外部受け口 (projects read / 感想リレー) 共通のトークン。**未設定だと受け口が 503** |
+  | Infisical (Volputas) | `GLAB_URL` / `GLAB_SERVICE_TOKEN` | リレー先。未設定ならリレーせず投稿だけ成立 |
+
+  Discord Developer Portal で**アプリを 1 つ**作れば、bot token (Bot タブ) と
+  OAuth client id/secret (OAuth2 タブ) の両方がそこから取れる。
+  bot には Manage Channels / Manage Threads 権限を付けておくと P4b の
+  フォーラム操作でそのまま使える。
 
 ---
 
@@ -327,7 +399,7 @@ consult は v0.2 forum と**別物として設計**するが、**実装開始は
 |---|---|---|---|
 | P1-a voices 拡張 + 公開フィード API | Volputas | gpt-5.6-sol | 既存レール (collectionRoutes/glabSurveys 対称) に乗る定型実装 |
 | P1-b 感想タブ + contracts | GLAB | gpt-5.6-sol | panel-kit/contracts の既存パターン踏襲 |
-| P2 Nuntius リレー + relayed_at | Volputas, Nuntius | gpt-5.6-sol | 送信 1 経路 + フラグ 1 列の小規模 |
+| P2 Discord リレー | Volputas + GLAB (Nuntius 廃止に伴い bot 経由へ作り替え、§1.2) | gpt-5.6-sol | 受け口 + キュー + bot 投稿 |
 | P3 GitHub client + Releases 表示 | GLAB | gpt-5.6-sol | public API read + キャッシュの定型 |
 | P4a discord_id + OAuth link | Cernere | **gpt-5.6-ultra** | 認証コア改修。セキュリティ影響大、既存 OAuth 経路との整合が必要 |
 | P4b consult + v0.2 forum/roles/presence + bot | GLAB | **gpt-5.6-ultra** | 最大規模。DB 設計 + bot + 可視性制御の横断整合 |
