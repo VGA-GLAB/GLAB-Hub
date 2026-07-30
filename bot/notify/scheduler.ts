@@ -7,6 +7,9 @@ import type { Client } from 'discord.js';
 import type { BotConfig } from '../config.ts';
 import {
   jobsDueForReminder,
+  getProject,
+  markProjectReleaseNotified,
+  releasesForNotification,
   markJobDeadlineNotified,
   type SqlDb,
 } from '../../plugins/data.ts';
@@ -33,6 +36,16 @@ export function startScheduler(client: Client, db: SqlDb, cfg: BotConfig): () =>
           `⏰ **締切が近い就活情報**\n${formatJobCard(job)}`,
         );
         markJobDeadlineNotified(db, job.id);
+      }
+      for (const release of releasesForNotification(db, 5)) {
+        const project = getProject(db, release.project_id);
+        if (!project) continue;
+        const messageId = await postToChannel(
+          client,
+          cfg.channels.event,
+          `🎮 **${project.name} ${release.tag} 公開！**\n配布を開始しました。`,
+        );
+        if (messageId) markProjectReleaseNotified(db, release.project_id, release.release_id);
       }
     } catch (e) {
       console.error('[glab-bot] scheduler tick error:', e);

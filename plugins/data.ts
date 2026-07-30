@@ -119,12 +119,27 @@ export interface JobRow {
 export function ensureSchema(db: SqlDb): void {
   db.exec(GLAB_SCHEMA);
   ensureAttendanceEventColumns(db);
+  ensureProjectGitHubColumns(db);
+  db.exec(`CREATE TABLE IF NOT EXISTS glab_project_release (
+    project_id TEXT NOT NULL REFERENCES glab_project(id), release_id INTEGER NOT NULL,
+    tag TEXT NOT NULL, name TEXT NOT NULL, published_at TEXT NOT NULL, assets_json TEXT NOT NULL,
+    synced_at INTEGER NOT NULL, notified_at INTEGER, PRIMARY KEY (project_id, release_id)
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS glab_project_release_project ON glab_project_release(project_id, published_at DESC)');
 }
 
 function ensureAttendanceEventColumns(db: SqlDb): void {
   ensureColumns(db, 'glab_user', [
     ['attendance_event_id', 'INTEGER'],
     ['attendance_checked_in_at', 'INTEGER'],
+  ]);
+}
+
+function ensureProjectGitHubColumns(db: SqlDb): void {
+  ensureColumns(db, 'glab_project', [
+    ['description_synced_at', 'INTEGER'],
+    ['description_manual', 'INTEGER NOT NULL DEFAULT 0'],
+    ['releases_synced_at', 'INTEGER'],
   ]);
 }
 
@@ -330,6 +345,20 @@ export interface ProjectRow {
   repo_url: string | null;
   created_at: number;
   updated_at: number;
+  description_synced_at?: number | null;
+  description_manual?: number;
+  releases_synced_at?: number | null;
+}
+
+export interface ProjectReleaseRow {
+  project_id: string;
+  release_id: number;
+  tag: string;
+  name: string;
+  published_at: string;
+  assets_json: string;
+  synced_at: number;
+  notified_at: number | null;
 }
 
 export interface ProjectMemberRow {
@@ -355,15 +384,16 @@ export interface ProjectPatch {
   description: string | null;
   status: ProjectStatus;
   repoUrl: string | null;
+  descriptionManual?: boolean;
 }
 
 export function createProject(db: SqlDb, input: NewProject): ProjectRow {
   const id = randomUUID();
   const now = Date.now();
   db.prepare(
-    `INSERT INTO glab_project (id, name, description, status, repo_url, created_at, updated_at)
-     VALUES (?, ?, ?, 'active', ?, ?, ?)`,
-  ).run(id, input.name, input.description ?? null, input.repoUrl ?? null, now, now);
+    `INSERT INTO glab_project (id, name, description, status, repo_url, description_manual, created_at, updated_at)
+     VALUES (?, ?, ?, 'active', ?, ?, ?, ?)`,
+  ).run(id, input.name, input.description ?? null, input.repoUrl ?? null, input.description ? 1 : 0, now, now);
   const row = getProject(db, id);
   if (!row) throw new Error('failed to create project');
   return row;
@@ -392,10 +422,62 @@ export function listProjects(db: SqlDb, query: ProjectQuery = {}): ProjectRow[] 
 export function updateProject(db: SqlDb, id: string, patch: ProjectPatch): ProjectRow | null {
   const result = db.prepare(
     `UPDATE glab_project
-     SET name = ?, description = ?, status = ?, repo_url = ?, updated_at = ?
+     SET name = ?, description = ?, status = ?, repo_url = ?, description_manual = ?, updated_at = ?
      WHERE id = ?`,
-  ).run(patch.name, patch.description, patch.status, patch.repoUrl, Date.now(), id);
+  ).run(patch.name, patch.description, patch.status, patch.repoUrl,
+    patch.descriptionManual ? 1 : 0, Date.now(), id);
   return result.changes > 0 ? getProject(db, id) : null;
+}
+
+/** GitHub 同期は、運営者が手動編集した説明を上書きしない。 */
+export function syncProjectGitHubDescription(db: SqlDb, id: string, description: string | null): void {
+  const now = Date.now();
+  db.prepare(
+    `UPDATE glab_project SET description = ?, description_synced_at = ?, updated_at = ?
+     WHERE id = ? AND COALESCE(description_manual, 0) = 0`,
+  ).run(description, now, now, id);
+}
+
+/**
+ * 初回同期で取り込んだ既存 Release は通知済みとして記録する。
+ * これをしないと、 登録済みリポジトリを初めて同期した時点で過去の Release が全部 Discord に流れる。
+ */
+export function storeProjectReleases(
+  db: SqlDb,
+  projectId: string,
+  releases: ReadonlyArray<{ releaseId: number; tag: string; name: string; publishedAt: string; assets: unknown }>,
+): void {
+  const syncedAt = Date.now();
+  const project = db.prepare('SELECT releases_synced_at FROM glab_project WHERE id = ?').get(projectId) as
+    { releases_synced_at?: number | null } | undefined;
+  const backfill = !project?.releases_synced_at;
+  for (const release of releases) {
+    db.prepare(
+      `INSERT INTO glab_project_release (project_id, release_id, tag, name, published_at, assets_json, synced_at, notified_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(project_id, release_id) DO UPDATE SET tag = excluded.tag, name = excluded.name,
+         published_at = excluded.published_at, assets_json = excluded.assets_json, synced_at = excluded.synced_at`,
+    ).run(projectId, release.releaseId, release.tag, release.name, release.publishedAt,
+      JSON.stringify(release.assets), syncedAt, backfill ? syncedAt : null);
+  }
+  db.prepare('UPDATE glab_project SET releases_synced_at = ? WHERE id = ?').run(syncedAt, projectId);
+}
+
+export function listProjectReleases(db: SqlDb, projectId: string): ProjectReleaseRow[] {
+  return db.prepare(
+    `SELECT * FROM glab_project_release WHERE project_id = ? ORDER BY published_at DESC`,
+  ).all(projectId) as ProjectReleaseRow[];
+}
+
+export function releasesForNotification(db: SqlDb, limit = 5): ProjectReleaseRow[] {
+  return db.prepare(
+    `SELECT * FROM glab_project_release WHERE notified_at IS NULL ORDER BY published_at ASC LIMIT ?`,
+  ).all(limit) as ProjectReleaseRow[];
+}
+
+export function markProjectReleaseNotified(db: SqlDb, projectId: string, releaseId: number): void {
+  db.prepare('UPDATE glab_project_release SET notified_at = ? WHERE project_id = ? AND release_id = ?')
+    .run(Date.now(), projectId, releaseId);
 }
 
 export function listProjectMembers(db: SqlDb, projectId: string): ProjectMemberRow[] {

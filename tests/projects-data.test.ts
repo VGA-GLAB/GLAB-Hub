@@ -7,6 +7,7 @@ import {
   listProjectMembers,
   listProjects,
   removeProjectMember,
+  storeProjectReleases,
   updateProject,
   upsertProjectMember,
   type ProjectMemberRow,
@@ -18,6 +19,7 @@ import {
 class ProjectDataDb implements SqlDb {
   readonly projects = new Map<string, ProjectRow>();
   readonly members = new Map<string, ProjectMemberRow>();
+  readonly releases = new Map<number, { notified_at: number | null }>();
 
   exec(): void {}
 
@@ -50,7 +52,7 @@ class ProjectDataDb implements SqlDb {
       },
       run: (...params) => {
         if (sql.includes('INSERT INTO glab_project (')) {
-          const [id, name, description, repoUrl, createdAt, updatedAt] = params;
+          const [id, name, description, repoUrl, , createdAt, updatedAt] = params;
           this.projects.set(String(id), {
             id: String(id),
             name: String(name),
@@ -62,8 +64,20 @@ class ProjectDataDb implements SqlDb {
           });
           return { lastInsertRowid: 0, changes: 1 };
         }
+        if (sql.includes('INSERT INTO glab_project_release')) {
+          const releaseId = Number(params[1]);
+          const existing = this.releases.get(releaseId);
+          if (!existing) this.releases.set(releaseId, { notified_at: (params[7] as number | null) ?? null });
+          return { lastInsertRowid: 0, changes: 1 };
+        }
+        if (sql.includes('UPDATE glab_project SET releases_synced_at')) {
+          const current = this.projects.get(String(params[1]));
+          if (!current) return { lastInsertRowid: 0, changes: 0 };
+          this.projects.set(current.id, { ...current, releases_synced_at: Number(params[0]) });
+          return { lastInsertRowid: 0, changes: 1 };
+        }
         if (sql.includes('UPDATE glab_project') && !sql.includes('glab_project_member')) {
-          const [name, description, status, repoUrl, updatedAt, id] = params;
+          const [name, description, status, repoUrl, , updatedAt, id] = params;
           const current = this.projects.get(String(id));
           if (!current) return { lastInsertRowid: 0, changes: 0 };
           this.projects.set(String(id), {
@@ -178,6 +192,21 @@ describe('GLAB project registry data', () => {
     assert.equal(removeProjectMember(db, project.id, 'cernere-user-2'), true);
     assert.equal(removeProjectMember(db, project.id, 'cernere-user-2'), false);
     assert.equal(listProjectMembers(db, project.id).length, 0);
+  });
+
+  it('treats the first release sync as backfill and notifies only later releases', () => {
+    const db = new ProjectDataDb();
+    const project = createProject(db, { name: 'Project F' });
+    const release = (releaseId: number) => ({
+      releaseId, tag: `v${releaseId}`, name: `v${releaseId}`,
+      publishedAt: '2026-07-01T00:00:00Z', assets: [],
+    });
+
+    storeProjectReleases(db, project.id, [release(1)]);
+    assert.notEqual(db.releases.get(1)?.notified_at, null);
+
+    storeProjectReleases(db, project.id, [release(1), release(2)]);
+    assert.equal(db.releases.get(2)?.notified_at, null);
   });
 
   it('getProjectWithMembers combines project + member rows, null when missing', () => {

@@ -33,12 +33,16 @@ import {
   listProjectsWithMembers,
   removeProjectMember,
   updateProject,
+  listProjectReleases,
+  storeProjectReleases,
+  syncProjectGitHubDescription,
   upsertProjectMember,
   type ProjectMemberRow,
   type ProjectPatch,
   type ProjectRow,
   type ProjectWithMembers,
 } from '../data.ts';
+import { GitHubClient, parseRepoUrl } from './github-client.ts';
 import { requireServiceToken } from './service-auth.ts';
 import {
   AnalysisReportError,
@@ -98,10 +102,12 @@ function mergePatch(
     description: patch.description === undefined ? current.description : patch.description,
     status: patch.status ?? current.status,
     repoUrl: patch.repoUrl === undefined ? current.repo_url : patch.repoUrl,
+    // 説明を空にする更新は「手動編集」扱いにせず、 GitHub 同期での再取得を再び許可する。
+    descriptionManual: patch.description === undefined ? current.description_manual === 1 : Boolean(patch.description),
   };
 }
 
-function makePanelRoutes(r: Hono, ctx: CorpusContext): void {
+function makePanelRoutes(r: Hono, ctx: CorpusContext, github: GitHubClient): void {
   const db = ctx.db;
   const analysisRoot = ctx.env('GLAB_OMNIPOTENS_REVIEW_ROOT');
 
@@ -118,6 +124,16 @@ function makePanelRoutes(r: Hono, ctx: CorpusContext): void {
     const found = getProjectWithMembers(db, c.req.param('id'));
     if (!found) return c.json({ error: 'not_found' }, 404);
     return c.json({ project: projectWithMembersView(db, found) });
+  });
+
+  r.get('/projects/:id/releases', (c) => {
+    const project = getProject(db, c.req.param('id'));
+    if (!project) return c.json({ error: 'not_found' }, 404);
+    const releases = listProjectReleases(db, project.id).map((release) => ({
+      tag: release.tag, name: release.name, publishedAt: release.published_at,
+      assets: JSON.parse(release.assets_json) as unknown,
+    }));
+    return c.json({ releases });
   });
 
   r.get('/projects/:id/analysis-summary', async (c) => {
@@ -177,6 +193,17 @@ function makePanelRoutes(r: Hono, ctx: CorpusContext): void {
     return c.json({ ok: true, project: projectWithMembersView(db, found) });
   });
 
+  r.post('/projects/:id/github-sync', requireAdmin, async (c) => {
+    const project = getProject(db, c.req.param('id'));
+    if (!project) return c.json({ error: 'not_found' }, 404);
+    if (!project.repo_url || !parseRepoUrl(project.repo_url)) return c.json({ error: 'invalid_github_repository' }, 400);
+    const data = await github.getProject(project.repo_url);
+    if (!data) return c.json({ error: 'github_unavailable', message: 'GitHubから情報を取得できませんでした。' }, 503);
+    syncProjectGitHubDescription(db, project.id, data.description);
+    storeProjectReleases(db, project.id, data.releases);
+    return c.json({ ok: true, contributors: data.contributors, topics: data.topics, readme: data.readme });
+  });
+
   r.put('/projects/:id/members/:userId', requireAdmin, async (c) => {
     const parsed = memberInputSchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) {
@@ -231,7 +258,7 @@ const projectsModule: CorpusModule = {
   setup(ctx: CorpusContext) {
     ensureSchema(ctx.db);
     const routes = new Hono();
-    makePanelRoutes(routes, ctx);
+    makePanelRoutes(routes, ctx, new GitHubClient(ctx.env('GLAB_GITHUB_TOKEN')));
     makeExternalRoutes(routes, ctx);
     ctx.registerRoute(routes);
     ctx.registerPanel({ title: 'プロジェクト', icon: '🎮' });

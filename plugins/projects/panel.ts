@@ -38,6 +38,10 @@ interface KnownUser {
   displayName: string | null;
 }
 
+interface ReleaseAsset { name: string; size: number; browserDownloadUrl: string }
+interface ProjectRelease { tag: string; name: string; publishedAt: string; assets: ReleaseAsset[] }
+interface GitHubContributor { login: string; avatarUrl: string }
+
 const STATUS_LABELS: Record<ProjectStatus, string> = {
   active: '進行中',
   paused: '休止',
@@ -175,6 +179,8 @@ function projectCard(
   reviewLink.target = '_blank';
   reviewLink.rel = 'noopener noreferrer';
   card.appendChild(reviewLink);
+  const releases = releaseSection(project, ctx);
+  card.appendChild(releases);
   card.appendChild(el('div', 'gl-muted', `登録: ${fmtDateTime(project.createdAt)}`));
 
   const memberList = el('ul', 'gl-list');
@@ -203,11 +209,78 @@ function projectCard(
   card.appendChild(memberList);
 
   if (ctx.identity.isAdmin) {
+    card.appendChild(githubSyncControl(project, ctx, releases));
     card.appendChild(statusControl(project, ctx, rerender));
     if (knownUsers) card.appendChild(memberAssignControl(project, ctx, rerender, knownUsers));
   }
 
   return card;
+}
+
+function releaseSection(project: Project, ctx: PanelContext): HTMLElement {
+  const wrap = el('div', 'gl-muted', 'Release を読み込み中…');
+  void (async () => {
+    try {
+      const response = await ctx.api(`/projects/${encodeURIComponent(project.id)}/releases`);
+      if (!response.ok) { wrap.textContent = 'Release を取得できませんでした。'; return; }
+      const body = await response.json() as { releases?: ProjectRelease[] };
+      const latest = body.releases?.[0];
+      if (!latest) { wrap.textContent = '公開済み Release はありません。'; return; }
+      wrap.textContent = '';
+      const recent = Date.now() - Date.parse(latest.publishedAt) < 7 * 24 * 60 * 60 * 1000;
+      wrap.append(el('strong', undefined, `⬇ ${latest.name || latest.tag}`));
+      if (recent) wrap.appendChild(el('span', 'gl-tag active', '新着あり'));
+      const assets = el('div', 'gl-row');
+      for (const asset of latest.assets ?? []) {
+        const link = el('a', 'gl-btn ghost', asset.name) as HTMLAnchorElement;
+        link.href = asset.browserDownloadUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        assets.appendChild(link);
+      }
+      wrap.append(assets, el('div', 'gl-muted', `公開: ${fmtDateTime(Date.parse(latest.publishedAt))}`));
+    } catch {
+      wrap.textContent = 'Release を取得できませんでした。';
+    }
+  })();
+  return wrap;
+}
+
+function githubSyncControl(project: Project, ctx: PanelContext, releases: HTMLElement): HTMLElement {
+  const row = el('div', 'gl-row');
+  const sync = el('button', 'gl-btn ghost', 'GitHub 同期');
+  const result = el('span', 'gl-muted');
+  // 差し替えた要素を追い続けないと、 2 回目以降の同期が DOM から外れた古い節点を更新してしまう。
+  let mounted = releases;
+  if (!project.repoUrl) { sync.disabled = true; result.textContent = 'GitHub リポジトリ URL が未設定です。'; }
+  sync.onclick = async () => {
+    sync.disabled = true;
+    result.textContent = '同期中…';
+    try {
+      const response = await ctx.api(`/projects/${encodeURIComponent(project.id)}/github-sync`, { method: 'POST' });
+      if (!response.ok) { result.textContent = 'GitHub同期に失敗しました。'; return; }
+      const body = await response.json() as { contributors?: GitHubContributor[] };
+      result.textContent = '';
+      const refreshed = releaseSection(project, ctx);
+      mounted.replaceWith(refreshed);
+      mounted = refreshed;
+      const contributors = body.contributors ?? [];
+      if (contributors.length) {
+        result.textContent = '貢献者: ';
+        for (const contributor of contributors) {
+          const avatar = el('img') as HTMLImageElement;
+          avatar.src = contributor.avatarUrl;
+          avatar.alt = contributor.login;
+          avatar.width = 20;
+          avatar.height = 20;
+          result.append(avatar, document.createTextNode(` ${contributor.login} `));
+        }
+      } else result.textContent = '同期しました。';
+    } catch { result.textContent = 'GitHub同期に失敗しました。'; }
+    finally { sync.disabled = false; }
+  };
+  row.append(sync, result);
+  return row;
 }
 
 function statusControl(

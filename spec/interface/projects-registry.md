@@ -29,6 +29,8 @@ Actio コア `tasks.project_id`（`Actio/spec/tasks/2026-07-17-01-glab-project-t
 | GET | `/projects/:id/analysis-summary` | 認証済み全員 | 検証済み `report/omnipotens-summary.json` と最終レポートURL |
 | GET | `/projects/:id/analysis-files/omnipotens-final.html` | 認証済み全員 | Omnipotens最終HTML |
 | GET | `/projects/:id/analysis-files/stages/:file.html` | 認証済み全員 | 最終HTMLから参照する工程別HTML |
+| GET | `/projects/:id/releases` | 認証済み全員 | キャッシュ済み Release と asset 情報 |
+| POST | `/projects/:id/github-sync` | admin | public GitHub API から説明・README・contributors・Release を同期 |
 | POST | `/projects` | admin | 新規登録 `{name, description?, repoUrl?}` |
 | PATCH | `/projects/:id` | admin | 部分更新 `{name?, description?, status?, repoUrl?}` |
 | PUT | `/projects/:id/members/:userId` | admin | メンバー割当/役割変更 `{role: 'producer'\|'member'}`（upsert） |

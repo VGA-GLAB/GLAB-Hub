@@ -25,6 +25,7 @@ GLAB は 2 系統の設定を持つ：**hub** は通常Excubitor spawn env（単
 | `DISCUTERE_URL` | （空 = degraded） | | Di API の内部 base URL（Ex topology は `http://localhost:3110` を注入） |
 | `DISCUTERE_WEB_URL` | `DISCUTERE_URL` | | Di Web UI が API と別 origin の場合の public base URL |
 | `TIROCINIUM_URL` | （空 = degraded） | | Tr API の内部 base URL（Ex topology は `http://localhost:8084` を注入） |
+| `GLAB_GITHUB_TOKEN` | （空 = 未認証アクセス） | | GitHub public API の rate-limit 緩和にだけ使う read 用 token。接続先は `https://api.github.com` 固定で、未設定でも同期は動く |
 | `GLAB_OMNIPOTENS_REVIEW_ROOT` | （空 = 解析閲覧無効） | | Omnipotentsの`Review`フォルダ。`Review/<project name>/report`を登録済みリポジトリ名からだけ参照し、任意パス、worktree、シンボリックリンクは受け付けない |
 
 ExはCernereの`POST /api/auth/project-launch-credential`をspawn直前に呼ぶ。Exが生成した
