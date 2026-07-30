@@ -30,6 +30,33 @@ export interface SurveyResponseView {
   submittedAt: string;
 }
 
+export interface ReviewView {
+  id: string;
+  gameTitle: string;
+  recommend: boolean | null;
+  comment: string;
+  glabProjectId: string | null;
+  createdAt: string;
+  author: { name: string } | { pseudo: string };
+}
+
+export interface RecentGameView {
+  name: string;
+  playtimeTwoWeeksMinutes: number;
+}
+
+export function parseReviewList(value: unknown): ReviewView[] | null {
+  if (!Array.isArray(value)) return null;
+  const reviews = value.map(parseReview);
+  return reviews.every((review): review is ReviewView => review !== null) ? reviews : null;
+}
+
+export function parseRecentGames(value: unknown): RecentGameView[] | null {
+  if (!Array.isArray(value)) return null;
+  const games = value.map(parseRecentGame);
+  return games.every((game): game is RecentGameView => game !== null) ? games : null;
+}
+
 export function parseSurveyList(value: unknown): SurveyView[] | null {
   if (!isRecord(value) || value.ok !== true || !Array.isArray(value.data)) return null;
   const surveys = value.data.map(parseSurvey);
@@ -67,6 +94,46 @@ function parseSurvey(value: unknown): SurveyView | null {
     questions,
     answered: value.answered,
     createdAt: value.createdAt,
+  };
+}
+
+function parseReview(value: unknown): ReviewView | null {
+  if (!isRecord(value) || !isRecord(value.author)) return null;
+  if (
+    typeof value.id !== 'string'
+    || typeof value.gameTitle !== 'string'
+    || !(typeof value.recommend === 'boolean' || value.recommend === null)
+    || typeof value.comment !== 'string'
+    || !(typeof value.glabProjectId === 'string' || value.glabProjectId === null)
+    || typeof value.createdAt !== 'string'
+  ) return null;
+  const author = parseReviewAuthor(value.author);
+  return author ? {
+    id: value.id,
+    gameTitle: value.gameTitle,
+    recommend: value.recommend,
+    comment: value.comment,
+    glabProjectId: value.glabProjectId,
+    createdAt: value.createdAt,
+    author,
+  } : null;
+}
+
+function parseReviewAuthor(value: Record<string, unknown>): ReviewView['author'] | null {
+  if (typeof value.name === 'string') return { name: value.name };
+  if (typeof value.pseudo === 'string') return { pseudo: value.pseudo };
+  return null;
+}
+
+function parseRecentGame(value: unknown): RecentGameView | null {
+  if (
+    !isRecord(value)
+    || typeof value.name !== 'string'
+    || typeof value.playtimeTwoWeeksMinutes !== 'number'
+  ) return null;
+  return {
+    name: value.name,
+    playtimeTwoWeeksMinutes: value.playtimeTwoWeeksMinutes,
   };
 }
 

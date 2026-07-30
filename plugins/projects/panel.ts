@@ -11,6 +11,7 @@ import {
   requireVantanUserRegistration,
   type PanelContext,
 } from '../panel-kit.ts';
+import { parseReviewList } from '../volputas/contracts.ts';
 
 type ProjectStatus = 'active' | 'paused' | 'closed';
 type ProjectMemberRole = 'producer' | 'member';
@@ -54,6 +55,9 @@ const ROLE_LABELS: Record<ProjectMemberRole, string> = {
   member: 'メンバー',
 };
 const ROLES = Object.keys(ROLE_LABELS) as ProjectMemberRole[];
+
+/** カード内はダイジェスト表示なので件数を絞る (全件は volputas パネル側)。 */
+const PROJECT_REVIEW_LIMIT = 3;
 
 export async function mount(container: HTMLElement, ctx: PanelContext): Promise<void> {
   ensureStyles();
@@ -181,6 +185,7 @@ function projectCard(
   card.appendChild(reviewLink);
   const releases = releaseSection(project, ctx);
   card.appendChild(releases);
+  card.appendChild(createReviewSection(project, ctx));
   card.appendChild(el('div', 'gl-muted', `登録: ${fmtDateTime(project.createdAt)}`));
 
   const memberList = el('ul', 'gl-list');
@@ -281,6 +286,68 @@ function githubSyncControl(project: Project, ctx: PanelContext, releases: HTMLEl
   };
   row.append(sync, result);
   return row;
+}
+
+function createReviewSection(project: Project, ctx: PanelContext): HTMLElement {
+  const wrap = el('section', 'gl-project-reviews');
+  wrap.appendChild(el('h4', undefined, '感想'));
+  const list = el('div', 'gl-muted', '感想を読み込み中…');
+  // hub のタブ切り替えは query から復元されないので、 ここからレビュータブを
+  // 「開く」ことはできない (`/?projectId=` へ遷移してもステータスタブに戻るだけ)。
+  // 遷移でパネル状態を捨てず、 volputas パネルが mount 時に読む projectId だけを
+  // その場で URL へ書き足し、 タブを開く案内を添える。
+  const write = el('button', 'gl-btn ghost', '感想を書く');
+  write.type = 'button';
+  const hint = el('span', 'gl-muted');
+  write.onclick = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('projectId', project.id);
+    window.history.replaceState(null, '', url);
+    hint.textContent = '「📝 レビュー」タブを開くと、このプロジェクトの感想が表示されます。';
+  };
+  const actions = el('div', 'gl-row');
+  actions.append(write, hint);
+  wrap.append(list, actions);
+  void loadProjectReviews(ctx, project.id, list);
+  return wrap;
+}
+
+async function loadProjectReviews(
+  ctx: PanelContext,
+  projectId: string,
+  container: HTMLElement,
+): Promise<void> {
+  // volputas モジュールの proxy は /api/x/volputas に mount されるので hubApi で叩く。
+  const response = await ctx.hubApi(
+    `/api/x/volputas/reviews?projectId=${encodeURIComponent(projectId)}&limit=${PROJECT_REVIEW_LIMIT}`,
+  ).catch(() => null);
+  // Volputas 未設定時は connector が 503 を返す。 degraded は失敗ではないので未接続と伝える。
+  if (response?.status === 503) {
+    container.textContent = 'Volputas に未接続です。';
+    return;
+  }
+  if (!response?.ok) {
+    container.textContent = '感想を取得できませんでした。';
+    return;
+  }
+  const reviews = parseReviewList(await response.json().catch(() => null));
+  if (!reviews) {
+    container.textContent = '感想を取得できませんでした。';
+    return;
+  }
+  container.innerHTML = '';
+  if (reviews.length === 0) {
+    container.textContent = 'まだ感想はありません。';
+    return;
+  }
+  for (const review of reviews) {
+    const item = el('p');
+    item.append(
+      el('strong', undefined, review.gameTitle),
+      document.createTextNode(` — ${review.comment}`),
+    );
+    container.appendChild(item);
+  }
 }
 
 function statusControl(

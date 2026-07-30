@@ -5,6 +5,8 @@ import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
 import { proxy } from '../shared.ts';
 
 const GLAB_SURVEYS_PATH = '/api/v1/integrations/glab/surveys';
+const GLAB_REVIEWS_PATH = '/api/v1/integrations/glab/reviews';
+const GLAB_RECENT_GAMES_PATH = '/api/v1/integrations/glab/recent-games';
 
 const volputasModule: CorpusModule = {
   id: 'volputas',
@@ -38,6 +40,15 @@ const volputasModule: CorpusModule = {
       `${GLAB_SURVEYS_PATH}/${encodeURIComponent(c.req.param('id'))}/response`,
       ctx.tokenProvider,
       'volputas',
+    ));
+    routes.get('/reviews', (c) => proxy(
+      c, connector, GLAB_REVIEWS_PATH, ctx.tokenProvider, 'volputas',
+    ));
+    routes.post('/reviews', (c) => proxy(
+      c, connector, GLAB_REVIEWS_PATH, ctx.tokenProvider, 'volputas',
+    ));
+    routes.get('/recent-games', (c) => proxy(
+      c, connector, GLAB_RECENT_GAMES_PATH, ctx.tokenProvider, 'volputas',
     ));
     ctx.registerRoute(routes);
     ctx.registerPanel({ title: 'レビュー', icon: '📝' });
