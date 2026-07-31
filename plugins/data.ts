@@ -141,7 +141,54 @@ export function ensureSchema(db: SqlDb): void {
     synced_at INTEGER NOT NULL, notified_at INTEGER, PRIMARY KEY (project_id, release_id)
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS glab_project_release_project ON glab_project_release(project_id, published_at DESC)');
+  ensureCommunitySchema(db);
 }
+
+function ensureCommunitySchema(db: SqlDb): void {
+  db.exec(`CREATE TABLE IF NOT EXISTS glab_role_def (
+    key TEXT PRIMARY KEY, label TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0
+  )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS glab_member_role (
+    user_id TEXT NOT NULL, role TEXT NOT NULL, created_at INTEGER NOT NULL,
+    UNIQUE(user_id, role)
+  )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS glab_forum_thread (
+    id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL,
+    audience_roles TEXT, pinned INTEGER NOT NULL DEFAULT 0, created_by TEXT NOT NULL,
+    created_at INTEGER NOT NULL, notified_at INTEGER NULL
+  )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS glab_forum_comment (
+    id TEXT PRIMARY KEY, thread_id TEXT NOT NULL, body TEXT NOT NULL,
+    created_by TEXT NOT NULL, created_at INTEGER NOT NULL
+  )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS glab_consult (
+    id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('open', 'resolved')),
+    thread_id TEXT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL,
+    resolved_at INTEGER NULL, posted_at INTEGER NULL, invited_json TEXT NULL,
+    resolved_posted_at INTEGER NULL
+  )`);
+  // 先行ブランチで resolved_posted_at 無しの表を作った DB 向けの追い付き。
+  ensureColumns(db, 'glab_consult', [['resolved_posted_at', 'INTEGER']]);
+  db.exec('CREATE INDEX IF NOT EXISTS glab_forum_comment_thread ON glab_forum_comment(thread_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS glab_consult_posted_at ON glab_consult(posted_at)');
+  db.exec('CREATE INDEX IF NOT EXISTS glab_consult_status ON glab_consult(status)');
+  db.exec('CREATE INDEX IF NOT EXISTS glab_consult_resolved_posted_at ON glab_consult(resolved_posted_at)');
+  // 相談作成のレート制限が毎回引く (created_by, created_at) 用。
+  db.exec('CREATE INDEX IF NOT EXISTS glab_consult_created_by ON glab_consult(created_by, created_at)');
+  for (const role of DEFAULT_ROLE_DEFS) {
+    db.prepare(`INSERT INTO glab_role_def (key, label, sort) VALUES (?, ?, ?)
+      ON CONFLICT(key) DO NOTHING`).run(role.key, role.label, role.sort);
+  }
+}
+
+export const DEFAULT_ROLE_DEFS = [
+  { key: 'lead', label: '運営', sort: 0 },
+  { key: 'planner', label: '企画', sort: 1 },
+  { key: 'programmer', label: 'プログラマ', sort: 2 },
+  { key: 'designer', label: 'デザイナ', sort: 3 },
+  { key: 'student', label: '学生', sort: 4 },
+] as const;
 
 function ensureReviewRelaySchema(db: SqlDb): void {
   db.exec(`CREATE TABLE IF NOT EXISTS glab_review_relay (
@@ -207,6 +254,24 @@ export function markReviewRelayPosted(db: SqlDb, reviewId: string, messageId: st
   db.prepare(
     'UPDATE glab_review_relay SET posted_at = ?, message_id = ? WHERE review_id = ?',
   ).run(Date.now(), messageId, reviewId);
+}
+
+export interface ForumNotificationRow {
+  id: string;
+  title: string;
+  body: string;
+  audience_roles: string | null;
+}
+
+/** All-audience forum threads are the only threads eligible for Discord broadcast. */
+export function forumThreadsForNotification(db: SqlDb, limit = 10): ForumNotificationRow[] {
+  return db.prepare(`SELECT id, title, body, audience_roles FROM glab_forum_thread
+    WHERE notified_at IS NULL AND (audience_roles IS NULL OR audience_roles = '[]')
+    ORDER BY created_at ASC LIMIT ?`).all(limit) as ForumNotificationRow[];
+}
+
+export function markForumThreadNotified(db: SqlDb, id: string): void {
+  db.prepare('UPDATE glab_forum_thread SET notified_at = ? WHERE id = ?').run(Date.now(), id);
 }
 
 function ensureAttendanceEventColumns(db: SqlDb): void {

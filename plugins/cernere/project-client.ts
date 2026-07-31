@@ -92,6 +92,13 @@ export class CernereProjectClient {
     });
   }
 
+  /** Calls a GLAB-specific Cernere project module without exposing the WS transport. */
+  async call(module: string, action: string, payload: Record<string, unknown>): Promise<unknown> {
+    const normalizedModule = requireProjectKey(module, 'module');
+    const normalizedAction = requireProjectKey(action, 'action');
+    return this.request(normalizedModule, normalizedAction, payload);
+  }
+
   close(): void {
     this.rejectPending(new Error('Cernere project client closed'));
     this.ws?.close();
@@ -247,9 +254,9 @@ function requireUserId(userId: string): string {
   return normalized;
 }
 
-function requireProjectKey(projectKey: string): string {
+function requireProjectKey(projectKey: string, label = 'targetProjectKey'): string {
   const normalized = projectKey.trim();
-  if (!PROJECT_KEY_PATTERN.test(normalized)) throw new Error('targetProjectKey is invalid');
+  if (!PROJECT_KEY_PATTERN.test(normalized)) throw new Error(`${label} is invalid`);
   return normalized;
 }
 

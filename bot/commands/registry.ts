@@ -6,8 +6,9 @@ import type { BotCommand } from './types.ts';
 import eventCommand from './event.ts';
 import jobCommand from './job.ts';
 import chatCommand from './chat.ts';
+import orehimaCommand from './orehima.ts';
 
-export const ALL_COMMANDS: BotCommand[] = [eventCommand, jobCommand, chatCommand];
+export const ALL_COMMANDS: BotCommand[] = [eventCommand, jobCommand, chatCommand, orehimaCommand];
 
 /** Discord へ slash command を登録する。 guildId 指定時はそのギルドへ即時、 無ければ global。 */
 export async function registerCommands(cfg: BotConfig): Promise<void> {
