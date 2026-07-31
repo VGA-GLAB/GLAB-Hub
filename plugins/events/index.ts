@@ -6,6 +6,7 @@ import { Hono, getIdentity, cacheDisplayName } from '../../corpus/server/hub/sdk
 import type { CorpusModule, CorpusContext } from '../../corpus/server/hub/sdk.ts';
 import { z } from 'zod';
 import { getEventStore, type EventRow } from './store.ts';
+import { canSee, resolveRoles, parseAudience as audience } from '../roles/audience.ts';
 import { getFacilityStore, type GlabFacility } from './facility-store.ts';
 import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
 import {
@@ -20,7 +21,12 @@ const eventInputSchema = z.object({
   startsAt: z.union([z.string(), z.number()]),
   endsAt: z.union([z.string(), z.number()]),
   facilityId: z.string().trim().min(1).max(255),
+  audienceRoles: z.array(z.string().regex(/^[a-z][a-z0-9_-]{0,62}$/)).max(20).default([]),
+  recurrence: z.enum(['none', 'weekly']).default('none'),
 }).strict();
+
+/** `from`〜`to` に許す最大幅 (週次イベントの occurrence 展開量の上限)。 */
+const MAX_EVENT_RANGE_MS = 366 * 24 * 60 * 60 * 1_000;
 
 function eventView(row: EventRow): Record<string, unknown> {
   return {
@@ -34,6 +40,9 @@ function eventView(row: EventRow): Record<string, unknown> {
     createdBy: row.created_by,
     createdAt: row.created_at,
     notified: row.notified_at != null,
+    audienceRoles: audience(row.audience_roles) ?? [],
+    recurrence: row.recurrence,
+    occurrenceDate: row.occurrence_date ?? null,
   };
 }
 
@@ -102,8 +111,28 @@ export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient): Hon
   });
 
   routes.get('/events', async (c) => {
+    const identity = getIdentity(c);
     const includePast = c.req.query('all') === '1';
-    return c.json({ events: (await events.list(includePast)).map(eventView) });
+    const from = c.req.query('from');
+    const to = c.req.query('to');
+    const fromAt = from == null ? undefined : Date.parse(from);
+    const toAt = to == null ? undefined : Date.parse(to);
+    if ((fromAt != null && !Number.isFinite(fromAt)) || (toAt != null && !Number.isFinite(toAt))) {
+      return c.json({ error: 'invalid_event_range' }, 400);
+    }
+    // 週次イベントは期間ぶんだけ occurrence を展開するので、 期間を無制限に
+    // 広げられると 1 リクエストで際限なく展開されてしまう。
+    const rangeFrom = fromAt ?? Date.now();
+    if (toAt != null && (toAt <= rangeFrom || toAt - rangeFrom > MAX_EVENT_RANGE_MS)) {
+      return c.json({ error: 'invalid_event_range' }, 400);
+    }
+    const roles = resolveRoles(ctx.db, identity.userId);
+    const rows = await events.list({ includePast, from: fromAt, to: toAt });
+    return c.json({
+      events: rows
+        .filter((event) => canSee(audience(event.audience_roles), roles, event.created_by === identity.userId, identity.isAdmin))
+        .map(eventView),
+    });
   });
 
   routes.post('/events', async (c) => {
@@ -151,6 +180,8 @@ export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient): Hon
         facilityId: facility.id,
         reservationId,
         createdBy: identity.userId,
+        audienceRoles: parsed.data.audienceRoles,
+        recurrence: parsed.data.recurrence,
       });
     } catch (error) {
       await aedilis.cancelReservation(c, reservationId).catch(() => undefined);

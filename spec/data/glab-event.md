@@ -27,10 +27,18 @@ GLAB所有のイベントを保持するPostgreSQLテーブル。スキーマと
 | `reservation_id` | TEXT | 対応するAedilis予約ID |
 | `created_by` | TEXT NOT NULL | Cernere user ID |
 | `created_at` | TIMESTAMPTZ NOT NULL | 登録時刻 |
-| `notified_at` | TIMESTAMPTZ | Discord通知時刻 |
+| `notified_at` | TIMESTAMPTZ | Discord通知時刻（`recurrence='weekly'` では使わない） |
 | `discord_message_id` | TEXT | Discord message ID |
+| `audience_roles` | TEXT | 閲覧できる役職キーのJSON配列。NULL / `[]` は全員公開 |
+| `recurrence` | TEXT NOT NULL DEFAULT `'none'` | `none` または `weekly` |
 
 `glab_event_starts` indexが一覧、進行中イベント判定、リマインダ窓検索を支える。
+
+## `glab_event_occurrence_notified`
+
+週次イベントの「どの回まで通知したか」を持つ。`(event_id, occurrence_date)` が主キーで、
+`occurrence_date` は occurrence 開始日（ローカル日付）、ほかに `notified_at`、`discord_message_id` を持つ。
+元イベント削除時に同じ `event_id` の行も消す（id 再利用で新イベントの初回通知が抑止されるのを防ぐ）。
 
 ## 整合性
 

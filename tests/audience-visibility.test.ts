@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { canSee } from '../plugins/roles/audience.ts';
+import { canSee, parseAudience } from '../plugins/roles/audience.ts';
 
 test('a thread with no audience is visible to everyone', () => {
   assert.equal(canSee(null, [], false, false), true);
@@ -22,4 +22,14 @@ test('an admin sees everything', () => {
 
 test('a user with no roles cannot see a role-limited thread', () => {
   assert.equal(canSee(['lead', 'planner'], [], false, false), false);
+});
+
+test('parseAudience reads a stored role list and rejects anything else', () => {
+  assert.deepEqual(parseAudience('["lead","planner"]'), ['lead', 'planner']);
+  assert.equal(parseAudience(null), null);
+  assert.equal(parseAudience(''), null);
+  assert.equal(parseAudience('{'), null);
+  assert.equal(parseAudience('{"role":"lead"}'), null);
+  assert.equal(parseAudience('[1,2]'), null);
+  assert.deepEqual(parseAudience('[]'), []);
 });

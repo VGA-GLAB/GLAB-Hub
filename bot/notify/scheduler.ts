@@ -40,7 +40,11 @@ export function startScheduler(client: Client, db: SqlDb, cfg: BotConfig): () =>
           cfg.channels.event,
           `🔔 **まもなく開催**\n${formatEventCard(ev)}`,
         );
-        await events.markNotified(ev.id, msgId);
+        if (ev.recurrence === 'weekly' && ev.occurrence_date) {
+          await events.markOccurrenceNotified(ev.id, ev.occurrence_date, msgId);
+        } else {
+          await events.markNotified(ev.id, msgId);
+        }
       }
       for (const job of jobsDueForReminder(db, cfg.reminder.jobWindowMs)) {
         await postToChannel(

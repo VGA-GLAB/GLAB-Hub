@@ -16,7 +16,12 @@ interface EventView {
   endsAt: number | null;
   facilityId: string | null;
   notified: boolean;
+  audienceRoles: string[];
+  recurrence: 'none' | 'weekly';
+  occurrenceDate: string | null;
 }
+
+interface RoleDef { key: string; label: string; sort: number; }
 
 interface FacilityView {
   id: string;
@@ -48,33 +53,52 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
     const catalog = facilityResponse.ok
       ? await facilityResponse.json() as FacilityCatalog
       : { items: [], suggestions: [], aedilisAvailable: false };
-    container.appendChild(eventForm(ctx, render, catalog));
+    // roles は別モジュールの API なので hubApi (認証ヘッダ付き) で叩く。
+    const roleResponse = await ctx.hubApi('/api/x/roles/defs');
+    const roles = roleResponse.ok ? (await roleResponse.json() as { defs: RoleDef[] }).defs : [];
+    container.appendChild(eventForm(ctx, render, catalog, roles));
 
-    const list = section('今後のイベント');
-    const response = await ctx.api('/events');
-    if (!response.ok) {
-      list.body.appendChild(el('p', 'gl-muted', 'イベントを取得できませんでした。'));
-    } else {
-      const body = await response.json() as { events?: EventView[] };
-      const events = body.events ?? [];
-      if (events.length === 0) {
-        list.body.appendChild(el('p', 'gl-muted', '(予定されているイベントはありません)'));
-      } else {
-        const rows = el('ul', 'gl-list');
-        for (const event of events) rows.appendChild(eventRow(event, ctx, render));
-        list.body.appendChild(rows);
-      }
-    }
-    container.appendChild(list.wrap);
+    const weeks = await Promise.all([
+      weekSection(ctx, render, '今週のイベント', 0),
+      weekSection(ctx, render, '翌週のイベント', 1),
+    ]);
+    container.append(...weeks);
   }
 
   await render();
+}
+
+/** 週 (offset=0 なら今週) のイベント一覧セクションを作る。 */
+async function weekSection(
+  ctx: PanelContext,
+  rerender: () => Promise<void>,
+  title: string,
+  offset: number,
+): Promise<HTMLElement> {
+  const list = section(title);
+  const { from, to } = weekRange(offset);
+  const query = `from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`;
+  const response = await ctx.api(`/events?${query}`);
+  if (!response.ok) {
+    list.body.appendChild(el('p', 'gl-muted', 'イベントを取得できませんでした。'));
+    return list.wrap;
+  }
+  const events = (await response.json() as { events?: EventView[] }).events ?? [];
+  if (events.length === 0) {
+    list.body.appendChild(el('p', 'gl-muted', '(予定されているイベントはありません)'));
+    return list.wrap;
+  }
+  const rows = el('ul', 'gl-list');
+  for (const event of events) rows.appendChild(eventRow(event, ctx, rerender));
+  list.body.appendChild(rows);
+  return list.wrap;
 }
 
 function eventForm(
   ctx: PanelContext,
   rerender: () => Promise<void>,
   catalog: FacilityCatalog,
+  roles: RoleDef[],
 ): HTMLElement {
   const form = section('イベントを登録');
   const title = el('input', 'gl-input');
@@ -96,6 +120,18 @@ function eventForm(
   }
   const description = el('textarea', 'gl-textarea');
   description.placeholder = '詳細 (任意)';
+  const audience = el('select', 'gl-select');
+  audience.multiple = true;
+  audience.title = '閲覧できる役職 (未選択なら全員)';
+  for (const role of roles) {
+    const option = el('option', undefined, role.label);
+    option.value = role.key;
+    audience.appendChild(option);
+  }
+  const recurrence = el('label');
+  const weekly = el('input');
+  weekly.type = 'checkbox';
+  recurrence.append(weekly, document.createTextNode(' 毎週繰り返す'));
   const submit = el('button', 'gl-btn', 'イベントを登録');
   submit.type = 'button';
   const message = el('p', 'gl-muted');
@@ -117,6 +153,8 @@ function eventForm(
         startsAt: start.toISOString(),
         endsAt: end.toISOString(),
         facilityId: facility.value,
+        audienceRoles: Array.from(audience.selectedOptions, (option) => option.value),
+        recurrence: weekly.checked ? 'weekly' : 'none',
       }),
     }).then(async (response) => {
       if (!response.ok) {
@@ -144,7 +182,7 @@ function eventForm(
       ? 'Aedilisに接続できないため、登録時の予約作成に失敗する可能性があります。'
       : 'Aedilisに接続できないため、施設候補を取得できません。';
   }
-  form.body.append(row, description, message);
+  form.body.append(row, description, audience, recurrence, message);
   return form.wrap;
 }
 
@@ -179,6 +217,8 @@ function eventRow(
   if (event.location || event.facilityId) {
     row.appendChild(el('span', 'gl-tag', event.location ?? event.facilityId ?? ''));
   }
+  if (event.audienceRoles.length) row.appendChild(el('span', 'gl-tag', `役職限定: ${event.audienceRoles.join(', ')}`));
+  if (event.recurrence === 'weekly') row.appendChild(el('span', 'gl-tag', '毎週'));
   if (event.notified) row.appendChild(el('span', 'gl-tag', '通知済'));
   if (event.body) row.appendChild(el('div', 'gl-muted', event.body));
   const remove = el('button', 'gl-btn ghost', 'イベントを削除');
@@ -199,4 +239,13 @@ function eventRow(
   };
   row.appendChild(remove);
   return row;
+}
+
+function weekRange(offset: number): { from: Date; to: Date } {
+  const from = new Date();
+  from.setHours(0, 0, 0, 0);
+  from.setDate(from.getDate() - from.getDay() + offset * 7);
+  const to = new Date(from);
+  to.setDate(to.getDate() + 7);
+  return { from, to };
 }

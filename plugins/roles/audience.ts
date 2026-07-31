@@ -10,6 +10,20 @@ export function resolveRoles(db: SqlDb, userId: string): string[] {
   });
 }
 
+/**
+ * Reads a stored `audience_roles` column (JSON array of role keys).
+ * Returns null when the row has no usable restriction — i.e. visible to everyone.
+ */
+export function parseAudience(value: string | null): string[] | null {
+  if (!value) return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) && parsed.every((role) => typeof role === 'string') ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Applies forum/event audience rules at the server boundary. */
 export function canSee(
   audienceRoles: string[] | null,

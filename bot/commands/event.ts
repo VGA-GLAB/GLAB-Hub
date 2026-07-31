@@ -2,6 +2,7 @@
 
 import { SlashCommandBuilder, MessageFlags, type ChatInputCommandInteraction } from 'discord.js';
 import { getEventStore } from '../../plugins/events/store.ts';
+import { parseAudience } from '../../plugins/roles/audience.ts';
 import { formatEventCard } from '../format.ts';
 import type { BotCommand, CommandDeps } from './types.ts';
 
@@ -15,7 +16,9 @@ async function handle(
   interaction: ChatInputCommandInteraction,
   deps: CommandDeps,
 ): Promise<void> {
-  const events = await getEventStore().list(false);
+  // Discord には役職を解決する手段が無いので、 リマインダと同じく役職限定イベントは出さない。
+  const events = (await getEventStore().list())
+    .filter((event) => (parseAudience(event.audience_roles) ?? []).length === 0);
   if (events.length === 0) {
     await interaction.reply({ content: '今後のイベントはありません。', flags: MessageFlags.Ephemeral });
     return;

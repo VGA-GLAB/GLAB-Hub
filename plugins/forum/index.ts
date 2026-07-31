@@ -2,21 +2,13 @@ import { Hono, getIdentity } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusContext, CorpusModule } from '../../corpus/server/hub/sdk.ts';
 import { z } from 'zod';
 import { ensureSchema } from '../data.ts';
-import { canSee, resolveRoles } from '../roles/audience.ts';
+import { canSee, resolveRoles, parseAudience as audience } from '../roles/audience.ts';
 
 const threadSchema = z.object({ title: z.string().min(1).max(160), body: z.string().min(1).max(8_000), audienceRoles: z.array(z.string().regex(/^[a-z][a-z0-9_-]{0,62}$/)).max(20).default([]) }).strict();
 const commentSchema = z.object({ body: z.string().min(1).max(4_000) }).strict();
 
 interface ForumThreadRow { id: string; title: string; body: string; audience_roles: string | null; pinned: number; created_by: string; created_at: number; notified_at: number | null; }
 interface ForumCommentRow { id: string; thread_id: string; body: string; created_by: string; created_at: number; }
-
-function audience(value: string | null): string[] | null {
-  if (!value) return null;
-  try {
-    const parsed: unknown = JSON.parse(value);
-    return Array.isArray(parsed) && parsed.every((role) => typeof role === 'string') ? parsed : null;
-  } catch { return null; }
-}
 
 /** 役職は呼び出し側で 1 リクエスト 1 回だけ引く (一覧で行ごとに引かない)。 */
 function visible(thread: ForumThreadRow, viewer: { userId: string; isAdmin: boolean }, roles: string[]): boolean {

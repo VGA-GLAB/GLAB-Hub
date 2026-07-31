@@ -1,6 +1,12 @@
 import postgres from 'postgres';
+import { expandOccurrences, type EventOccurrence } from './recurrence.ts';
 
 type DatabaseClient = ReturnType<typeof postgres>;
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1_000;
+
+/** `to` 未指定時に週次イベントを展開する既定の先読み幅。 */
+const DEFAULT_EXPANSION_MS = 365 * 24 * 60 * 60 * 1_000;
 
 export interface EventRow {
   id: number;
@@ -15,6 +21,9 @@ export interface EventRow {
   created_at: number;
   notified_at: number | null;
   discord_message_id: string | null;
+  audience_roles: string | null;
+  recurrence: 'none' | 'weekly';
+  occurrence_date?: string | null;
 }
 
 export interface NewEvent {
@@ -26,6 +35,14 @@ export interface NewEvent {
   facilityId?: string | null;
   reservationId?: string | null;
   createdBy: string;
+  audienceRoles?: string[];
+  recurrence?: 'none' | 'weekly';
+}
+
+export interface EventListOptions {
+  includePast?: boolean;
+  from?: number;
+  to?: number;
 }
 
 const EVENT_COLUMNS = `
@@ -37,7 +54,7 @@ const EVENT_COLUMNS = `
   (EXTRACT(EPOCH FROM created_at) * 1000)::double precision AS created_at,
   CASE WHEN notified_at IS NULL THEN NULL
        ELSE (EXTRACT(EPOCH FROM notified_at) * 1000)::double precision END AS notified_at,
-  discord_message_id
+  discord_message_id, audience_roles, recurrence
 `;
 
 export class EventStore {
@@ -60,17 +77,29 @@ export class EventStore {
         discord_message_id TEXT
       )
     `;
+    await this.sql`ALTER TABLE glab_event ADD COLUMN IF NOT EXISTS audience_roles TEXT`;
+    await this.sql`ALTER TABLE glab_event ADD COLUMN IF NOT EXISTS recurrence TEXT NOT NULL DEFAULT 'none'`;
+    await this.sql`
+      CREATE TABLE IF NOT EXISTS glab_event_occurrence_notified (
+        event_id INTEGER NOT NULL,
+        occurrence_date DATE NOT NULL,
+        notified_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        discord_message_id TEXT,
+        PRIMARY KEY (event_id, occurrence_date)
+      )
+    `;
     await this.sql`CREATE INDEX IF NOT EXISTS glab_event_starts ON glab_event(starts_at)`;
   }
 
   async create(event: NewEvent): Promise<number> {
     const [created] = await this.sql<{ id: number }[]>`
       INSERT INTO glab_event
-        (title, body, location, starts_at, ends_at, facility_id, reservation_id, created_by)
+        (title, body, location, starts_at, ends_at, facility_id, reservation_id, created_by, audience_roles, recurrence)
       VALUES (
         ${event.title}, ${event.body ?? null}, ${event.location ?? null},
         ${new Date(event.startsAt)}, ${event.endsAt == null ? null : new Date(event.endsAt)},
-        ${event.facilityId ?? null}, ${event.reservationId ?? null}, ${event.createdBy}
+        ${event.facilityId ?? null}, ${event.reservationId ?? null}, ${event.createdBy},
+        ${JSON.stringify(event.audienceRoles ?? [])}, ${event.recurrence ?? 'none'}
       )
       RETURNING id
     `;
@@ -78,14 +107,19 @@ export class EventStore {
     return created.id;
   }
 
-  async list(includePast = false): Promise<EventRow[]> {
-    const rows = includePast
-      ? await this.sql.unsafe(`SELECT ${EVENT_COLUMNS} FROM glab_event ORDER BY starts_at DESC`)
-      : await this.sql.unsafe(
-        `SELECT ${EVENT_COLUMNS} FROM glab_event WHERE starts_at >= $1 ORDER BY starts_at ASC`,
-        [new Date()],
-      );
-    return rows as unknown as EventRow[];
+  async list(options: EventListOptions = {}): Promise<EventOccurrence[]> {
+    const from = options.from ?? Date.now();
+    const to = options.to ?? from + DEFAULT_EXPANSION_MS;
+    // $1 / $2 は必ず本文から参照する ($n を余らせると Postgres が型を決められず
+    // "could not determine data type of parameter" で失敗する)。
+    const rows = await this.sql.unsafe(
+      `SELECT ${EVENT_COLUMNS} FROM glab_event
+       WHERE (recurrence = 'weekly' AND starts_at < $2)
+          OR (recurrence = 'none' AND starts_at >= $1${options.to == null ? '' : ' AND starts_at < $2'})
+       ORDER BY starts_at ASC`,
+      [options.includePast ? new Date(0) : new Date(from), new Date(to)],
+    );
+    return expandOccurrences(rows as unknown as EventRow[], new Date(from), new Date(to));
   }
 
   async get(id: number): Promise<EventRow | null> {
@@ -97,6 +131,9 @@ export class EventStore {
   }
 
   async delete(id: number): Promise<boolean> {
+    // 通知済み記録を先に消す。 残したまま id が再利用されると新イベントの初回通知が
+    // 恒久的に抑止されるが、 逆順で途中失敗した場合の再通知は 1 回で済む。
+    await this.sql`DELETE FROM glab_event_occurrence_notified WHERE event_id = ${id}`;
     const rows = await this.sql<{ id: number }[]>`
       DELETE FROM glab_event WHERE id = ${id} RETURNING id
     `;
@@ -111,27 +148,61 @@ export class EventStore {
     `;
   }
 
-  async dueForReminder(windowMs: number): Promise<EventRow[]> {
+  async dueForReminder(windowMs: number): Promise<EventOccurrence[]> {
+    const now = Date.now();
+    const until = now + windowMs;
     const rows = await this.sql.unsafe(
-      `SELECT ${EVENT_COLUMNS}
-       FROM glab_event
-       WHERE notified_at IS NULL AND starts_at >= $1 AND starts_at <= $2
+      `SELECT ${EVENT_COLUMNS} FROM glab_event
+       WHERE (audience_roles IS NULL OR audience_roles = '[]')
+         AND ((recurrence = 'none' AND notified_at IS NULL AND starts_at >= $1 AND starts_at <= $2)
+           OR (recurrence = 'weekly' AND starts_at <= $2))
        ORDER BY starts_at ASC`,
-      [new Date(), new Date(Date.now() + windowMs)],
+      [new Date(now), new Date(until)],
     );
-    return rows as unknown as EventRow[];
+    const candidates = expandOccurrences(rows as unknown as EventRow[], new Date(now), new Date(until));
+    const weekly = candidates.filter((event) => event.recurrence === 'weekly');
+    if (weekly.length === 0) return candidates;
+    const pending: EventOccurrence[] = [];
+    for (const event of weekly) {
+      const notified = await this.sql<{ event_id: number }[]>`
+        SELECT event_id FROM glab_event_occurrence_notified
+        WHERE event_id = ${event.id} AND occurrence_date = ${event.occurrence_date}
+      `;
+      if (notified.length === 0) pending.push(event);
+    }
+    return [...candidates.filter((event) => event.recurrence === 'none'), ...pending]
+      .sort((a, b) => a.starts_at - b.starts_at);
   }
 
-  async findActive(now = Date.now()): Promise<EventRow | null> {
+  async findActive(now = Date.now()): Promise<EventOccurrence | null> {
     const at = new Date(now);
+    // 単発イベントは開始が何日前でも「開催中」なら拾う (list() は開始日時で下限を
+    // 切ってしまうので使えない)。 週次は occurrence を得るため直近 1 週ぶん展開する。
     const rows = await this.sql.unsafe(
-      `SELECT ${EVENT_COLUMNS}
-       FROM glab_event
-       WHERE starts_at <= $1 AND ends_at IS NOT NULL AND ends_at > $1
-       ORDER BY starts_at DESC LIMIT 1`,
+      `SELECT ${EVENT_COLUMNS} FROM glab_event
+       WHERE ends_at IS NOT NULL AND starts_at <= $1
+         AND (recurrence = 'weekly' OR ends_at > $1)
+       ORDER BY starts_at ASC`,
       [at],
     );
-    return (rows[0] as unknown as EventRow | undefined) ?? null;
+    const events = expandOccurrences(
+      rows as unknown as EventRow[],
+      new Date(now - WEEK_MS),
+      new Date(now + 1),
+    );
+    const active = events.filter(
+      (event) => event.ends_at != null && event.starts_at <= now && event.ends_at > now,
+    );
+    // 重複開催時は元実装 (ORDER BY starts_at DESC LIMIT 1) と同じく最後に始まった方を採る。
+    return active[active.length - 1] ?? null;
+  }
+
+  async markOccurrenceNotified(eventId: number, occurrenceDate: string, discordMessageId: string | null): Promise<void> {
+    await this.sql`
+      INSERT INTO glab_event_occurrence_notified (event_id, occurrence_date, discord_message_id)
+      VALUES (${eventId}, ${occurrenceDate}, ${discordMessageId})
+      ON CONFLICT (event_id, occurrence_date) DO NOTHING
+    `;
   }
 
   async close(): Promise<void> {

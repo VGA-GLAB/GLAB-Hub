@@ -16,6 +16,8 @@ import {
   type GlabUserRow,
 } from '../data.ts';
 import { getEventStore } from '../events/store.ts';
+import type { EventOccurrence } from '../events/recurrence.ts';
+import { canSee, parseAudience, resolveRoles } from '../roles/audience.ts';
 import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
 import { authorizedConnectorFetch } from '../shared.ts';
 import { ostiariusBrowserBaseUrl } from './ostiarius-health.ts';
@@ -45,8 +47,30 @@ async function attendanceView(db: CorpusDb, row: GlabUserRow): Promise<Record<st
   };
 }
 
-async function activeEventView(): Promise<Record<string, unknown> | null> {
+/**
+ * 開催中イベントのうち、 閲覧者に見せてよいものだけを返す。
+ * 役職限定イベントの判定は GET /events と同じ規則 (作成者 / admin / 対象役職)。
+ */
+async function visibleActiveEvent(
+  db: CorpusDb,
+  viewer: { userId: string; isAdmin: boolean },
+): Promise<EventOccurrence | null> {
   const event = await getEventStore().findActive();
+  if (!event) return null;
+  const allowed = canSee(
+    parseAudience(event.audience_roles),
+    resolveRoles(db, viewer.userId),
+    event.created_by === viewer.userId,
+    viewer.isAdmin,
+  );
+  return allowed ? event : null;
+}
+
+async function activeEventView(
+  db: CorpusDb,
+  viewer: { userId: string; isAdmin: boolean },
+): Promise<Record<string, unknown> | null> {
+  const event = await visibleActiveEvent(db, viewer);
   if (!event) return null;
   return {
     id: event.id,
@@ -73,7 +97,7 @@ function makeRoutes(
   const router = new Hono();
 
   router.get('/availability', async (c) => {
-    const event = await activeEventView();
+    const event = await activeEventView(db, getIdentity(c));
     const osProbe = await ostiarius.probe();
     const osHealth = osProbe.health;
     return c.json({
@@ -90,7 +114,9 @@ function makeRoutes(
   router.post('/checkin', async (c) => {
     const parsed = checkinInputSchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json({ error: 'attestation_required' }, 400);
-    const event = await getEventStore().findActive();
+    const identity = getIdentity(c);
+    // 見えないイベント (役職限定) には出席もできない — 存在を伏せたまま 409 を返す。
+    const event = await visibleActiveEvent(db, identity);
     if (!event) return c.json({ error: 'no_active_event' }, 409);
     const osHealth = await ostiarius.health();
     if (osHealth.status !== 'up') return c.json({ error: 'ostiarius_unavailable' }, 503);
@@ -117,12 +143,11 @@ function makeRoutes(
     const verifiedBody = await verified.text();
     if (!verified.ok) return passthrough(verified, verifiedBody);
 
-    const identity = getIdentity(c);
     const attendance = markAttendanceForEvent(db, identity.userId, event.id);
     return c.json({
       ok: true,
       user: await attendanceView(db, attendance),
-      event: await activeEventView(),
+      event: await activeEventView(db, identity),
     });
   });
 
