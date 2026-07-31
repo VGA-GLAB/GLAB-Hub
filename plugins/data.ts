@@ -79,6 +79,39 @@ CREATE TABLE IF NOT EXISTS glab_project_member (
 );
 CREATE INDEX IF NOT EXISTS glab_project_member_user ON glab_project_member(user_id);
 
+CREATE TABLE IF NOT EXISTS glab_tech_link (
+  id          TEXT PRIMARY KEY,
+  url         TEXT NOT NULL,
+  title       TEXT NOT NULL,
+  summary     TEXT,
+  memo        TEXT,
+  posted_by   TEXT NOT NULL,
+  source      TEXT NOT NULL CHECK(source IN ('web', 'memoria')),
+  source_ref  TEXT,
+  created_at  INTEGER NOT NULL,
+  updated_at  INTEGER NOT NULL,
+  deleted_at  INTEGER
+);
+-- 一覧は 「未削除を新着順」 が唯一のホットパスなので複合索引で受ける。
+CREATE INDEX IF NOT EXISTS glab_tech_link_live ON glab_tech_link(deleted_at, created_at);
+CREATE INDEX IF NOT EXISTS glab_tech_link_source_ref ON glab_tech_link(source, source_ref);
+
+CREATE TABLE IF NOT EXISTS glab_tech_link_tag (
+  link_id TEXT NOT NULL REFERENCES glab_tech_link(id),
+  tag     TEXT NOT NULL,
+  UNIQUE(link_id, tag)
+);
+CREATE INDEX IF NOT EXISTS glab_tech_link_tag_tag ON glab_tech_link_tag(tag);
+
+CREATE TABLE IF NOT EXISTS glab_tech_link_comment (
+  id         TEXT PRIMARY KEY,
+  link_id    TEXT NOT NULL REFERENCES glab_tech_link(id),
+  user_id    TEXT NOT NULL,
+  body       TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS glab_tech_link_comment_link ON glab_tech_link_comment(link_id);
+
 `;
 
 export const ATTENDANCE_STATUSES = [

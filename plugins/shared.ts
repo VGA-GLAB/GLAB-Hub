@@ -14,6 +14,11 @@ import { DownstreamTokenError } from '../corpus/server/hub/tokens.ts';
 
 export const PRIVATE_NO_STORE = 'private, no-store';
 
+/** 個人向け応答をキャッシュさせない共通ヘッダ設定 (各モジュールのルートから呼ぶ)。 */
+export function noStore(c: { header(name: string, value: string): void }): void {
+  c.header('cache-control', PRIVATE_NO_STORE);
+}
+
 /**
  * 受信リクエストを ServiceConnector 越しに接続先サービスへ中継する。
  *

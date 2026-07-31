@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { ensureSchema } from '../data.ts';
 import { createCernereProjectClient } from '../cernere/create-client.ts';
 import { requireServiceToken } from '../projects/service-auth.ts';
-import { PRIVATE_NO_STORE } from '../shared.ts';
+import { noStore } from '../shared.ts';
 import { listAvailable, resolveDiscordId, setAvailability, type AvailableMember } from './presence-client.ts';
 
 const consultSchema = z.object({ title: z.string().min(1).max(160), body: z.string().min(1).max(8_000) }).strict();
@@ -23,8 +23,6 @@ function unavailable(ctx: CorpusContext, error: unknown) {
   ctx.logger.error(`consult presence request failed: ${error instanceof Error ? error.message : String(error)}`);
   return { error: 'cernere_unavailable' };
 }
-
-function noStore(c: { header(name: string, value: string): void }): void { c.header('cache-control', PRIVATE_NO_STORE); }
 
 const consultModule: CorpusModule = {
   id: 'consult', title: '相談', icon: '🗣️',
