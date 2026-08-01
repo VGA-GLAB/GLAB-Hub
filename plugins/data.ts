@@ -38,6 +38,33 @@ CREATE TABLE IF NOT EXISTS glab_user (
 CREATE INDEX IF NOT EXISTS glab_user_attendance_status
   ON glab_user(attendance_status, updated_at);
 
+CREATE TABLE IF NOT EXISTS glab_attendance (
+  id            TEXT PRIMARY KEY,
+  user_id       TEXT NOT NULL,
+  date          TEXT NOT NULL,
+  facility_id   TEXT NOT NULL,
+  checked_in_at INTEGER NOT NULL,
+  source        TEXT NOT NULL CHECK (source IN ('passkey', 'manual')),
+  event_id      INTEGER,
+  detail        TEXT,
+  UNIQUE(user_id, date, facility_id)
+);
+CREATE INDEX IF NOT EXISTS glab_attendance_date ON glab_attendance(date);
+CREATE INDEX IF NOT EXISTS glab_attendance_user ON glab_attendance(user_id);
+
+CREATE TABLE IF NOT EXISTS glab_gateway (
+  lan_id         TEXT PRIMARY KEY,
+  facility_id    TEXT NOT NULL,
+  public_key_pem TEXT NOT NULL,
+  updated_at     INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS glab_attendance_nonce (
+  nonce   TEXT PRIMARY KEY,
+  used_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS glab_attendance_nonce_used_at ON glab_attendance_nonce(used_at);
+
 CREATE TABLE IF NOT EXISTS glab_job (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   company       TEXT NOT NULL,
@@ -132,6 +159,24 @@ export interface GlabUserRow {
   updated_by: string | null;
   attendance_event_id: number | null;
   attendance_checked_in_at: number | null;
+}
+
+export interface AttendanceRow {
+  id: string;
+  user_id: string;
+  date: string;
+  facility_id: string;
+  checked_in_at: number;
+  source: 'passkey' | 'manual';
+  event_id: number | null;
+  detail: string | null;
+}
+
+export interface GatewayRow {
+  lan_id: string;
+  facility_id: string;
+  public_key_pem: string;
+  updated_at: number;
 }
 
 export interface JobRow {
@@ -394,22 +439,95 @@ export function setAttendanceStatus(
   return result.changes > 0 ? getGlabUser(db, userId) : null;
 }
 
-export function markAttendanceForEvent(
-  db: SqlDb,
-  userId: string,
-  eventId: number,
-  checkedInAt = Date.now(),
-): GlabUserRow {
-  ensureGlabUser(db, userId);
-  db.prepare(
-    `UPDATE glab_user
-     SET attendance_status = 'present', updated_at = ?, updated_by = ?,
-         attendance_event_id = ?, attendance_checked_in_at = ?
-     WHERE user_id = ?`,
-  ).run(checkedInAt, userId, eventId, checkedInAt, userId);
-  const row = getGlabUser(db, userId);
-  if (!row) throw new Error('failed to record event attendance');
-  return row;
+// ─── 出席台帳 ───────────────────────────────────────────────
+
+export function dateInJst(timestamp: number): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date(timestamp));
+  const value = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((part) => part.type === type)?.value ?? '';
+  return `${value('year')}-${value('month')}-${value('day')}`;
+}
+
+export function saveGateway(db: SqlDb, gateway: {
+  lanId: string; facilityId: string; publicKeyPem: string; updatedAt?: number;
+}): void {
+  db.prepare(`INSERT INTO glab_gateway (lan_id, facility_id, public_key_pem, updated_at)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(lan_id) DO UPDATE SET facility_id = excluded.facility_id,
+      public_key_pem = excluded.public_key_pem, updated_at = excluded.updated_at`).run(
+    gateway.lanId, gateway.facilityId, gateway.publicKeyPem, gateway.updatedAt ?? Date.now(),
+  );
+}
+
+export function findGateway(db: SqlDb, lanId: string): GatewayRow | null {
+  return (db.prepare(`SELECT lan_id, facility_id, public_key_pem, updated_at
+    FROM glab_gateway WHERE lan_id = ?`).get(lanId) as GatewayRow | undefined) ?? null;
+}
+
+/**
+ * attestation の鮮度窓 (120 秒) をはるかに超えた nonce は再提示されても stale で
+ * 弾かれるため、 リプレイ判定に不要になる。 台帳と違い履歴的価値も無いので、
+ * 予約のたびに保持期間を過ぎた行を掃除してテーブルの無制限な増加を防ぐ。
+ */
+const ATTENDANCE_NONCE_RETENTION_MS = 24 * 60 * 60 * 1000;
+
+/** nonce は出席成功・同日冪等成功のいずれでも一度だけ使用できる。 */
+export function reserveAttendanceNonce(db: SqlDb, nonce: string, usedAt = Date.now()): boolean {
+  db.prepare('DELETE FROM glab_attendance_nonce WHERE used_at < ?')
+    .run(usedAt - ATTENDANCE_NONCE_RETENTION_MS);
+  return db.prepare(`INSERT INTO glab_attendance_nonce (nonce, used_at) VALUES (?, ?)
+    ON CONFLICT(nonce) DO NOTHING`).run(nonce, usedAt).changes > 0;
+}
+
+export interface NewAttendance {
+  userId: string;
+  date: string;
+  facilityId: string;
+  checkedInAt: number;
+  source: 'passkey' | 'manual';
+  eventId?: number | null;
+  detail?: Record<string, unknown> | null;
+}
+
+/** 同一ユーザ・日付・施設の二度目は書き換えず false を返す。 */
+export function recordAttendance(db: SqlDb, attendance: NewAttendance): boolean {
+  ensureGlabUser(db, attendance.userId);
+  return db.prepare(`INSERT INTO glab_attendance
+    (id, user_id, date, facility_id, checked_in_at, source, event_id, detail)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(user_id, date, facility_id) DO NOTHING`).run(
+    randomUUID(), attendance.userId, attendance.date, attendance.facilityId,
+    attendance.checkedInAt, attendance.source, attendance.eventId ?? null,
+    attendance.detail == null ? null : JSON.stringify(attendance.detail),
+  ).changes > 0;
+}
+
+export function listAttendance(db: SqlDb, query: {
+  userId?: string; date?: string; facilityId?: string; from?: string; to?: string; limit?: number;
+} = {}): AttendanceRow[] {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (query.userId) { where.push('user_id = ?'); params.push(query.userId); }
+  if (query.date) { where.push('date = ?'); params.push(query.date); }
+  if (query.facilityId) { where.push('facility_id = ?'); params.push(query.facilityId); }
+  if (query.from) { where.push('date >= ?'); params.push(query.from); }
+  if (query.to) { where.push('date <= ?'); params.push(query.to); }
+  const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const limit = query.limit ?? 100;
+  return db.prepare(`SELECT id, user_id, date, facility_id, checked_in_at, source, event_id, detail
+    FROM glab_attendance ${clause} ORDER BY checked_in_at DESC LIMIT ?`).all(...params, limit) as AttendanceRow[];
+}
+
+export function attendanceSummary(db: SqlDb, from: string, to: string): Array<{
+  date: string; facilityId: string; count: number;
+}> {
+  return db.prepare(`SELECT date, facility_id AS facilityId, COUNT(*) AS count
+    FROM glab_attendance WHERE date >= ? AND date <= ?
+    GROUP BY date, facility_id ORDER BY date ASC, facility_id ASC`).all(from, to) as Array<{
+    date: string; facilityId: string; count: number;
+  }>;
 }
 
 // ─── 就活情報 ────────────────────────────────────────────────

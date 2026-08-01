@@ -9,15 +9,15 @@ import {
 } from '../panel-kit.ts';
 import { canReachLocalOstiarius } from './local-ostiarius.ts';
 
-type AttendanceStatus = 'unknown' | 'present' | 'absent' | 'late' | 'excused';
-
-interface AttendanceUser {
+interface AttendanceRecord {
+  id: string;
   userId: string;
   displayName: string | null;
-  status: AttendanceStatus;
+  date: string;
+  facilityId: string;
+  checkedInAt: number;
+  source: 'passkey' | 'manual';
   eventTitle: string | null;
-  checkedInAt: number | null;
-  updatedAt: number;
 }
 
 interface ActiveEvent {
@@ -31,22 +31,8 @@ interface ActiveEvent {
 interface Availability {
   enabled: boolean;
   event: ActiveEvent | null;
-  ostiarius: {
-    status: 'up' | 'degraded' | 'down';
-    detail?: string;
-    baseUrl: string | null;
-  };
+  ostiarius: { status: 'up' | 'degraded' | 'down'; detail?: string; baseUrl: string | null };
 }
-
-const STATUS_LABELS: Record<AttendanceStatus, string> = {
-  unknown: '未設定',
-  present: '出席',
-  absent: '欠席',
-  late: '遅刻',
-  excused: '公欠',
-};
-
-const STATUSES = Object.keys(STATUS_LABELS) as AttendanceStatus[];
 
 export async function mount(container: HTMLElement, ctx: PanelContext): Promise<void> {
   ensureStyles();
@@ -55,76 +41,38 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
   async function render(): Promise<void> {
     container.innerHTML = '';
     const head = el('div', 'gl-row');
-    head.appendChild(el('h2', undefined, '✅ 出席'));
+    head.append(el('h2', undefined, '✅ 出席'));
     const refresh = el('button', 'gl-btn ghost', '更新');
     refresh.onclick = () => void render();
-    head.appendChild(refresh);
-    container.appendChild(head);
+    head.append(refresh);
+    container.append(head);
 
     const availabilityResponse = await ctx.api('/availability');
     if (!availabilityResponse.ok) {
-      container.appendChild(errorNotice('出席可能状態を取得できませんでした。'));
+      container.append(errorNotice('出席可能状態を取得できませんでした。'));
       return;
     }
     const availability = await availabilityResponse.json() as Availability;
     const localOstiariusReachable = Boolean(
-      availability.event
-      && availability.ostiarius.baseUrl
+      availability.event && availability.ostiarius.baseUrl
       && await canReachLocalOstiarius(availability.ostiarius.baseUrl),
     );
-    container.appendChild(checkinSection(availability, localOstiariusReachable, ctx, render));
+    container.append(checkinSection(availability, localOstiariusReachable, ctx, render));
 
     const mineResponse = await ctx.api('/mine');
+    const mine = section('直近30日の出席履歴');
     if (!mineResponse.ok) {
-      container.appendChild(errorNotice('自分の出席状況を取得できませんでした。'));
-      return;
+      mine.body.append(errorNotice('出席履歴を取得できませんでした。'));
+    } else {
+      const body = await mineResponse.json() as { attendance?: AttendanceRecord[] };
+      appendAttendanceList(mine.body, body.attendance ?? [], ctx.identity.displayName);
     }
-    const mineBody = await mineResponse.json() as { user?: AttendanceUser };
-    const mine = section('自分の現在状況');
-    if (mineBody.user) {
-      const u = mineBody.user;
-      if (attendedToday(u)) {
-        const badge = el('div', 'gl-notice');
-        badge.style.borderColor = 'var(--green, #16a34a)';
-        badge.style.color = 'var(--green, #16a34a)';
-        badge.appendChild(el('strong', undefined, '本日出席済み ✅'));
-        badge.appendChild(el('span', 'gl-muted', ` (${fmtDateTime(u.updatedAt)})`));
-        mine.body.appendChild(badge);
-      } else {
-        const cta = el('div', 'gl-row');
-        const btn = el('button', 'gl-btn', '本日の出席を記録');
-        btn.onclick = () => {
-          btn.disabled = true;
-          void ctx.api('/mine/checkin', { method: 'POST' })
-            .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return render(); })
-            .catch(() => { btn.disabled = false; });
-        };
-        cta.appendChild(btn);
-        cta.appendChild(el('span', 'gl-muted', '本日はまだ出席記録がありません。'));
-        mine.body.appendChild(cta);
-      }
-      mine.body.appendChild(attendanceRow(u, false, ctx, render, ctx.identity.displayName));
-    }
-    container.appendChild(mine.wrap);
+    container.append(mine.wrap);
 
     if (ctx.identity.isAdmin) {
-      const listResponse = await ctx.api('/list');
-      const all = section('全メンバー（管理者）');
-      if (!listResponse.ok) {
-        all.body.appendChild(errorNotice('メンバー一覧を取得できませんでした。'));
-      } else {
-        const body = await listResponse.json() as { users?: AttendanceUser[] };
-        const users = body.users ?? [];
-        const list = el('ul', 'gl-list');
-        for (const user of users) list.appendChild(attendanceRow(user, true, ctx, render));
-        all.body.appendChild(users.length > 0
-          ? list
-          : el('p', 'gl-muted', '登録済みメンバーはいません。'));
-      }
-      container.appendChild(all.wrap);
+      container.append(await adminSection(ctx, render));
     }
   }
-
   await render();
 }
 
@@ -136,27 +84,20 @@ function checkinSection(
 ): HTMLElement {
   const checkin = section('イベント出席');
   const message = el('p', 'gl-muted');
-
   if (!availability.event) {
-    checkin.body.appendChild(el('strong', undefined, '進行中のイベントはありません'));
+    checkin.body.append(el('strong', undefined, '進行中のイベントはありません'));
     message.textContent = 'イベントが始まると出席できます。';
   } else {
-    checkin.body.appendChild(el('strong', undefined, availability.event.title));
-    checkin.body.appendChild(el(
-      'div',
-      'gl-muted',
-      `${fmtDateTime(availability.event.startsAt)}〜${fmtDateTime(availability.event.endsAt)}`,
-    ));
+    checkin.body.append(el('strong', undefined, availability.event.title));
+    checkin.body.append(el('div', 'gl-muted', `${fmtDateTime(availability.event.startsAt)}〜${fmtDateTime(availability.event.endsAt)}`));
     if (availability.ostiarius.status !== 'up' || !localOstiariusReachable) {
       message.textContent = '会場Wi-Fi内のOsに接続できないため、現在は出席できません。';
     }
   }
-
   if (!availability.enabled || !availability.ostiarius.baseUrl || !localOstiariusReachable) {
-    checkin.body.appendChild(message);
+    checkin.body.append(message);
     return checkin.wrap;
   }
-
   const button = el('button', 'gl-btn', '出席');
   button.type = 'button';
   button.onclick = () => {
@@ -164,8 +105,8 @@ function checkinSection(
     if (!gateway) return;
     button.disabled = true;
     message.textContent = 'Osからpasskeyチャレンジを取得中…';
-    void performCheckin(gateway, ctx).then(async () => {
-      message.textContent = '出席を記録しました。';
+    void performCheckin(gateway, ctx).then(async (alreadyCheckedIn) => {
+      message.textContent = alreadyCheckedIn ? '本日の出席は既に記録されています。' : '出席を記録しました。';
       await rerender();
     }).catch((error) => {
       message.textContent = error instanceof Error ? error.message : String(error);
@@ -176,99 +117,78 @@ function checkinSection(
   return checkin.wrap;
 }
 
-async function performCheckin(gatewayBaseUrl: string, ctx: PanelContext): Promise<void> {
-  const options = await gatewayPost<Record<string, unknown>>(
-    gatewayBaseUrl,
-    '/checkin/begin',
-    {},
-  );
+async function adminSection(ctx: PanelContext, rerender: () => Promise<void>): Promise<HTMLElement> {
+  const admin = section('管理者: 本日の台帳と手動記録');
+  const date = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
+  const response = await ctx.api(`/list?date=${encodeURIComponent(date)}`);
+  if (!response.ok) admin.body.append(errorNotice('本日の台帳を取得できませんでした。'));
+  else appendAttendanceList(admin.body, (await response.json() as { attendance?: AttendanceRecord[] }).attendance ?? []);
+
+  const form = el('form', 'gl-row');
+  const userId = el('input', 'gl-input');
+  userId.placeholder = 'Cernere user ID';
+  userId.required = true;
+  const facilityId = el('input', 'gl-input');
+  facilityId.placeholder = '施設 ID';
+  facilityId.required = true;
+  const submit = el('button', 'gl-btn', '手動で記録');
+  form.append(userId, facilityId, submit);
+  form.onsubmit = (event) => {
+    event.preventDefault();
+    submit.disabled = true;
+    void ctx.api('/manual', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ userId: userId.value, facilityId: facilityId.value, date }),
+    }).then((result) => {
+      if (!result.ok) throw new Error(`HTTP ${result.status}`);
+      return rerender();
+    }).catch(() => { submit.disabled = false; });
+  };
+  admin.body.append(form);
+  return admin.wrap;
+}
+
+function appendAttendanceList(container: HTMLElement, rows: AttendanceRecord[], ownName?: string | null): void {
+  if (!rows.length) {
+    container.append(el('p', 'gl-muted', '出席記録はありません。'));
+    return;
+  }
+  const list = el('ul', 'gl-list');
+  for (const row of rows) {
+    const item = el('li');
+    item.append(el('strong', undefined, ownName || row.displayName || row.userId));
+    item.append(el('span', 'gl-muted', ` ${row.date} / ${row.facilityId} / ${fmtDateTime(row.checkedInAt)}`));
+    item.append(el('span', 'gl-tag', row.source === 'manual' ? '手動' : 'passkey'));
+    list.append(item);
+  }
+  container.append(list);
+}
+
+async function performCheckin(gatewayBaseUrl: string, ctx: PanelContext): Promise<boolean> {
+  const options = await gatewayPost<Record<string, unknown>>(gatewayBaseUrl, '/checkin/begin', {});
   const assertion = await startAuthentication({ optionsJSON: options as never });
-  const finish = await gatewayPost<{ attestation?: string }>(
-    gatewayBaseUrl,
-    '/checkin/finish',
-    { response: assertion },
-  );
+  const finish = await gatewayPost<{ attestation?: string }>(gatewayBaseUrl, '/checkin/finish', { response: assertion });
   if (!finish.attestation) throw new Error('Osが出席証明を返しませんでした。');
   const response = await ctx.api('/checkin', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ attestation: finish.attestation }),
   });
-  if (!response.ok) {
-    const body = await response.json().catch(() => null) as { error?: string } | null;
-    throw new Error(body?.error ?? `出席記録に失敗しました (${response.status})。`);
-  }
+  const body = await response.json().catch(() => null) as { error?: string; alreadyCheckedIn?: boolean } | null;
+  if (!response.ok) throw new Error(body?.error ?? `出席記録に失敗しました (${response.status})。`);
+  return body?.alreadyCheckedIn === true;
 }
 
 async function gatewayPost<T>(baseUrl: string, path: string, body: unknown): Promise<T> {
   const response = await fetch(`${baseUrl.replace(/\/+$/, '')}${path}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
   });
   const value = await response.json().catch(() => null);
   if (!response.ok) throw new Error(`Osへの接続に失敗しました (${response.status})。`);
   return value as T;
 }
 
-/** 同一カレンダー日か (ローカル時刻)。 */
-function isToday(ts: number): boolean {
-  const d = new Date(ts);
-  const n = new Date();
-  return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
-}
-
-/** 本日出席済み = 出席/遅刻ステータスが今日更新されている。 */
-function attendedToday(user: AttendanceUser): boolean {
-  return (user.status === 'present' || user.status === 'late') && isToday(user.updatedAt);
-}
-
-function attendanceRow(
-  user: AttendanceUser,
-  editable: boolean,
-  ctx: PanelContext,
-  rerender: () => Promise<void>,
-  label?: string | null,
-): HTMLLIElement {
-  const row = el('li');
-  const main = el('div', 'gl-row');
-  // 表示は氏名優先 (Cernere 正本)。 名前が無い場合のみ user_id を出す。
-  main.appendChild(el('strong', undefined, label || user.displayName || user.userId));
-  if (user.eventTitle) main.appendChild(el('span', 'gl-muted', user.eventTitle));
-  main.appendChild(el('span', `gl-tag ${user.status}`, STATUS_LABELS[user.status]));
-  if (user.checkedInAt) {
-    main.appendChild(el('span', 'gl-muted', `出席: ${fmtDateTime(user.checkedInAt)}`));
-  }
-
-  if (editable) {
-    const select = el('select', 'gl-select');
-    for (const status of STATUSES) {
-      const option = el('option', undefined, STATUS_LABELS[status]);
-      option.value = status;
-      option.selected = status === user.status;
-      select.appendChild(option);
-    }
-    select.onchange = () => {
-      select.disabled = true;
-      void ctx.api(`/${encodeURIComponent(user.userId)}/status`, {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ status: select.value }),
-      }).then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return rerender();
-      }).catch(() => {
-        select.disabled = false;
-      });
-    };
-    main.appendChild(select);
-  }
-  row.appendChild(main);
-  return row;
-}
-
 function errorNotice(message: string): HTMLElement {
   const box = el('div', 'gl-notice gl-notice-error');
-  box.appendChild(el('strong', undefined, message));
+  box.append(el('strong', undefined, message));
   return box;
 }
