@@ -1,0 +1,29 @@
+{
+  "name": "progress-tracking",
+  "description": "Calliope が算出した PJ ごとの進捗 (sprint health / burndown / risk / 停滞タスク) の表示面。エンジンは Calliope 側にあり、GLAB は GET /api/glab/progress を read するだけで自前 DB へキャッシュしない。Calliope 未稼働・未設定時は degraded 表示に落ちる。",
+  "presetRules": [
+    {
+      "preset": "couplingCap",
+      "params": {
+        "targetPattern": "/plugins/progress/",
+        "by": "path",
+        "maxFanOut": 9007199254740991
+      }
+    }
+  ],
+  "templateRules": [],
+  "cardTemplate": "Summarise the \"progress-tracking\" domain: Calliope が算出した PJ ごとの進捗 (sprint health / burndown / risk / 停滞タスク) の表示面。エンジンは Calliope 側にあり、GLAB は GET /api/glab/progress を read するだけで自前 DB へキャッシュしない。Calliope 未稼働・未設定時は degraded 表示に落ちる。",
+  "source": "manual",
+  "lockedFields": [
+    "*"
+  ],
+  "mechanics": [
+    "connector-relay",
+    "degraded-mode",
+    "sprint-progress-view"
+  ],
+  "specRefs": [
+    "spec/tasks/2026-07-16-03-progress-panel.md"
+  ],
+  "rationale": "GLAB DESIGN.md 2〜7 章と plugins/pack.json のモジュール構成から、責務境界ごとに手で定義した。"
+}

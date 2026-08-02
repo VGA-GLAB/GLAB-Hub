@@ -1,0 +1,47 @@
+{
+  "name": "community-space",
+  "description": "メンバー同士の交流面。forum/ がフォーラムのスレッド表示、consult/ が相談チャンネルと在席 (おれひま) 表示、tech-links/ が技術リンクの共有と URL 正規化を担う。運用は Discord 側と対になる。",
+  "presetRules": [
+    {
+      "preset": "couplingCap",
+      "params": {
+        "targetPattern": "/plugins/forum/",
+        "by": "path",
+        "maxFanOut": 9007199254740991
+      }
+    },
+    {
+      "preset": "couplingCap",
+      "params": {
+        "targetPattern": "/plugins/consult/",
+        "by": "path",
+        "maxFanOut": 9007199254740991
+      }
+    },
+    {
+      "preset": "couplingCap",
+      "params": {
+        "targetPattern": "/plugins/tech-links/",
+        "by": "path",
+        "maxFanOut": 9007199254740991
+      }
+    }
+  ],
+  "templateRules": [],
+  "cardTemplate": "Summarise the \"community-space\" domain: メンバー同士の交流面。forum/ がフォーラムのスレッド表示、consult/ が相談チャンネルと在席 (おれひま) 表示、tech-links/ が技術リンクの共有と URL 正規化を担う。運用は Discord 側と対になる。",
+  "source": "manual",
+  "lockedFields": [
+    "*"
+  ],
+  "mechanics": [
+    "forum-threads",
+    "presence",
+    "link-sharing"
+  ],
+  "specRefs": [
+    "spec/feature/consult.md",
+    "spec/feature/forum-roles.md",
+    "spec/interface/tech-links.md"
+  ],
+  "rationale": "GLAB DESIGN.md 2〜7 章と plugins/pack.json のモジュール構成から、責務境界ごとに手で定義した。"
+}

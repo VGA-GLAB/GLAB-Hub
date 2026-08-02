@@ -1,0 +1,29 @@
+{
+  "name": "project-showcase",
+  "description": "制作プロジェクトの公開面。GitHub public API から Release を取得して表示・ダウンロード動線と更新通知を出し、Omnipotens 解析レポートの保存と要約表示を行う。サービス間認証は service-auth.ts が担う。",
+  "presetRules": [
+    {
+      "preset": "couplingCap",
+      "params": {
+        "targetPattern": "/plugins/projects/",
+        "by": "path",
+        "maxFanOut": 9007199254740991
+      }
+    }
+  ],
+  "templateRules": [],
+  "cardTemplate": "Summarise the \"project-showcase\" domain: 制作プロジェクトの公開面。GitHub public API から Release を取得して表示・ダウンロード動線と更新通知を出し、Omnipotens 解析レポートの保存と要約表示を行う。サービス間認証は service-auth.ts が担う。",
+  "source": "manual",
+  "lockedFields": [
+    "*"
+  ],
+  "mechanics": [
+    "github-release-sync",
+    "analysis-report-store",
+    "service-auth"
+  ],
+  "specRefs": [
+    "spec/interface/projects-registry.md"
+  ],
+  "rationale": "GLAB DESIGN.md 2〜7 章と plugins/pack.json のモジュール構成から、責務境界ごとに手で定義した。"
+}

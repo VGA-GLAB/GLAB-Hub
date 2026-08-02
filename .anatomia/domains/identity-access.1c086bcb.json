@@ -1,0 +1,57 @@
+{
+  "name": "identity-access",
+  "description": "Cernere を単一情報源とする本人性・所属・権限。plugins/cernere/ が project credential と Cernere クライアントを作り、cernere-admin/ が設定動線、vantan-user/ が初回プロフィール登録ゲート (name / role_title / department_name)、roles/ が役職に基づく可視性判定を担う。プロフィール値を GLAB SQLite へ複製しないことが境界条件。",
+  "presetRules": [
+    {
+      "preset": "couplingCap",
+      "params": {
+        "targetPattern": "/plugins/cernere/",
+        "by": "path",
+        "maxFanOut": 9007199254740991
+      }
+    },
+    {
+      "preset": "couplingCap",
+      "params": {
+        "targetPattern": "/plugins/cernere-admin/",
+        "by": "path",
+        "maxFanOut": 9007199254740991
+      }
+    },
+    {
+      "preset": "couplingCap",
+      "params": {
+        "targetPattern": "/plugins/vantan-user/",
+        "by": "path",
+        "maxFanOut": 9007199254740991
+      }
+    },
+    {
+      "preset": "couplingCap",
+      "params": {
+        "targetPattern": "/plugins/roles/",
+        "by": "path",
+        "maxFanOut": 9007199254740991
+      }
+    }
+  ],
+  "templateRules": [],
+  "cardTemplate": "Summarise the \"identity-access\" domain: Cernere を単一情報源とする本人性・所属・権限。plugins/cernere/ が project credential と Cernere クライアントを作り、cernere-admin/ が設定動線、vantan-user/ が初回プロフィール登録ゲート (name / role_title / department_name)、roles/ が役職に基づく可視性判定を担う。プロフィール値を GLAB SQLite へ複製しないことが境界条件。",
+  "source": "manual",
+  "lockedFields": [
+    "*"
+  ],
+  "mechanics": [
+    "composite-auth",
+    "first-access-registration",
+    "audience-visibility"
+  ],
+  "specRefs": [
+    "DESIGN 7. 認証",
+    "spec/feature/first-access-registration.md",
+    "spec/feature/forum-roles.md",
+    "spec/data/vantan-user.md",
+    "spec/data/glab-user.md"
+  ],
+  "rationale": "GLAB DESIGN.md 2〜7 章と plugins/pack.json のモジュール構成から、責務境界ごとに手で定義した。"
+}

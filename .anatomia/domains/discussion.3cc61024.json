@@ -1,0 +1,28 @@
+{
+  "name": "discussion",
+  "description": "Discutere 連携の議論・学習ビュー。設問や議論ログは Discutere が正本で、GLAB は入口とパネル表示を担う。",
+  "presetRules": [
+    {
+      "preset": "couplingCap",
+      "params": {
+        "targetPattern": "/plugins/di/",
+        "by": "path",
+        "maxFanOut": 9007199254740991
+      }
+    }
+  ],
+  "templateRules": [],
+  "cardTemplate": "Summarise the \"discussion\" domain: Discutere 連携の議論・学習ビュー。設問や議論ログは Discutere が正本で、GLAB は入口とパネル表示を担う。",
+  "source": "manual",
+  "lockedFields": [
+    "*"
+  ],
+  "mechanics": [
+    "connector-relay",
+    "entry-points"
+  ],
+  "specRefs": [
+    "DESIGN 3. モジュール（Web hub plugins/）"
+  ],
+  "rationale": "GLAB DESIGN.md 2〜7 章と plugins/pack.json のモジュール構成から、責務境界ごとに手で定義した。"
+}

@@ -1,0 +1,31 @@
+{
+  "name": "attendance",
+  "description": "集会出席の記録。進行中イベントと Ostiarius passkey を突き合わせ、attestation を GLAB 側で自前検証したうえで直近出席を glab_user へ記録する。出席台帳と Ostiarius health を含み、GLAB が正本を持つ数少ないデータ領域。",
+  "presetRules": [
+    {
+      "preset": "couplingCap",
+      "params": {
+        "targetPattern": "/plugins/attendance/",
+        "by": "path",
+        "maxFanOut": 9007199254740991
+      }
+    }
+  ],
+  "templateRules": [],
+  "cardTemplate": "Summarise the \"attendance\" domain: 集会出席の記録。進行中イベントと Ostiarius passkey を突き合わせ、attestation を GLAB 側で自前検証したうえで直近出席を glab_user へ記録する。出席台帳と Ostiarius health を含み、GLAB が正本を持つ数少ないデータ領域。",
+  "source": "manual",
+  "lockedFields": [
+    "*"
+  ],
+  "mechanics": [
+    "attestation-verify",
+    "attendance-ledger",
+    "gateway-register"
+  ],
+  "specRefs": [
+    "spec/feature/attendance.md",
+    "spec/data/glab-attendance.md",
+    "spec/feature/face-attendance.md"
+  ],
+  "rationale": "GLAB DESIGN.md 2〜7 章と plugins/pack.json のモジュール構成から、責務境界ごとに手で定義した。"
+}
