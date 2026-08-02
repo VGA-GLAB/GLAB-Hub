@@ -52,6 +52,48 @@ describe('versioned service health', () => {
     });
   });
 
+  it('sends the fixed connector headers on the health probe too, not only on data reads', async () => {
+    // 固定 Bearer でしか認可しない接続先 (Calliope) では、health だけ無認証で送ると
+    // 接続先の設定次第で probe が 401 → 常時 degraded になる。
+    const seen: Array<Record<string, string>> = [];
+    globalThis.fetch = async (_url, init) => {
+      seen.push(Object.fromEntries(new Headers(init?.headers).entries()));
+      return Response.json({ ok: true, version: '1.0.0' });
+    };
+    const connector = new VersionedHttpServiceConnector({
+      id: 'fixed-token',
+      title: 'Fixed token backend',
+      scope: 'multi',
+      baseUrl: 'http://fixed.test',
+      healthPath: '/health',
+      headers: { authorization: 'Bearer service-token' },
+    });
+
+    await connector.health();
+
+    assert.equal(seen[0]?.authorization, 'Bearer service-token');
+  });
+
+  it('leaves requests unchanged when no fixed headers are configured', async () => {
+    // 既存コネクタ (aedilis / di / tirocinium / volputas) への回帰防止。
+    const seen: Array<Record<string, string>> = [];
+    globalThis.fetch = async (_url, init) => {
+      seen.push(Object.fromEntries(new Headers(init?.headers).entries()));
+      return Response.json({ ok: true });
+    };
+    const connector = new VersionedHttpServiceConnector({
+      id: 'plain',
+      title: 'Plain',
+      scope: 'multi',
+      baseUrl: 'http://plain.test',
+      healthPath: '/health',
+    });
+
+    await connector.fetch('/api/thing', { headers: { 'x-caller': '1' } });
+
+    assert.deepEqual(seen[0], { 'x-caller': '1' });
+  });
+
   it('reports explicitly when a configured backend omits its version', async () => {
     globalThis.fetch = async () => Response.json({ ok: true });
     const connector = new VersionedHttpServiceConnector({

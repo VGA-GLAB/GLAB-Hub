@@ -23,7 +23,8 @@
     "sprint-progress-view"
   ],
   "specRefs": [
-    "spec/tasks/2026-07-16-03-progress-panel.md"
+    "spec/tasks/2026-07-16-03-progress-panel.md",
+    "spec/interface/calliope-connector.md"
   ],
   "rationale": "GLAB DESIGN.md 2〜7 章と plugins/pack.json のモジュール構成から、責務境界ごとに手で定義した。"
 }

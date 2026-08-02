@@ -17,10 +17,16 @@ GLAB は Node test runner による自動テストと、ブラウザ/Discord の
 
 ## degraded モードの確認
 
-`AEDILIS_BASE_URL` 未設定で `facility` パネルが「未接続」を表示すること、および
-`VOLPUTAS_URL` 未設定で `volputas` パネルが「未接続」を表示すること
+`AEDILIS_BASE_URL` 未設定で `facility` パネルが「未接続」を表示すること、
+`VOLPUTAS_URL` 未設定で `volputas` パネルが「未接続」を表示すること、および
+`CALLIOPE_BASE_URL` 未設定で `progress` パネルが「未接続」を表示すること
 （connector が 503 を返す経路、[`interface/aedilis-connector.md`](../interface/aedilis-connector.md)）を
 手動で確認する。
+
+`progress` パネルは描画部（`plugins/progress/progress-view.ts`）が DOM 依存で
+`npm test`（DOM 無しの Node test runner）に載らないため、Calliope 稼働時の
+カード表示（sprint / burndown / goal / 停滞タスク / warnings）はブラウザで確認する。
+中継とコネクタ設定は `tests/progress-connector-contract.test.ts` が担保する。
 
 ## 自動テストの重点
 
@@ -42,3 +48,4 @@ Foedus の `--skip-external-schema` は Cernere schema-export に到達できな
 - データ: [`data/glab-event.md`](../data/glab-event.md) / [`data/glab-job.md`](../data/glab-job.md)
 - 接点: [`interface/corpus-db-shared.md`](../interface/corpus-db-shared.md)
 - Volputas: [`interface/volputas-connector.md`](../interface/volputas-connector.md)
+- Calliope: [`interface/calliope-connector.md`](../interface/calliope-connector.md)

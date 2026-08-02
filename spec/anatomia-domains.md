@@ -36,13 +36,14 @@ draft` や `reconstruct` を回しても手書きの定義は上書きされな�
 | `game-feedback` | `plugins/volputas/` | 設問 = Volputas、回答 = Cernere が正本。GLAB は表示と投稿の面だけ |
 | `discussion` | `plugins/di/` | Discutere 連携の議論・学習ビュー |
 | `project-showcase` | `plugins/projects/` | GitHub Release 表示/DL/更新通知、Omnipotens 解析レポートの保存と要約 |
-| `progress-tracking` | `plugins/progress/` (未実装) | Calliope 進捗の表示面。エンジンは Calliope、自前 DB へキャッシュしない |
+| `progress-tracking` | `plugins/progress/` | Calliope 進捗の表示面。エンジンは Calliope、自前 DB へキャッシュしない |
 | `community-space` | `plugins/forum/`, `consult/`, `tech-links/` | フォーラム・在席 (おれひま)・技術リンク共有 |
 | `discord-bot` | `bot/` | discord.js Gateway 常時接続の運用ランタイム。hub とは DB 経由でだけ結合 |
 
-`progress-tracking` だけは先行宣言で、対応する `plugins/progress/` はまだ無い
-(`spec/tasks/2026-07-16-03-progress-panel.md` が `status: pending`)。実装時に
-progress パネルを `plugins/projects/` 配下へ置く選択をした場合は、この行と
+`progress-tracking` は先行宣言だったが `plugins/progress/` として実装済み
+(`spec/tasks/2026-07-16-03-progress-panel.md` / 接続契約は
+[`interface/calliope-connector.md`](./interface/calliope-connector.md))。
+`plugins/progress/` を移動・改名するときは、この行と
 `.anatomia/domains/progress-tracking.*.json` の `targetPattern` を
 `project-showcase` との境界ごと引き直す。
 
