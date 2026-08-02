@@ -2,6 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseRecentGames, parseReviewList } from '../plugins/volputas/contracts.ts';
+import {
+  PROJECT_REVIEW_COMMENT_MAX,
+  digestComment,
+} from '../plugins/volputas/review-digest.ts';
 
 /** cwd に依存せずリポジトリ内のソースを読む (他の contract test と同じ流儀)。 */
 const readSource = (relative: string): string =>
@@ -99,5 +103,58 @@ test('projects card hands off projectId without navigating away', () => {
   assert.ok(
     !/href = `\/\?projectId=/.test(src),
     'hub のタブは URL から復元しないので、 / への遷移はパネル状態を捨てるだけになる',
+  );
+});
+
+test('every reviews spec clause is referenced from the implementation', () => {
+  // spec 側で「実装関数は clause ID を @implements で参照する」と宣言しているので、
+  // 参照されない clause が残らないことをここで固定する。
+  const sources = [
+    'plugins/volputas/index.ts',
+    'plugins/volputas/panel.ts',
+    'plugins/volputas/contracts.ts',
+    'plugins/volputas/review-digest.ts',
+    'plugins/projects/panel.ts',
+  ].map(readSource).join('\n');
+  const spec = readSource('spec/interface/volputas-connector.md');
+  const clauses = [...new Set(spec.match(/SPEC-VOLPUTAS-REVIEWS-\d{3}/g) ?? [])];
+  assert.ok(clauses.length > 0, 'spec に clause ID が無い');
+  for (const clause of clauses) {
+    assert.ok(
+      sources.includes(`@implements ${clause}`),
+      `${clause} を @implements で参照する実装が無い`,
+    );
+  }
+});
+
+test('digestComment truncates only when the comment is longer than the limit', () => {
+  const short = 'あ'.repeat(PROJECT_REVIEW_COMMENT_MAX);
+  assert.equal(digestComment(short), short);
+  const long = 'あ'.repeat(PROJECT_REVIEW_COMMENT_MAX + 1);
+  assert.equal(digestComment(long), `${'あ'.repeat(PROJECT_REVIEW_COMMENT_MAX)}…`);
+});
+
+test('digestComment does not split a surrogate pair', () => {
+  // 絵文字は UTF-16 で 2 code unit。 code unit で切ると壊れた片割れが残る。
+  // 判定は「対になっていないサロゲート」だけを拾う (完全な絵文字の前半は正常)。
+  const loneSurrogate = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+  const digest = digestComment('🎮'.repeat(PROJECT_REVIEW_COMMENT_MAX + 5));
+  assert.ok(
+    !loneSurrogate.test(digest),
+    'ダイジェストにサロゲートの片割れを残してはいけない',
+  );
+  assert.equal([...digest].length, PROJECT_REVIEW_COMMENT_MAX + 1);
+});
+
+test('projects card truncates the review digest at the documented length', () => {
+  const src = readSource('plugins/projects/panel.ts');
+  assert.ok(
+    src.includes('digestComment(review.comment'),
+    'projects card must run the digest through digestComment',
+  );
+  const spec = readSource('spec/interface/volputas-connector.md');
+  assert.ok(
+    spec.includes(`先頭 ${PROJECT_REVIEW_COMMENT_MAX} 文字で切り詰める`),
+    'spec に書いた長さと実装の定数を揃える',
   );
 });

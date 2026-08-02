@@ -45,12 +45,18 @@ export interface RecentGameView {
   playtimeTwoWeeksMinutes: number;
 }
 
+/**
+ * 感想一覧は `{ ok, data }` 包みではなく素の JSON 配列で届く。
+ *
+ * @implements SPEC-VOLPUTAS-REVIEWS-006
+ */
 export function parseReviewList(value: unknown): ReviewView[] | null {
   if (!Array.isArray(value)) return null;
   const reviews = value.map(parseReview);
   return reviews.every((review): review is ReviewView => review !== null) ? reviews : null;
 }
 
+/** @implements SPEC-VOLPUTAS-REVIEWS-006 */
 export function parseRecentGames(value: unknown): RecentGameView[] | null {
   if (!Array.isArray(value)) return null;
   const games = value.map(parseRecentGame);

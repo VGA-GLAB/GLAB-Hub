@@ -19,18 +19,27 @@ connector で Volputas の死活とアンケート API を集約する。回答 
 
 ## コミュニティ感想フィード
 
-- `GET /api/v1/integrations/glab/reviews?projectId=&limit=&offset=` は、`visibility='community'`
+ドメイン: `game-feedback` (`.anatomia/domains/game-feedback.*.json`)。
+実装関数は下記の clause ID を `@implements` で参照する。
+
+- **SPEC-VOLPUTAS-REVIEWS-001** —
+  `GET /api/v1/integrations/glab/reviews?projectId=&limit=&offset=` は、`visibility='community'`
   の感想だけを返す。`projectId` を指定すると GLAB プロジェクト ID で絞り込む。
-- `POST /api/v1/integrations/glab/reviews` はゲーム名、本文、`polarity` (`like` / `dislike`)、
+- **SPEC-VOLPUTAS-REVIEWS-002** —
+  `POST /api/v1/integrations/glab/reviews` はゲーム名、本文、`polarity` (`like` / `dislike`)、
   `recommend`、任意の `glabProjectId`、匿名指定、明示的な `visibility` を受け取る。
   GLAB パネルは公開投稿に `visibility='community'` を指定する。
-- `GET /api/v1/integrations/glab/recent-games` は最近遊んだゲームの候補として
+- **SPEC-VOLPUTAS-REVIEWS-003** —
+  `GET /api/v1/integrations/glab/recent-games` は最近遊んだゲームの候補として
   `{ name, playtimeTwoWeeksMinutes }[]` を返す。
-- GLAB はこれらをモジュール mount 先の `/api/x/volputas/reviews`、
+- **SPEC-VOLPUTAS-REVIEWS-004** —
+  GLAB はこれらをモジュール mount 先の `/api/x/volputas/reviews`、
   `/api/x/volputas/recent-games` として中継し、すべての proxy 応答に
   `cache-control: private, no-store` を付与する。
-- projects パネルのカードは `/api/x/volputas/reviews?projectId=&limit=` でダイジェストを
+- **SPEC-VOLPUTAS-REVIEWS-005** —
+  projects パネルのカードは `/api/x/volputas/reviews?projectId=&limit=` でダイジェストを
   表示し、本文の投稿・全件閲覧は volputas パネルの「感想」タブが担う。
+  ダイジェストは本文を先頭 120 文字で切り詰める (カード一覧を長文で埋めない)。
   hub のタブ状態は URL から復元しないので、projects カードからレビュータブへ遷移はしない。
   「感想を書く」は現在の URL へ `?projectId=` だけを書き足し (`history.replaceState`)、
   レビュータブを開くよう案内する。ページ遷移するとタブがステータスへ戻るだけで、
@@ -40,8 +49,17 @@ connector で Volputas の死活とアンケート API を集約する。回答 
   感想の取得に失敗しても絞り込み解除の導線は残す。
   Volputas 未接続 (503) のとき、projects カードは失敗ではなく「未接続」を表示する。
   感想の投稿も 503 は「未接続」、それ以外の失敗は status 付きで区別して伝える。
-- 感想系の 2 エンドポイントは `{ ok, data }` 包みではなく素の JSON 配列を返す
+- **SPEC-VOLPUTAS-REVIEWS-006** —
+  感想系の 2 エンドポイントは `{ ok, data }` 包みではなく素の JSON 配列を返す
   (アンケート系との差分)。GLAB 側の parser もその前提で検証する。
 
 Volputas 未設定時も GLAB は degraded で起動し、パネルは「未接続」を表示する。
 設定値が存在するのに不正な場合は silent fallback せず起動を失敗させる。
+
+## 関連
+
+- コード: `plugins/volputas/index.ts`（proxy）/ `plugins/volputas/panel.ts` /
+  `plugins/volputas/contracts.ts`（parser）/
+  `plugins/volputas/review-digest.ts`（ダイジェストの切り詰め）/
+  `plugins/projects/panel.ts`（projects カード）
+- テスト: `tests/volputas-reviews-contract.test.ts`

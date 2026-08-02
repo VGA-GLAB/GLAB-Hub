@@ -59,6 +59,8 @@ const volputasModule: CorpusModule = {
       ctx.tokenProvider,
       'volputas',
     ));
+    // 感想系の中継。 proxy() が全応答に cache-control: private, no-store を付ける。
+    // @implements SPEC-VOLPUTAS-REVIEWS-004
     routes.get('/reviews', (c) => proxy(
       c, connector, GLAB_REVIEWS_PATH, ctx.tokenProvider, 'volputas',
     ));

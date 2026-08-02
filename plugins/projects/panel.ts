@@ -12,6 +12,7 @@ import {
   type PanelContext,
 } from '../panel-kit.ts';
 import { parseReviewList } from '../volputas/contracts.ts';
+import { PROJECT_REVIEW_COMMENT_MAX, digestComment } from '../volputas/review-digest.ts';
 
 type ProjectStatus = 'active' | 'paused' | 'closed';
 type ProjectMemberRole = 'producer' | 'member';
@@ -288,6 +289,7 @@ function githubSyncControl(project: Project, ctx: PanelContext, releases: HTMLEl
   return row;
 }
 
+/** @implements SPEC-VOLPUTAS-REVIEWS-005 */
 function createReviewSection(project: Project, ctx: PanelContext): HTMLElement {
   const wrap = el('section', 'gl-project-reviews');
   wrap.appendChild(el('h4', undefined, '感想'));
@@ -312,6 +314,7 @@ function createReviewSection(project: Project, ctx: PanelContext): HTMLElement {
   return wrap;
 }
 
+/** @implements SPEC-VOLPUTAS-REVIEWS-005 */
 async function loadProjectReviews(
   ctx: PanelContext,
   projectId: string,
@@ -342,9 +345,10 @@ async function loadProjectReviews(
   }
   for (const review of reviews) {
     const item = el('p');
+    const comment = digestComment(review.comment, PROJECT_REVIEW_COMMENT_MAX);
     item.append(
       el('strong', undefined, review.gameTitle),
-      document.createTextNode(` — ${review.comment}`),
+      document.createTextNode(` — ${comment}`),
     );
     container.appendChild(item);
   }

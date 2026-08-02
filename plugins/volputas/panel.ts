@@ -89,6 +89,7 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
   await render();
 }
 
+/** @implements SPEC-VOLPUTAS-REVIEWS-001 @implements SPEC-VOLPUTAS-REVIEWS-005 */
 async function renderReviewFeed(
   ctx: PanelContext,
   container: HTMLElement,
@@ -108,6 +109,7 @@ async function renderReviewFeed(
   ]);
 }
 
+/** @implements SPEC-VOLPUTAS-REVIEWS-001 */
 async function loadReviews(
   ctx: PanelContext,
   container: HTMLElement,
@@ -171,6 +173,7 @@ function reviewCard(review: ReviewView): HTMLElement {
   return card;
 }
 
+/** @implements SPEC-VOLPUTAS-REVIEWS-002 */
 async function renderReviewForm(
   ctx: PanelContext,
   container: HTMLElement,
@@ -252,6 +255,7 @@ async function renderReviewForm(
   await loadRecentGames(ctx, suggestions, gameTitle);
 }
 
+/** @implements SPEC-VOLPUTAS-REVIEWS-003 */
 async function loadRecentGames(
   ctx: PanelContext,
   container: HTMLElement,
