@@ -50,3 +50,4 @@ npm run dev                 # http://localhost:5187
 
 - 環境変数: [`setup/environment.md`](./environment.md)
 - Bot 設定: [`setup/bot-encrypted-config.md`](./bot-encrypted-config.md)
+- 別マシンでの立ち上げ: [`setup/new-machine.md`](./new-machine.md)

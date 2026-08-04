@@ -47,4 +47,5 @@ npm run start               # Gateway 接続 + slash command 登録 + リマイ�
 ## 関連
 
 - 環境変数の一覧: [`setup/environment.md`](./environment.md)
+- 別マシンでの立ち上げ: [`setup/new-machine.md`](./new-machine.md)
 - 接点: [`interface/discord-commands.md`](../interface/discord-commands.md)

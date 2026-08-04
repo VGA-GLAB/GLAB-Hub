@@ -80,3 +80,4 @@ v0.1 はExからhubを起動し、Botは`npm run start`で別プロセス運用�
 ## 関連
 
 - hub: [`setup/hub.md`](./hub.md) / Bot: [`setup/bot-encrypted-config.md`](./bot-encrypted-config.md)
+- 別マシンでの立ち上げ: [`setup/new-machine.md`](./new-machine.md)
