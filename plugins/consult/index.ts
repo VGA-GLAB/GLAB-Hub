@@ -6,6 +6,7 @@ import { createCernereProjectClient } from '../cernere/create-client.ts';
 import { requireServiceToken } from '../projects/service-auth.ts';
 import { noStore } from '../shared.ts';
 import { listAvailable, resolveDiscordId, setAvailability, type AvailableMember } from './presence-client.ts';
+import { declarePresenceSchema } from './presence-schema.ts';
 
 const consultSchema = z.object({ title: z.string().min(1).max(160), body: z.string().min(1).max(8_000) }).strict();
 const availabilitySchema = z.object({ availableNow: z.boolean(), hours: z.number().positive().max(24).optional() }).strict();
@@ -29,6 +30,9 @@ const consultModule: CorpusModule = {
   setup(ctx: CorpusContext) {
     ensureSchema(ctx.db);
     const client = createCernereProjectClient(ctx);
+    // presence 列の正本は GLab 側。起動時に Cernere へ宣言する (失敗しても起動は継続)。
+    // 最初の presence 要求は宣言完了後に流し、DDL 作成との競合を防ぐ。
+    const presenceSchemaReady = declarePresenceSchema(client, (m) => ctx.logger.error(m));
     const r = new Hono();
     r.post('/consults', async (c) => {
       const parsed = consultSchema.safeParse(await c.req.json().catch(() => null));
@@ -37,7 +41,7 @@ const consultModule: CorpusModule = {
       const recent = ctx.db.prepare('SELECT id FROM glab_consult WHERE created_by = ? AND created_at > ? LIMIT 1').get(identity.userId, Date.now() - CREATE_WINDOW_MS);
       if (recent) return c.json({ error: 'rate_limited' }, 429);
       let invited: AvailableMember[] = [];
-      try { invited = await listAvailable(client); } catch (error) { return c.json(unavailable(ctx, error), 503); }
+      try { await presenceSchemaReady; invited = await listAvailable(client); } catch (error) { return c.json(unavailable(ctx, error), 503); }
       const id = crypto.randomUUID();
       ctx.db.prepare(`INSERT INTO glab_consult (id, title, body, status, created_by, created_at, invited_json)
         VALUES (?, ?, ?, 'open', ?, ?, ?)`).run(id, parsed.data.title, parsed.data.body, identity.userId, Date.now(), JSON.stringify(invited));
@@ -64,6 +68,7 @@ const consultModule: CorpusModule = {
     r.get('/availability', async (c) => {
       try {
         const self = getIdentity(c).userId;
+        await presenceSchemaReady;
         const available = await listAvailable(client);
         return c.json({ availableNow: available.some((member) => member.userId === self) });
       } catch (error) { return c.json(unavailable(ctx, error), 503); }
@@ -72,13 +77,13 @@ const consultModule: CorpusModule = {
       const parsed = availabilitySchema.safeParse(await c.req.json().catch(() => null));
       if (!parsed.success || (parsed.data.availableNow && !parsed.data.hours)) return c.json({ error: 'invalid_availability' }, 400);
       const until = parsed.data.availableNow ? new Date(Date.now() + parsed.data.hours! * 3_600_000).toISOString() : null;
-      try { await setAvailability(client, getIdentity(c).userId, parsed.data.availableNow, until); return c.json({ ok: true, availableUntil: until }); }
+      try { await presenceSchemaReady; await setAvailability(client, getIdentity(c).userId, parsed.data.availableNow, until); return c.json({ ok: true, availableUntil: until }); }
       catch (error) { return c.json(unavailable(ctx, error), 503); }
     });
     r.get('/available-members', async (c) => {
       const identity = getIdentity(c);
       if (!identity.isAdmin) return c.json({ error: 'forbidden' }, 403);
-      try { return c.json({ members: await listAvailable(client) }); } catch (error) { return c.json(unavailable(ctx, error), 503); }
+      try { await presenceSchemaReady; return c.json({ members: await listAvailable(client) }); } catch (error) { return c.json(unavailable(ctx, error), 503); }
     });
 
     // The mounted endpoints include /external/presence and /external/presence/resolve.
@@ -87,12 +92,13 @@ const consultModule: CorpusModule = {
     external.post('/presence/resolve', async (c) => {
       noStore(c); const parsed = discordSchema.safeParse(await c.req.json().catch(() => null));
       if (!parsed.success) return c.json({ error: 'invalid_discord_id' }, 400);
-      try { return c.json(await resolveDiscordId(client, parsed.data.discordId)); } catch (error) { return c.json(unavailable(ctx, error), 503); }
+      try { await presenceSchemaReady; return c.json(await resolveDiscordId(client, parsed.data.discordId)); } catch (error) { return c.json(unavailable(ctx, error), 503); }
     });
     external.post('/presence', async (c) => {
       noStore(c); const parsed = discordSchema.merge(availabilitySchema).safeParse(await c.req.json().catch(() => null));
       if (!parsed.success || (parsed.data.availableNow && !parsed.data.hours)) return c.json({ error: 'invalid_availability' }, 400);
       try {
+        await presenceSchemaReady;
         const member = await resolveDiscordId(client, parsed.data.discordId);
         if (!member) return c.json(null);
         const until = parsed.data.availableNow ? new Date(Date.now() + parsed.data.hours! * 3_600_000).toISOString() : null;

@@ -38,7 +38,7 @@ test('orehima resolves the caller through GLAB, not Cernere directly', () => {
   assert.ok(/external\/presence\/resolve/.test(src), 'must resolve via the GLAB external API');
   // 「Cernere」 の語 (ユーザ向け案内文) ではなく、 実際の直結経路の有無を見る。
   assert.ok(!/from '[^']*cernere/i.test(src), 'bot must not import the Cernere client');
-  assert.ok(!/WebSocket|glab_presence/.test(src), 'bot must not speak the Cernere RPC protocol');
+  assert.ok(!/WebSocket|managed_project/.test(src), 'bot must not speak the Cernere RPC protocol');
 });
 
 test('orehima separates an unreachable hub from an unlinked account', () => {
