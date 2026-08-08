@@ -24,7 +24,9 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
 // GLAB プラグインパック / データ / frontend の所在を Corpus に伝える
 process.env.CORPUS_PLUGIN_DIR ??= resolve(ROOT, 'plugins');
 process.env.CORPUS_DATA ??= resolve(ROOT, 'data');
-process.env.CORPUS_PUBLIC_DIR ??= resolve(ROOT, 'corpus', 'public');
+// frontend は GLab 自前 (`public/`)。 Corpus のシェルは公開向けの汎用 hub なので、
+// 名乗り・シェル・スタイルは GLab 側が持つ (`public/src/branding.ts`)。
+process.env.CORPUS_PUBLIC_DIR ??= resolve(ROOT, 'public');
 
 // 親processの汎用CORPUS_PORTを継承しても、GLAB固有portが変わらないよう明示する。
 // deploymentで変更する場合はGLAB_PORTを使い、汎用Corpusの設定とは分離する。

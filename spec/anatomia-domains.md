@@ -27,7 +27,7 @@ draft` や `reconstruct` を回しても手書きの定義は上書きされな�
 
 | ドメイン | 範囲 | 責務と境界 |
 |---|---|---|
-| `platform-shell` | `server.ts`, `plugins/shared.ts`, `panel-kit.ts`, `data.ts`, `service-health-connector.ts` | プラグインが載る土台。Corpus 起動、共通パネル骨格、SQLite スキーマ正本、接続先 health 集約。業務ロジックは持たない |
+| `platform-shell` | `server.ts`, `public/src/`, `plugins/shared.ts`, `panel-kit.ts`, `data.ts`, `service-health-connector.ts` | プラグインが載る土台。Corpus 起動、GLAB frontend shell、共通パネル骨格、SQLite スキーマ正本、接続先 health 集約。業務ロジックは持たない |
 | `identity-access` | `plugins/cernere/`, `cernere-admin/`, `vantan-user/`, `roles/` | Cernere を単一情報源とする本人性・所属・権限。プロフィール値を GLAB SQLite へ複製しない |
 | `attendance` | `plugins/attendance/` | 集会出席。attestation の自前検証と出席台帳。GLAB が正本を持つ |
 | `events-scheduling` | `plugins/events/` | イベント登録/削除/週間ビュー/繰り返し。GLAB PostgreSQL が正本。予約失敗時の compensation を含む |

@@ -6,14 +6,25 @@ const text = (path: string): Promise<string> => readFile(path, 'utf8');
 
 describe('GLAB navigation contract', () => {
   it('uses the built-in overview as the only Status panel', async () => {
-    const [packText, corpusApp] = await Promise.all([
+    const [packText, glabShell] = await Promise.all([
       text('plugins/pack.json'),
-      text('corpus/public/src/app.ts'),
+      text('public/src/shell.ts'),
     ]);
     const pack = JSON.parse(packText) as { modules?: string[] };
     assert.equal(pack.modules?.includes('status'), false);
-    assert.match(corpusApp, /label:\s*'🟢 ステータス'/);
-    assert.doesNotMatch(corpusApp, /label:\s*'[^']*概況'/);
+    assert.match(glabShell, /label:\s*'🟢 ステータス'/);
+    assert.doesNotMatch(glabShell, /label:\s*'[^']*概況'/);
+  });
+
+  it('publishes linked icons through the static vendor allowlist', async () => {
+    const [indexHtml, vendorScript] = await Promise.all([
+      text('public/index.html'),
+      text('scripts/copy-vendor-assets.mjs'),
+    ]);
+    assert.match(indexHtml, /href="\/vendor\/apple-touch-icon\.png"/);
+    assert.match(indexHtml, /href="\/vendor\/favicon\.ico"/);
+    assert.match(vendorScript, /public\/apple-touch-icon\.png/);
+    assert.match(vendorScript, /public\/favicon\.ico/);
   });
 
   it('registers one Volputas Review panel and excludes the legacy survey module', async () => {

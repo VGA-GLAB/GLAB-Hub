@@ -5,9 +5,10 @@
   "description": "GLAB — 学校組織 GLAB 運営 hub (Corpus 派生)。 出席 / 施設予約 / イベント / 就活情報 + Discord Bot",
   "type": "module",
   "scripts": {
-    "build:corpus-web": "npm --prefix corpus run build:web",
+    "vendor:assets": "node scripts/copy-vendor-assets.mjs",
+    "build:web": "npm run vendor:assets && esbuild public/src/app.ts --bundle --outfile=public/app.js --target=es2020 --sourcemap --format=esm --jsx=automatic --alias:react=./corpus/node_modules/react --alias:react-dom=./corpus/node_modules/react-dom --minify",
     "build:panels": "esbuild plugins/attendance/panel.ts plugins/cernere-admin/panel.ts plugins/consult/panel.ts plugins/di/panel.ts plugins/facility/panel.ts plugins/forum/panel.ts plugins/events/panel.ts plugins/jobs/panel.ts plugins/projects/panel.ts plugins/progress/panel.ts plugins/roles/panel.ts plugins/tech-links/panel.ts plugins/tirocinium/panel.ts plugins/vantan-user/panel.ts plugins/volputas/panel.ts --bundle --format=esm --target=es2020 --outdir=plugins --outbase=plugins --sourcemap",
-    "build": "npm run build:corpus-web && npm run build:panels",
+    "build": "npm run build:web && npm run build:panels",
     "predev": "npm run build",
     "dev": "tsx watch --env-file-if-exists=.env.secrets --env-file-if-exists=.env server.ts",
     "prestart": "npm run build",
@@ -32,6 +33,8 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "@types/ws": "^8.18.1",
     "esbuild": "^0.27.0",
     "typescript": "^5.6.0"

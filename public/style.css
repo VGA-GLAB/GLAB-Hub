@@ -1,0 +1,367 @@
+/* Corpus hub shell — 最小スタイル。 用途特化 hub は plugin の panel 側で上書きする。 */
+:root {
+  --bg: #14161c;
+  --bg-2: #1c1f29;
+  --bg-3: #252934;
+  --fg: #e7e9ee;
+  --muted: #8b90a0;
+  --accent: #5b8cff;
+  --up: #3fb95a;
+  --degraded: #d9a93a;
+  --down: #d9534f;
+  --error: #ff6b6b;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Segoe UI", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  font-size: 15px;
+}
+
+#app { height: 100%; display: flex; flex-direction: column; }
+
+.muted { color: var(--muted); }
+.error { color: var(--error); }
+
+/* --- login --- */
+.login {
+  margin: auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  padding: 2rem;
+}
+.login h1 { margin: 0; font-size: 2rem; letter-spacing: 0.06em; }
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  padding: 0.55rem 1rem;
+}
+button.primary { background: var(--accent); color: #fff; }
+button.ghost { background: transparent; color: var(--muted); border-color: var(--bg-3); }
+button.primary:hover { filter: brightness(1.1); }
+
+/* --- shell --- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.6rem 1rem;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--bg-3);
+}
+.brand { font-weight: 700; letter-spacing: 0.08em; }
+.who { margin-left: auto; color: var(--muted); }
+
+.layout { flex: 1; display: flex; min-height: 0; }
+
+.tabs {
+  width: 200px;
+  background: var(--bg-2);
+  border-right: 1px solid var(--bg-3);
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  overflow-y: auto;
+}
+.tab {
+  text-align: left;
+  background: transparent;
+  color: var(--fg);
+  border: none;
+  padding: 0.5rem 0.7rem;
+}
+.tab:hover { background: var(--bg-3); }
+.tab.active { background: var(--accent); color: #fff; }
+
+.panel { flex: 1; padding: 1.2rem 1.6rem; overflow-y: auto; }
+.panel h3 { margin: 1.2rem 0 0.4rem; font-size: 1rem; }
+
+/* --- connector list --- */
+.connector-list { list-style: none; margin: 0; padding: 0; }
+.connector-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--bg-3);
+}
+.connector-title { font-weight: 600; }
+
+.badge {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  color: #fff;
+  white-space: nowrap;
+}
+.badge-up { background: var(--up); }
+.badge-degraded { background: var(--degraded); }
+.badge-down { background: var(--down); }
+.badge-scope-local { background: #4a5168; }
+.badge-scope-multi { background: #3a5a8c; }
+
+/* --- service card (参照サービスのデータ) --- */
+.service-card {
+  background: var(--bg-2);
+  border: 1px solid var(--bg-3);
+  border-radius: var(--radius);
+  padding: 0.7rem 0.9rem;
+  margin: 0.5rem 0;
+}
+.service-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+.service-data-row { margin: 0.3rem 0; }
+.service-data-out {
+  background: var(--bg-3);
+  border-radius: 8px;
+  padding: 0.6rem;
+  margin: 0.2rem 0 0.5rem;
+  max-height: 14rem;
+  overflow: auto;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* mobile 縦画面 */
+@media (max-width: 640px) {
+  .layout { flex-direction: column; }
+  .tabs {
+    width: auto;
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--bg-3);
+  }
+}
+
+/* --- declarative renderer (§13) --- */
+.corpus-panel-title { font-size: 1.15rem; margin: 0 0 0.8rem; }
+.corpus-section { margin-bottom: 1.4rem; }
+.corpus-section-title {
+  font-size: 0.95rem;
+  color: var(--muted);
+  border-bottom: 1px solid var(--bg-3);
+  padding-bottom: 0.3rem;
+  margin: 0 0 0.7rem;
+}
+.corpus-subsection { margin: 0.6rem 0; }
+.corpus-subsection-title { font-size: 0.9rem; margin: 0 0 0.4rem; }
+
+.corpus-empty, .corpus-error { color: var(--muted); font-size: 0.9rem; padding: 0.4rem 0; }
+.corpus-error { color: var(--error); }
+
+.corpus-card {
+  background: var(--bg-2);
+  border: 1px solid var(--bg-3);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.5rem;
+}
+.corpus-card-title { font-weight: 600; }
+.corpus-card-sub { color: var(--accent); font-size: 0.85rem; }
+.corpus-card-body { font-size: 0.85rem; margin-top: 0.2rem; }
+.corpus-card-meta { color: var(--muted); font-size: 0.75rem; }
+.corpus-card-actions { display: flex; gap: 0.4rem; margin-top: 0.5rem; flex-wrap: wrap; }
+
+.corpus-btn {
+  padding: 0.35rem 0.7rem;
+  border-radius: 7px;
+  border: 1px solid var(--bg-3);
+  background: var(--bg-3);
+  color: var(--fg);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.corpus-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.corpus-btn.ghost { background: transparent; }
+.corpus-btn:disabled { opacity: 0.5; cursor: default; }
+
+.corpus-toggle { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; }
+
+.corpus-status { font-size: 0.8rem; min-height: 1em; margin: 0.4rem 0 0; }
+.corpus-status.ok { color: var(--up); }
+.corpus-status.err { color: var(--error); }
+
+.corpus-form, .corpus-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 460px;
+}
+.corpus-edit-form {
+  background: var(--bg-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 0.7rem 0.8rem;
+  margin-bottom: 0.5rem;
+}
+.corpus-field { display: flex; flex-direction: column; gap: 0.2rem; }
+.corpus-field-label { font-size: 0.8rem; color: var(--muted); }
+.corpus-field input, .corpus-field select, .corpus-field textarea {
+  padding: 0.45rem 0.6rem;
+  border-radius: 7px;
+  border: 1px solid var(--bg-3);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 0.9rem;
+}
+.corpus-field-detail { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.2rem; }
+.corpus-tag {
+  font-size: 0.72rem;
+  background: var(--bg-3);
+  border-radius: 5px;
+  padding: 0.1rem 0.4rem;
+  color: var(--muted);
+}
+
+.corpus-detail { display: grid; grid-template-columns: auto 1fr; gap: 0.2rem 0.8rem; }
+.corpus-detail dt { color: var(--muted); font-size: 0.85rem; }
+.corpus-detail dd { margin: 0; font-size: 0.9rem; }
+
+.corpus-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.corpus-table th, .corpus-table td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--bg-3);
+}
+.corpus-table th { color: var(--muted); font-weight: 600; }
+.corpus-row-actions { display: flex; gap: 0.35rem; }
+
+.corpus-stat {
+  display: inline-block;
+  background: var(--bg-2);
+  border: 1px solid var(--bg-3);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.9rem;
+  margin-right: 0.5rem;
+}
+.corpus-stat-label { font-size: 0.72rem; color: var(--muted); }
+.corpus-stat-value { font-size: 1.3rem; font-weight: 700; }
+
+.corpus-tab-bar { display: flex; gap: 0.3rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
+.corpus-tab-btn {
+  padding: 0.3rem 0.7rem;
+  border-radius: 7px 7px 0 0;
+  border: 1px solid var(--bg-3);
+  background: var(--bg-2);
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.corpus-tab-btn.active { background: var(--bg-3); color: var(--fg); }
+
+.corpus-pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.corpus-pagination-label { padding: 0 0.4rem; }
+
+.corpus-modal {
+  border: 1px solid var(--bg-3);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  color: var(--fg);
+  padding: 0;
+  max-width: 600px;
+  width: min(92vw, 600px);
+}
+.corpus-modal::backdrop { background: rgba(0, 0, 0, 0.45); }
+.corpus-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--bg-3);
+}
+.corpus-modal-title { margin: 0; font-size: 1rem; }
+.corpus-modal-close {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.3rem;
+  cursor: pointer;
+  line-height: 1;
+}
+.corpus-modal-close:hover { color: var(--fg); }
+.corpus-modal-body { padding: 0.8rem 0.9rem; max-height: 70vh; overflow: auto; }
+
+/* --- layouter (responsive grid / stack) --- */
+/* breakpoint は Corpus shell と統一して 640px。 column 数は inline CSS variable で
+   個別 component が指定する (--corpus-cols / --corpus-mobile-cols)。 */
+.corpus-grid {
+  display: grid;
+  gap: var(--corpus-gap, 0.6rem);
+  grid-template-columns: repeat(var(--corpus-mobile-cols, 1), 1fr);
+}
+@media (min-width: 640px) {
+  .corpus-grid {
+    grid-template-columns: repeat(var(--corpus-cols, 2), 1fr);
+  }
+}
+
+.corpus-stack {
+  display: flex;
+  gap: var(--corpus-gap, 0.6rem);
+  flex-direction: var(--corpus-direction, row);
+  flex-wrap: var(--corpus-wrap, wrap);
+}
+/* responsive=true: スマホでは縦並びへ強制反転。 PC で direction 復帰。 */
+.corpus-stack.responsive { flex-direction: column; }
+@media (min-width: 640px) {
+  .corpus-stack.responsive { flex-direction: var(--corpus-direction, row); }
+}
+
+/* ── dock (DESIGN.md §13.4-9) ──────────────────────────────────────── */
+.corpus-dock {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  /* parent が 0 高さでも 480px は確保. 用途特化 hub 側で必要なら上書き. */
+  min-height: 480px;
+  height: 100%;
+  border: 1px solid var(--bg-3);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.corpus-dock-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--bg-3);
+}
+.corpus-dock-host {
+  flex: 1 1 auto;
+  position: relative;
+  min-height: 0;
+  background: var(--bg);
+}
+.corpus-dock-leaf-body {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  padding: 0.5rem;
+  box-sizing: border-box;
+}

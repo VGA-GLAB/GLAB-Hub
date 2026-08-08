@@ -9,7 +9,7 @@ GLAB 特化のプラグインパック（`plugins/`）と Discord Bot（`bot/`�
 
 ## 触ってよい / よくない
 
-- 触ってよい：`plugins/`, `bot/`, `server.ts`, `tsconfig*`, `package.json`, `*.md`
+- 触ってよい：`plugins/`, `public/`, `bot/`, `server.ts`, `scripts/`, `tsconfig*`, `package.json`, `*.md`
 - **`corpus/`（submodule）は触らない** — Corpus 本体の変更は LUDIARS/Corpus 側で PR を出し、
   ここでは submodule pointer を更新する
 - DB schema 変更は `plugins/data.ts` に集約（hub と Bot の齟齬を防ぐ）。
@@ -21,6 +21,13 @@ GLAB 特化のプラグインパック（`plugins/`）と Discord Bot（`bot/`�
 - 各モジュールは `plugins/<id>/index.ts` から `CorpusModule` を default export
 - **プラグインのランタイム import は必ず `corpus/server/hub/sdk.ts` 経由**（hono 二重ロード回避）。
   `hono` を直接 import しない
+- **frontend の外殻は GLab 自前**（`public/`、`CORPUS_PUBLIC_DIR` で Corpus に渡す）。
+  Corpus のトップページは Cernere composite ログインだけの汎用シェルなので、名乗り・
+  シェル・スタイルは派生 hub 側が持つ。表示名は `public/src/branding.ts` と
+  `public/index.html` の `<title>` の 2 箇所
+- 汎用機構（`api.ts` / `cernere-login.tsx` / declarative renderer）は `corpus/public/src/`
+  から import して共有する。React は esbuild の `--alias` で corpus 側の 1 コピーに固定
+  （二重ロードで hooks が壊れるのを防ぐ）
 - パネル（frontend）は `plugins/<id>/panel.ts` → esbuild で `panel.js` にビルド
 - 出席は `plugins/data.ts` の `glab_user` に user_id と現在状況だけを保持。
   施設は `HttpServiceConnector` で Aedilis に接続。イベント・就活も自前データ。

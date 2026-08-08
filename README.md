@@ -29,6 +29,8 @@ Web hubとDiscord Botは同じイベントストアを利用する。Cernere `us
 ```
 GLAB/
 ├── corpus/        # submodule (LUDIARS/Corpus、 触らない)
+├── public/        # GLab 自前の frontend (index.html / シェル / ブランド)
+│   └── src/branding.ts  # 画面に出る GLab の名前はここ
 ├── plugins/       # Web hub モジュールパック
 │   ├── attendance/  facility/  events/  jobs/  tirocinium/  volputas/
 │   └── data.ts    # 出席・Bot求人等のSQLiteスキーマ
@@ -80,7 +82,7 @@ npm run start               # Gateway 接続 + slash command 登録 + リマイ�
 
 ```bash
 npm run typecheck           # hub (server + plugins)
-npm run build               # corpus-web + panels (esbuild)
+npm run build               # GLab frontend (public/) + panels (esbuild)
 npm --prefix bot run typecheck
 ```
 

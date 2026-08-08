@@ -7,6 +7,9 @@ logs/
 .env.local
 plugins/*/panel.js
 plugins/*/panel.js.map
+public/app.js
+public/app.js.map
+public/vendor/
 bot/node_modules/
 bot/dist/
 bot/glab-bot.config.json

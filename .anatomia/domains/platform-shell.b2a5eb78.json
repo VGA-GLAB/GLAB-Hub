@@ -1,6 +1,6 @@
 {
   "name": "platform-shell",
-  "description": "GLAB Web hub の起動と全パネル共通基盤。server.ts が Corpus を CORPUS_PLUGIN_DIR=plugins で起動し、plugins/shared.ts・panel-kit.ts が全プラグイン共通のパネル骨格とユーティリティを、data.ts が SQLite スキーマ正本 (glab_user 等) を、service-health-connector.ts が接続先サービスの health/version 集約を担う。個別業務ロジックは持たず、プラグインが載る土台だけを責務とする。",
+  "description": "GLAB Web hub の起動と全パネル共通基盤。server.ts が Corpus を GLAB の plugins/・public/ で起動し、public/src/ が GLAB frontend shell を、plugins/shared.ts・panel-kit.ts が全プラグイン共通のパネル骨格とユーティリティを、data.ts が SQLite スキーマ正本 (glab_user 等) を、service-health-connector.ts が接続先サービスの health/version 集約を担う。個別業務ロジックは持たず、プラグインが載る土台だけを責務とする。",
   "presetRules": [
     {
       "preset": "couplingCap",
@@ -41,23 +41,33 @@
         "by": "path",
         "maxFanOut": 9007199254740991
       }
+    },
+    {
+      "preset": "couplingCap",
+      "params": {
+        "targetPattern": "/public/src/",
+        "by": "path",
+        "maxFanOut": 9007199254740991
+      }
     }
   ],
   "templateRules": [],
-  "cardTemplate": "Summarise the \"platform-shell\" domain: GLAB Web hub の起動と全パネル共通基盤。server.ts が Corpus を CORPUS_PLUGIN_DIR=plugins で起動し、plugins/shared.ts・panel-kit.ts が全プラグイン共通のパネル骨格とユーティリティを、data.ts が SQLite スキーマ正本 (glab_user 等) を、service-health-connector.ts が接続先サービスの health/version 集約を担う。個別業務ロジックは持たず、プラグインが載る土台だけを責務とする。",
+  "cardTemplate": "Summarise the \"platform-shell\" domain: GLAB Web hub の起動と全パネル共通基盤。server.ts が Corpus を GLAB の plugins/・public/ で起動し、public/src/ が GLAB frontend shell を、plugins/shared.ts・panel-kit.ts が全プラグイン共通のパネル骨格とユーティリティを、data.ts が SQLite スキーマ正本 (glab_user 等) を、service-health-connector.ts が接続先サービスの health/version 集約を担う。個別業務ロジックは持たず、プラグインが載る土台だけを責務とする。",
   "source": "manual",
   "lockedFields": [
     "*"
   ],
   "mechanics": [
     "plugin-host",
+    "frontend-shell",
     "shared-schema",
     "service-health-aggregation"
   ],
   "specRefs": [
     "DESIGN 2. アーキテクチャ",
     "DESIGN 4. データ共有（hub ↔ Bot）",
-    "spec/interface/corpus-db-shared.md"
+    "spec/interface/corpus-db-shared.md",
+    "spec/feature/frontend-shell.md"
   ],
   "rationale": "GLAB DESIGN.md 2〜7 章と plugins/pack.json のモジュール構成から、責務境界ごとに手で定義した。"
 }

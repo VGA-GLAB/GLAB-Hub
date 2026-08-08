@@ -7,7 +7,7 @@ GLAB Web hub は Corpus（submodule `corpus/`）の汎用 hub フレームワー
 
 - Node.js（`@types/node` ^20）+ npm。
 - submodule `corpus`（`https://github.com/LUDIARS/Corpus`）を取得済みであること。
-- ビルドツール: `esbuild`（panel バンドル）, `typescript` / `tsx`。
+- ビルドツール: `esbuild`（GLAB frontend / panel バンドル）, `typescript` / `tsx`。
 
 ## 取得・起動（README より）
 
@@ -23,9 +23,10 @@ npm run dev                 # http://localhost:5187
 
 | script | 内容 |
 |---|---|
-| `build:corpus-web` | `npm --prefix corpus run build:web` |
-| `build:panels` | esbuild で `plugins/{attendance,facility,events,jobs,surveys,vantan-user,volputas}/panel.ts` → `panel.js`（ESM, es2020） |
-| `build` | corpus-web + panels |
+| `vendor:assets` | dockview CSS と GLAB icon を Corpus の `/vendor/:file` 配信先へ同期 |
+| `build:web` | `public/src/app.ts` を `public/app.js` へ bundle（React は Corpus 側の 1 copy に固定） |
+| `build:panels` | `package.json` に列挙した `plugins/*/panel.ts` → `panel.js`（ESM, es2020） |
+| `build` | GLAB frontend + panels |
 | `dev` | `tsx watch ... server.ts`（`predev` で build）。port 5187 |
 | `start` | `tsx ... server.ts`（`prestart` で build） |
 | `typecheck` | `tsc --noEmit -p tsconfig.json && -p tsconfig.frontend.json` |
@@ -33,7 +34,7 @@ npm run dev                 # http://localhost:5187
 | `env:*` | Cernere env-cli（Infisical）連携（`env:setup/gen/list/set/get/test/initialize`） |
 
 `server.ts` は環境変数で Corpus に所在を伝える：`CORPUS_PLUGIN_DIR=plugins`,
-`CORPUS_DATA=<root>/data`, `CORPUS_PUBLIC_DIR=corpus/public`, `CORPUS_PORT=5187`,
+`CORPUS_DATA=<root>/data`, `CORPUS_PUBLIC_DIR=public`, `CORPUS_PORT=5187`,
 `CORPUS_SERVICE_ID=glab`, `CORPUS_DISPLAY_NAME=GLAB`（いずれも `??=` で上書き可）。
 
 ## モジュール追加の流れ（CLAUDE.md）
