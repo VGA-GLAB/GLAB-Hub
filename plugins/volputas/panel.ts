@@ -18,6 +18,12 @@ import {
   type SurveyView,
 } from './contracts.ts';
 import { createOmnipotensReviewSection } from './omnipotens-panel.ts';
+import { createGameAdminSection, gameSelector, loadGames } from './games-panel.ts';
+import { renderEmotionCurves } from './emotion-curve-panel.ts';
+import type { GameView } from './contracts.ts';
+
+// 設問カテゴリのタブに、 データの持ち方が違う 2 つ (感想・感情曲線) を並べる。
+type ActiveTab = SurveyCategory | 'reviews' | 'emotion_curves';
 
 export async function mount(container: HTMLElement, ctx: PanelContext): Promise<void> {
   ensureStyles();
@@ -27,8 +33,12 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
   // projects パネルの「感想を書く」から ?projectId= 付きで戻ってきたときの初期絞り込み。
   let projectFilter = new URLSearchParams(window.location.search).get('projectId');
   // その導線で来たときは感想タブを開く (ほかのタブから探させない)。
-  let activeCategory: SurveyCategory | 'reviews' = projectFilter ? 'reviews' : 'game_review';
+  let activeCategory: ActiveTab = projectFilter ? 'reviews' : 'game_review';
   let selectedId: string | null = null;
+  // ゲームマスタは感想フォームと感情曲線タブが共有する。 タブを切り替える
+  // たびに取り直さないよう、 mount 中は 1 回分を持ち回す。
+  let games: GameView[] | null = null;
+  let gamesLoaded = false;
 
   // 絞り込みは初期値を URL から読むので、 変更も URL に書き戻す。
   // そうしないとパネルが再 mount されたときに解除が巻き戻る。
@@ -52,8 +62,24 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
 
     container.appendChild(await createOmnipotensReviewSection(ctx));
 
+    if (!gamesLoaded) {
+      games = await loadGames(ctx);
+      gamesLoaded = true;
+    }
+    if (ctx.identity.isAdmin) {
+      container.appendChild(await createGameAdminSection(ctx, () => {
+        // 登録・状態変更の後は、選択欄にも新しいマスタを反映する。
+        gamesLoaded = false;
+        void render();
+      }));
+    }
+
     const tabs = el('div', 'gl-survey-tabs');
-    for (const category of [...SURVEY_CATEGORIES, { id: 'reviews' as const, label: '感想' }]) {
+    for (const category of [
+      ...SURVEY_CATEGORIES,
+      { id: 'reviews' as const, label: '感想' },
+      { id: 'emotion_curves' as const, label: '感情曲線' },
+    ]) {
       const tab = el('button', `gl-survey-tab${category.id === activeCategory ? ' active' : ''}`, category.label);
       tab.type = 'button';
       tab.onclick = () => {
@@ -66,8 +92,12 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
     container.appendChild(tabs);
 
     const category = activeCategory;
+    if (category === 'emotion_curves') {
+      await renderEmotionCurves(ctx, container, games);
+      return;
+    }
     if (category === 'reviews') {
-      await renderReviewFeed(ctx, container, projectFilter, (next) => {
+      await renderReviewFeed(ctx, container, projectFilter, games, (next) => {
         applyProjectFilter(next);
         void render();
       });
@@ -94,6 +124,7 @@ async function renderReviewFeed(
   ctx: PanelContext,
   container: HTMLElement,
   projectId: string | null,
+  games: GameView[] | null,
   setProjectFilter: (next: string | null) => void,
 ): Promise<void> {
   const workspace = el('div', 'gl-review-workspace');
@@ -103,7 +134,7 @@ async function renderReviewFeed(
   container.appendChild(workspace);
   await Promise.all([
     loadReviews(ctx, feed, projectId, setProjectFilter),
-    renderReviewForm(ctx, form, projectId, () => {
+    renderReviewForm(ctx, form, projectId, games, () => {
       void loadReviews(ctx, feed, projectId, setProjectFilter);
     }),
   ]);
@@ -178,14 +209,15 @@ async function renderReviewForm(
   ctx: PanelContext,
   container: HTMLElement,
   projectId: string | null,
+  games: GameView[] | null,
   afterPost: () => void,
 ): Promise<void> {
   container.appendChild(el('h3', undefined, '感想を投稿'));
   container.appendChild(el('p', 'gl-muted', '公開すると GLAB と Discord に掲載されます。'));
   const form = el('form', 'gl-review-form');
-  const gameTitle = el('input', 'gl-input') as HTMLInputElement;
-  gameTitle.placeholder = 'ゲーム名';
-  gameTitle.required = true;
+  // 登録済みゲームがあれば選択、 無ければ自由入力。 マスタが空の段階で選択
+  // 専用にすると、 1 本目が登録されるまで誰も感想を書けなくなる。
+  const selector = gameSelector(games);
   const suggestions = el('div', 'gl-review-suggestions');
   const recommend = el('input') as HTMLInputElement;
   recommend.type = 'checkbox';
@@ -207,11 +239,12 @@ async function renderReviewForm(
   const message = el('p', 'gl-muted');
   const submit = el('button', 'gl-btn', '公開して投稿');
   submit.type = 'submit';
-  form.append(gameTitle, suggestions, toggle, comment, anonymousLabel, message, submit);
+  form.append(selector.element, suggestions, toggle, comment, anonymousLabel, message, submit);
   form.onsubmit = (event) => {
     event.preventDefault();
     // required は空白のみの入力を通してしまうので、 trim 後の中身で判定する。
-    const title = gameTitle.value.trim();
+    const game = selector.read();
+    const title = game.gameTitle.trim();
     const bodyText = comment.value.trim();
     if (!title || !bodyText) {
       message.textContent = 'ゲーム名と感想本文を入力してください。';
@@ -225,6 +258,7 @@ async function renderReviewForm(
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         gameTitle: title,
+        gameId: game.gameId,
         polarity: isRecommended ? 'like' : 'dislike',
         recommend: isRecommended,
         comment: bodyText,
@@ -242,7 +276,7 @@ async function renderReviewForm(
         return;
       }
       message.textContent = '感想を公開しました。';
-      gameTitle.value = '';
+      selector.reset();
       comment.value = '';
       submit.disabled = false;
       afterPost();
@@ -252,15 +286,18 @@ async function renderReviewForm(
     });
   };
   container.appendChild(form);
-  await loadRecentGames(ctx, suggestions, gameTitle);
+  await loadRecentGames(ctx, suggestions, selector.element);
 }
 
 /** @implements SPEC-VOLPUTAS-REVIEWS-003 */
 async function loadRecentGames(
   ctx: PanelContext,
   container: HTMLElement,
-  gameTitle: HTMLInputElement,
+  gameField: HTMLElement,
 ): Promise<void> {
+  // ゲームマスタから選ぶ形になっているときは、 Steam の直近プレイを差し込む
+  // 先が無い。 サジェストは自由入力に落ちているときだけ意味を持つ。
+  if (!(gameField instanceof HTMLInputElement)) return;
   const response = await ctx.api('/recent-games').catch(() => null);
   if (!response?.ok) return;
   const games = parseRecentGames(await response.json().catch(() => null));
@@ -270,7 +307,7 @@ async function loadRecentGames(
     const button = el('button', 'gl-btn ghost', game.name);
     button.type = 'button';
     button.title = `${game.playtimeTwoWeeksMinutes}分`;
-    button.onclick = () => { gameTitle.value = game.name; };
+    button.onclick = () => { gameField.value = game.name; };
     container.appendChild(button);
   }
 }
@@ -475,8 +512,25 @@ function ensureSurveyStyles(): void {
     .gl-review-card p { white-space:pre-wrap; overflow-wrap:anywhere; }
     .gl-review-form { display:grid; gap:.8rem; }
     .gl-review-suggestions { display:flex; gap:.4rem; flex-wrap:wrap; align-items:center; }
+    .gl-game-admin { background:#1c1f29; border:1px solid #2f3442; border-radius:10px; padding:.8rem; margin:1rem 0; }
+    .gl-game-row { border-bottom:1px solid #2f3442; padding:.4rem 0; }
+    .gl-game-form { display:grid; gap:.6rem; margin-top:.8rem; max-width:32rem; }
+    .gl-curve-workspace { display:grid; grid-template-columns:minmax(18rem, 3fr) minmax(15rem, 2fr); gap:1rem; }
+    .gl-curve-recorder, .gl-curve-history { min-width:0; display:grid; gap:.6rem; align-content:start; }
+    .gl-curve-video { width:100%; max-height:24rem; background:#000; border-radius:8px; }
+    .gl-curve-stamps { display:flex; gap:.4rem; flex-wrap:wrap; }
+    .gl-curve-entries { display:grid; gap:.3rem; max-height:14rem; overflow:auto; }
+    .gl-curve-entry { border-bottom:1px solid #2f3442; padding:.2rem 0; }
+    .gl-curve-card { background:#1c1f29; border:1px solid #2f3442; border-radius:10px; padding:.8rem; display:grid; gap:.5rem; }
+    .gl-curve-strip { display:flex; gap:.2rem; flex-wrap:wrap; }
+    .gl-curve-dot { width:.7rem; height:.7rem; border-radius:50%; background:#4c5364; }
+    .gl-curve-dot.hype { background:#f0a02c; }
+    .gl-curve-dot.like { background:#4fb477; }
+    .gl-curve-dot.dislike { background:#b4614f; }
+    .gl-curve-dot.stress { background:#b44f8c; }
+    .gl-curve-evaluation { white-space:pre-wrap; overflow-wrap:anywhere; max-height:18rem; overflow:auto; background:#141720; border-radius:8px; padding:.6rem; }
     @media (max-width: 760px) {
-      .gl-review-workspace, .gl-survey-workspace { grid-template-columns:1fr; }
+      .gl-review-workspace, .gl-survey-workspace, .gl-curve-workspace { grid-template-columns:1fr; }
     }
   `;
   document.head.appendChild(style);

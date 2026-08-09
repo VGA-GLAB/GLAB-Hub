@@ -20,7 +20,39 @@ export interface SurveyView {
   description: string | null;
   category: SurveyCategory;
   questions: SurveyQuestion[];
+  // ゲーム別アンケートの紐付け先。 全体アンケートは null。
+  gameId: string | null;
   answered: boolean;
+  createdAt: string;
+}
+
+export interface GameView {
+  id: string;
+  title: string;
+  team: string | null;
+  platform: string | null;
+  description: string | null;
+  storeUrl: string | null;
+  glabProjectId: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmotionCurveEntry {
+  timeSeconds?: number;
+  position?: number;
+  stamp: string | null;
+  comment: string;
+}
+
+export interface EmotionCurveRecord {
+  id: string;
+  gameTitle: string;
+  gameId: string | null;
+  mode: 'video' | 'memory';
+  entries: EmotionCurveEntry[];
+  evaluation: unknown;
   createdAt: string;
 }
 
@@ -33,6 +65,8 @@ export interface SurveyResponseView {
 export interface ReviewView {
   id: string;
   gameTitle: string;
+  // マスタ登録前に書かれた感想には無い。 表示は gameTitle が担う。
+  gameId: string | null;
   recommend: boolean | null;
   comment: string;
   glabProjectId: string | null;
@@ -81,6 +115,93 @@ export function parseSurveyDetail(value: unknown): {
   return response ? { survey, response } : null;
 }
 
+export function parseGameList(value: unknown): GameView[] | null {
+  if (!isRecord(value) || value.ok !== true || !Array.isArray(value.data)) return null;
+  const games = value.data.map(parseGame);
+  return games.every((game): game is GameView => game !== null) ? games : null;
+}
+
+export function parseGameDetail(value: unknown): GameView | null {
+  if (!isRecord(value) || value.ok !== true) return null;
+  return parseGame(value.data);
+}
+
+export function parseEmotionCurveList(value: unknown): EmotionCurveRecord[] | null {
+  if (!isRecord(value) || value.ok !== true || !Array.isArray(value.data)) return null;
+  const records = value.data.map(parseEmotionCurve);
+  return records.every((record): record is EmotionCurveRecord => record !== null) ? records : null;
+}
+
+export function parseEmotionCurveDetail(value: unknown): EmotionCurveRecord | null {
+  if (!isRecord(value) || value.ok !== true || !isRecord(value.data)) return null;
+  return parseEmotionCurve(value.data.record);
+}
+
+/** 再生 URL は Volputas 側のパスで返るので、 チケットだけを取り出して使う。 */
+export function parseMediaTicket(value: unknown): string | null {
+  if (!isRecord(value) || value.ok !== true || !isRecord(value.data)) return null;
+  if (typeof value.data.url !== 'string') return null;
+  const ticket = new URLSearchParams(value.data.url.split('?')[1] ?? '').get('ticket');
+  return ticket || null;
+}
+
+function parseGame(value: unknown): GameView | null {
+  if (!isRecord(value)) return null;
+  if (
+    typeof value.id !== 'string'
+    || typeof value.title !== 'string'
+    || typeof value.isActive !== 'boolean'
+    || typeof value.createdAt !== 'string'
+    || typeof value.updatedAt !== 'string'
+  ) return null;
+  const optional = ['team', 'platform', 'description', 'storeUrl', 'glabProjectId'] as const;
+  if (!optional.every((key) => typeof value[key] === 'string' || value[key] === null)) return null;
+  return {
+    id: value.id,
+    title: value.title,
+    team: value.team as string | null,
+    platform: value.platform as string | null,
+    description: value.description as string | null,
+    storeUrl: value.storeUrl as string | null,
+    glabProjectId: value.glabProjectId as string | null,
+    isActive: value.isActive,
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
+  };
+}
+
+function parseEmotionCurve(value: unknown): EmotionCurveRecord | null {
+  if (!isRecord(value) || !Array.isArray(value.entries)) return null;
+  if (
+    typeof value.id !== 'string'
+    || typeof value.gameTitle !== 'string'
+    || !(value.mode === 'video' || value.mode === 'memory')
+    || typeof value.createdAt !== 'string'
+  ) return null;
+  const entries = value.entries.map(parseEmotionCurveEntry);
+  if (!entries.every((entry): entry is EmotionCurveEntry => entry !== null)) return null;
+  return {
+    id: value.id,
+    gameTitle: value.gameTitle,
+    gameId: typeof value.gameId === 'string' ? value.gameId : null,
+    mode: value.mode,
+    entries,
+    evaluation: value.evaluation ?? null,
+    createdAt: value.createdAt,
+  };
+}
+
+function parseEmotionCurveEntry(value: unknown): EmotionCurveEntry | null {
+  if (!isRecord(value)) return null;
+  if (!(typeof value.stamp === 'string' || value.stamp === null)) return null;
+  return {
+    ...(typeof value.timeSeconds === 'number' ? { timeSeconds: value.timeSeconds } : {}),
+    ...(typeof value.position === 'number' ? { position: value.position } : {}),
+    stamp: value.stamp,
+    comment: typeof value.comment === 'string' ? value.comment : '',
+  };
+}
+
 function parseSurvey(value: unknown): SurveyView | null {
   if (!isRecord(value) || !isCategory(value.category) || !Array.isArray(value.questions)) return null;
   if (
@@ -98,6 +219,7 @@ function parseSurvey(value: unknown): SurveyView | null {
     description: value.description,
     category: value.category,
     questions,
+    gameId: typeof value.gameId === 'string' ? value.gameId : null,
     answered: value.answered,
     createdAt: value.createdAt,
   };
@@ -117,6 +239,7 @@ function parseReview(value: unknown): ReviewView | null {
   return author ? {
     id: value.id,
     gameTitle: value.gameTitle,
+    gameId: typeof value.gameId === 'string' ? value.gameId : null,
     recommend: value.recommend,
     comment: value.comment,
     glabProjectId: value.glabProjectId,

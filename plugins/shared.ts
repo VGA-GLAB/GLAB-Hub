@@ -65,15 +65,9 @@ export async function proxy(
         headers: { 'cache-control': PRIVATE_NO_STORE },
       });
     }
-    return new Response(
-      JSON.stringify({ error: 'connector_error', connector: conn.id, detail: String(e) }),
-      {
-        status: 502,
-        headers: {
-          'cache-control': PRIVATE_NO_STORE,
-          'content-type': 'application/json',
-        },
-      },
+    return Response.json(
+      { error: 'connector_error', connector: conn.id },
+      { status: 502, headers: { 'cache-control': PRIVATE_NO_STORE } },
     );
   }
   const text = await res.text();
@@ -84,6 +78,66 @@ export async function proxy(
       'content-type': res.headers.get('content-type') ?? 'application/json',
     },
   });
+}
+
+/**
+ * proxy() のバイナリ版。 本文と応答をストリームのまま流す。
+ *
+ * proxy() は本文を `c.req.text()` で読み、 応答も一度テキストにしてから返す。
+ * 動画にはどちらも使えない (文字列化で壊れる・メモリに載る) ので、 中継の
+ * 経路だけを差し替えたものを別に置く。 認可の載せ方は proxy() と同じ。
+ */
+export async function proxyStream(
+  c: Context,
+  conn: ServiceConnector,
+  path: string,
+  tokenProvider: TokenProvider,
+  projectKey = conn.id,
+): Promise<Response> {
+  const method = c.req.method;
+  const headers = new Headers();
+  // 動画要素はシーク時に Range を送る。これを落とすと常に先頭から全量を
+  // 返すことになり、長い動画の再生・シークが壊れる。
+  const range = c.req.header('range');
+  if (range) headers.set('range', range);
+  const init: RequestInit = { method, headers };
+  if (method !== 'GET' && method !== 'HEAD' && method !== 'DELETE') {
+    init.body = c.req.raw.body;
+    headers.set('content-type', c.req.header('content-type') ?? 'application/octet-stream');
+    // Node の fetch は本文がストリームのとき duplex の明示を要求する。
+    (init as RequestInit & { duplex?: string }).duplex = 'half';
+  }
+
+  const search = new URL(c.req.url).search;
+  let res: Response;
+  try {
+    res = await authorizedConnectorFetch(c, conn, path + search, tokenProvider, projectKey, init);
+  } catch (e) {
+    if (e instanceof DownstreamTokenError) {
+      return Response.json({
+        error: 'downstream_token_unavailable',
+        connector: conn.id,
+        upstreamStatus: e.status,
+      }, {
+        status: 502,
+        headers: { 'cache-control': PRIVATE_NO_STORE },
+      });
+    }
+    return Response.json(
+      { error: 'connector_error', connector: conn.id },
+      { status: 502, headers: { 'cache-control': PRIVATE_NO_STORE } },
+    );
+  }
+  const responseHeaders = new Headers({ 'cache-control': PRIVATE_NO_STORE });
+  const contentType = res.headers.get('content-type');
+  if (contentType) responseHeaders.set('content-type', contentType);
+  const contentLength = res.headers.get('content-length');
+  if (contentLength) responseHeaders.set('content-length', contentLength);
+  const contentRange = res.headers.get('content-range');
+  if (contentRange) responseHeaders.set('content-range', contentRange);
+  const acceptRanges = res.headers.get('accept-ranges');
+  if (acceptRanges) responseHeaders.set('accept-ranges', acceptRanges);
+  return new Response(res.body, { status: res.status, headers: responseHeaders });
 }
 
 export async function authorizedConnectorFetch(

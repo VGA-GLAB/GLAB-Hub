@@ -1,15 +1,17 @@
-import { Hono } from '../../corpus/server/hub/sdk.ts';
+import { Hono, requireAdmin } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusContext, CorpusModule } from '../../corpus/server/hub/sdk.ts';
 import { z } from 'zod';
 import { ensureSchema, queueReviewRelay } from '../data.ts';
 import { requireServiceToken } from '../projects/service-auth.ts';
 import { normalizeHttpBaseUrl } from './entry-points.ts';
 import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
-import { PRIVATE_NO_STORE, proxy } from '../shared.ts';
+import { PRIVATE_NO_STORE, proxy, proxyStream } from '../shared.ts';
 
 const GLAB_SURVEYS_PATH = '/api/v1/integrations/glab/surveys';
 const GLAB_REVIEWS_PATH = '/api/v1/integrations/glab/reviews';
 const GLAB_RECENT_GAMES_PATH = '/api/v1/integrations/glab/recent-games';
+const GLAB_GAMES_PATH = '/api/v1/integrations/glab/games';
+const GLAB_EVIDENCE_PATH = '/api/v1/integrations/glab/evidence';
 
 const reviewRelaySchema = z.object({
   reviewId: z.string().min(1).max(200),
@@ -69,6 +71,85 @@ const volputasModule: CorpusModule = {
     ));
     routes.get('/recent-games', (c) => proxy(
       c, connector, GLAB_RECENT_GAMES_PATH, ctx.tokenProvider, 'volputas',
+    ));
+
+    // ゲームマスタ。 一覧は全員、 登録と更新は管理者だけ。 requireAdmin は
+    // 画面と操作を出すかどうかの判断で、 権限の正本は Volputas 側が
+    // Cernere token の role で見る (GLAB を迂回されても書けない)。
+    routes.get('/games', (c) => {
+      // 非公開ゲームの列挙は管理 UI だけに許可する。任意のクエリをそのまま
+      // Volputas へ渡すこの中継で includeInactive を許すと、画面を経由せず
+      // 停止中のゲームを取得できてしまう。
+      if (c.req.query('includeInactive') !== undefined) {
+        return c.json({ error: 'admin_required' }, 403);
+      }
+      return proxy(c, connector, GLAB_GAMES_PATH, ctx.tokenProvider, 'volputas');
+    });
+    routes.get('/games/admin', requireAdmin, (c) => proxy(
+      c, connector, `${GLAB_GAMES_PATH}?includeInactive=true`, ctx.tokenProvider, 'volputas',
+    ));
+    routes.post('/games', requireAdmin, (c) => proxy(
+      c, connector, GLAB_GAMES_PATH, ctx.tokenProvider, 'volputas',
+    ));
+    routes.patch('/games/:id', requireAdmin, (c) => proxy(
+      c,
+      connector,
+      `${GLAB_GAMES_PATH}/${encodeURIComponent(c.req.param('id'))}`,
+      ctx.tokenProvider,
+      'volputas',
+    ));
+
+    // アンケート定義の登録と公開切替 (ゲーム別アンケート)。
+    routes.post('/surveys', requireAdmin, (c) => proxy(
+      c, connector, GLAB_SURVEYS_PATH, ctx.tokenProvider, 'volputas',
+    ));
+    routes.patch('/surveys/:id', requireAdmin, (c) => proxy(
+      c,
+      connector,
+      `${GLAB_SURVEYS_PATH}/${encodeURIComponent(c.req.param('id'))}`,
+      ctx.tokenProvider,
+      'volputas',
+    ));
+
+    // 感情曲線。 記録と評価は JSON だが、 動画とゲームログはバイナリなので
+    // 中継の経路を分ける (proxy() は本文を文字列化してしまう)。
+    routes.get('/evidence/emotion-curves', (c) => proxy(
+      c, connector, `${GLAB_EVIDENCE_PATH}/emotion-curves`, ctx.tokenProvider, 'volputas',
+    ));
+    routes.post('/evidence/emotion-curves', (c) => proxy(
+      c, connector, `${GLAB_EVIDENCE_PATH}/emotion-curves`, ctx.tokenProvider, 'volputas',
+    ));
+    routes.post('/evidence/emotion-curves/:recordId/evaluate', (c) => proxy(
+      c,
+      connector,
+      `${GLAB_EVIDENCE_PATH}/emotion-curves/${encodeURIComponent(c.req.param('recordId'))}/evaluate`,
+      ctx.tokenProvider,
+      'volputas',
+    ));
+    routes.get('/evidence/media/:kind/:recordId/ticket', (c) => proxy(
+      c,
+      connector,
+      `${GLAB_EVIDENCE_PATH}/media/${encodeURIComponent(c.req.param('kind'))}`
+        + `/${encodeURIComponent(c.req.param('recordId'))}/ticket`,
+      ctx.tokenProvider,
+      'volputas',
+    ));
+    routes.put('/evidence/media/:kind/:recordId', (c) => proxyStream(
+      c,
+      connector,
+      `${GLAB_EVIDENCE_PATH}/media/${encodeURIComponent(c.req.param('kind'))}`
+        + `/${encodeURIComponent(c.req.param('recordId'))}`,
+      ctx.tokenProvider,
+      'volputas',
+    ));
+    // 再生。 <video> が直接引くのでチケット (クエリ文字列) が認可を担う。
+    routes.get('/evidence/media/:kind/:recordId', (c) => proxyStream(
+      c,
+      connector,
+      `${GLAB_EVIDENCE_PATH}/media/${encodeURIComponent(c.req.param('kind'))}`
+        + `/${encodeURIComponent(c.req.param('recordId'))}`,
+      ctx.tokenProvider,
+      'volputas',
     ));
     routes.post(
       '/external/review-relay',

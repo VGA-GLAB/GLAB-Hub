@@ -14,8 +14,42 @@ connector で Volputas の死活とアンケート API を集約する。回答 
   `volputas_survey_answers` に、可変長 TEXT または INTEGER の正規化フィールドで保存する。
 - GLAB は Cernere user access token から Volputas 用 project token を発行し、
   `/api/v1/integrations/glab/surveys` を中継する。追加の Volputas ログインは要求しない。
-- UI は「ゲームレビュー」「ゲームアンケート」「ほかの人への質問」「感想」の4タブを提供し、
-  アンケート系タブは回答済み・未回答を一覧へ表示する。
+- UI は「ゲームレビュー」「ゲームアンケート」「ほかの人への質問」「感想」「感情曲線」の
+  5タブを提供し、アンケート系タブは回答済み・未回答を一覧へ表示する。
+- ゲームマスタの正本も Volputas。GLAB は登録画面と中継だけを持つ。
+
+## ゲームマスタ
+
+感想と感情曲線の「ゲーム名」は自由入力だった。表記ゆれで同じゲームが別物として溜まり、
+学内制作ゲームは Steam の直近プレイにも出ないためサジェストからも選べない。管理者が
+登録したゲームから選ばせる。
+
+- `GET /api/x/volputas/games` — 公開中のゲーム一覧 (全員)。停止中のゲームを
+  含める一覧は、hub が `GET /api/x/volputas/games/admin` の管理者専用経路から取得する。
+- `POST /api/x/volputas/games` / `PATCH /api/x/volputas/games/:id` — 登録・更新。
+  hub 側で `requireAdmin` を通す。**ただし権限の正本は Volputas 側**で、Cernere project
+  token の `role` クレームで判定する。hub の `requireAdmin` は画面と操作を出すかどうかの
+  判断でしかなく、GLAB を迂回されたときには効かない。
+- ゲームが 1 本も登録されていない間は、感想フォームは自由入力に落ちる。選択専用にすると
+  1 本目が登録されるまで誰も感想を書けなくなる。
+- 運用停止は `isActive: false`。行は消さない (紐付いた感想と回答を失わないため)。
+
+ゲーム別アンケートは `POST` / `PATCH /api/x/volputas/surveys` で管理者が登録する。設問は
+catalog 契約の形 (`scale` / `choice` / `freetext`) に限る。既定は非公開で、内容を確認して
+から `{"visibleToGlab": true}` で公開する。
+
+## 感情曲線
+
+動画を上げて、再生しながらスタンプを打ち、LLM に評価させる。中継は
+`/api/x/volputas/evidence/*`。
+
+- 手順は 記録作成 → 動画アップロード → 評価 の 3 手。動画の置き場が記録 ID で決まるため
+  この順序は入れ替えられない。
+- 動画とゲームログは `proxyStream` で中継する。既定の `proxy()` は本文を文字列として読み、
+  応答も一度テキストにしてから返すので、動画には使えない。
+- 再生は `<video>` が直接引くため Authorization ヘッダを付けられない。Volputas が発行する
+  短命チケットで認可する。Volputas は自分のパスで URL を返すので、GLAB 側はチケットだけを
+  取り出して自分の中継口へ付け替える。
 
 ## コミュニティ感想フィード
 
@@ -59,7 +93,12 @@ Volputas 未設定時も GLAB は degraded で起動し、パネルは「未接�
 ## 関連
 
 - コード: `plugins/volputas/index.ts`（proxy）/ `plugins/volputas/panel.ts` /
+  `plugins/volputas/games-panel.ts`（ゲームマスタ）/
+  `plugins/volputas/emotion-curve-panel.ts`（感情曲線）/
   `plugins/volputas/contracts.ts`（parser）/
   `plugins/volputas/review-digest.ts`（ダイジェストの切り詰め）/
+  `plugins/shared.ts`（`proxyStream`）/
   `plugins/projects/panel.ts`（projects カード）
-- テスト: `tests/volputas-reviews-contract.test.ts`
+- テスト: `tests/volputas-reviews-contract.test.ts` /
+  `tests/volputas-game-catalog.test.ts`
+- Volputas 側: `spec/feature/glab-game-catalog.md` / `spec/feature/glab-emotion-curves.md`
