@@ -26,7 +26,14 @@ services:
       CORPUS_PUBLIC_URL: http://localhost:5187
       CORPUS_TOKEN_MODE: cernere-project-token
       GLAB_OMNIPOTENS_REVIEW_ROOT: ${ARS_ROOT}/Omnipotents/Review
-    required_env: [CERNERE_BASE_URL, CERNERE_FRONTEND_URL, CORPUS_PUBLIC_URL, CORPUS_TOKEN_MODE, GLAB_OMNIPOTENS_REVIEW_ROOT]
+      # GLAB 所有のイベント/施設マスタ (plugins/events, plugins/events/facility-store)。
+      # server.ts が起動時に必ず要求するため、未設定だと Corpus の listen 前に落ちる。
+      # 値は LUDIARS/infra の docker-compose が立てる **localhost 専用の開発 PostgreSQL**
+      # (infra/init-databases.sql が glab データベースと glab_user を作る)。 同ファイルは
+      # public リポにあり、この資格情報は開発用として既に公開されている = 秘匿対象ではない。
+      # ローカル以外へ配置する場合はこの既定を Infisical 注入で上書きすること。
+      GLAB_DATABASE_URL: postgresql://glab_user:glab@localhost:5432/glab
+    required_env: [CERNERE_BASE_URL, CERNERE_FRONTEND_URL, CORPUS_PUBLIC_URL, CORPUS_TOKEN_MODE, GLAB_OMNIPOTENS_REVIEW_ROOT, GLAB_DATABASE_URL]
     requires_secret:
       - service: cernere
         keys: [EXCUBITOR_CERNERE_CLIENT_ID, EXCUBITOR_CERNERE_CLIENT_SECRET]

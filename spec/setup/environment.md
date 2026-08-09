@@ -18,7 +18,7 @@ GLAB は 2 系統の設定を持つ：**hub** は通常Excubitor spawn env（単
 | `CORPUS_SERVICE_ID` | `glab` | | サービス識別（マニフェスト / project key） |
 | `CORPUS_DISPLAY_NAME` | `GLAB` | | 表示名 |
 | `CORPUS_SERVICE_VERSION` | GLAB package version | | GLAB `/api/health` と概況へ出すバージョン |
-| `GLAB_DATABASE_URL` | — | ○ | GLAB所有イベント・施設マスタをWeb/Botで共有するPostgreSQL URL（Infisicalから注入） |
+| `GLAB_DATABASE_URL` | `postgresql://glab_user:glab@localhost:5432/glab` | ○ | GLAB所有イベント・施設マスタをWeb/Botで共有するPostgreSQL URL。既定はExcubitor catalog断片の`env:`が注入するlocalhost開発DB（LUDIARS/infraの`init-databases.sql`が作る）。ローカル以外へ置く場合はInfisical注入で上書きする |
 | `AEDILIS_BASE_URL` | （空 = degraded） | | 施設予約の集約先 Aedilis |
 | `OSTIARIUS_URL` | （空 = 出席無効） | | GLabサーバーからOsへ到達する内部URL。OsはTunnelへ公開しない。ブラウザ向けURLはOs healthの `lanUrl` のみを使い、会場Wi-Fiから直接healthへ到達できた場合だけ出席を表示 |
 | `VOLPUTAS_URL` | （空 = degraded） | | Volputas API / health の base URL（Ex topology は `http://localhost:8892` を注入） |
