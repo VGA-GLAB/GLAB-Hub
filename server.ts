@@ -37,8 +37,12 @@ process.env.CORPUS_PUBLIC_URL ??= `http://localhost:${process.env.CORPUS_PORT}`;
 process.env.CORPUS_AUTH_UI_MODE = 'composite';
 
 // GLAB サーバ自身のサービス識別 (Corpus マニフェスト /.well-known/
-// corpus-service.json と Cernere project key に使われる)。
-process.env.CORPUS_SERVICE_ID ??= 'glab';
+// corpus-service.json の cernereProjectKey に使われる)。
+// Cernere 側の managed project は `EducationLab` (Cernere migration 027 /
+// server/service/education-lab/schema.json)。実認証の credential は Excubitor が
+// excubitor.catalog.yaml の cernere_launch_credentials.target_project (= 同じ key) で
+// 起動直前に発行するので、ここと catalog の値は必ず一致させる。
+process.env.CORPUS_SERVICE_ID ??= 'EducationLab';
 process.env.CORPUS_DISPLAY_NAME ??= 'GLAB';
 process.env.CORPUS_SERVICE_VERSION ??= process.env.npm_package_version ?? '0.1.0';
 

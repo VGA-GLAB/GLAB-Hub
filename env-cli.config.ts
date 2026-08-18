@@ -26,7 +26,9 @@ const config: EnvCliConfig = {
     CORPUS_PUBLIC_URL: "http://localhost:5187",
 
     // ─── Corpus サービス識別 (Cernere project key / マニフェスト) ─
-    CORPUS_SERVICE_ID: "glab",
+    // Cernere managed project key。excubitor.catalog.yaml の
+    // cernere_launch_credentials.target_project と一致させる。
+    CORPUS_SERVICE_ID: "EducationLab",
     CORPUS_DISPLAY_NAME: "GLAB",
 
     // ─── Cernere 認証 ────────────────────────────────────────

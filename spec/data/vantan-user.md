@@ -21,6 +21,6 @@
 必須項目には含めない。
 
 GLAB は Cernere の `vantan_user.data_sharing` にある
-`{ project_key: "glab", modules: ["profile"], access: "readwrite" }` の範囲のみを扱う。
+`{ project_key: "EducationLab", modules: ["profile"], access: "readwrite" }` の範囲のみを扱う（Cernere migration 027 で付与済み）。
 秘密情報やプロフィール値をログ・例外本文・GLAB SQLite に残さない。
 GLAB SQLite には別データとして Cernere `user_id` と現在の出席状況だけを保持する。

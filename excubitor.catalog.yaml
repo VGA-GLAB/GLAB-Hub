@@ -37,8 +37,10 @@ services:
     requires_secret:
       - service: cernere
         keys: [EXCUBITOR_CERNERE_CLIENT_ID, EXCUBITOR_CERNERE_CLIENT_SECRET]
+    # Cernere managed project key (Cernere migration 027 の EducationLab)。
+    # server.ts の CORPUS_SERVICE_ID 既定値と一致させる。
     cernere_launch_credentials:
-      target_project: glab
+      target_project: EducationLab
     health:
       type: tcp
       interval_sec: 30

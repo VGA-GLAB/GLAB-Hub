@@ -15,7 +15,7 @@ GLAB は 2 系統の設定を持つ：**hub** は通常Excubitor spawn env（単
 | `CORPUS_PORT` | `5187` | | listen port（VantanHub 5186 の次） |
 | `CORPUS_MODE` | `server` | | Corpus 動作モード |
 | `CORPUS_TOKEN_MODE` | `cernere-project-token` | | 接続先ごとの短命 Cernere project token を発行 |
-| `CORPUS_SERVICE_ID` | `glab` | | サービス識別（マニフェスト / project key） |
+| `CORPUS_SERVICE_ID` | `EducationLab` | | サービス識別（マニフェスト / Cernere project key）。`excubitor.catalog.yaml` の `cernere_launch_credentials.target_project` と一致させる |
 | `CORPUS_DISPLAY_NAME` | `GLAB` | | 表示名 |
 | `CORPUS_SERVICE_VERSION` | GLAB package version | | GLAB `/api/health` と概況へ出すバージョン |
 | `GLAB_DATABASE_URL` | `postgresql://glab_user:glab@localhost:5432/glab` | ○ | GLAB所有イベント・施設マスタをWeb/Botで共有するPostgreSQL URL。既定はExcubitor catalog断片の`env:`が注入するlocalhost開発DB（LUDIARS/infraの`init-databases.sql`が作る）。ローカル以外へ置く場合はInfisical注入で上書きする |
