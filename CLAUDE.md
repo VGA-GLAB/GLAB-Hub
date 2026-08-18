@@ -28,6 +28,9 @@ GLAB 特化のプラグインパック（`plugins/`）と Discord Bot（`bot/`�
 - **サーバ側の名乗りは `server.ts` の `CORPUS_DISPLAY_NAME`**（= `GLab-Hub`）。
   マニフェストの `displayName` と、ステータスタブ「ローカル (この PC のサービス)」に
   出る自己コネクタの表示名の両方がこの env を見る（Corpus `SelfConnector`）
+- **認証の配置モードは `CORPUS_AUTH_MODE`**（= `composite`、`server.ts` で固定する）。
+  Corpus は未設定だと起動を拒否する（無言フォールバック禁止、Corpus DESIGN §16.1）ので、
+  corpus submodule を bump したあとにこの手の必須 env が増えていないか確認する
 - 汎用機構（`api.ts` / `cernere-login.tsx` / declarative renderer）は `corpus/public/src/`
   から import して共有する。React は esbuild の `--alias` で corpus 側の 1 コピーに固定
   （二重ロードで hooks が壊れるのを防ぐ）

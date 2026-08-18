@@ -36,6 +36,11 @@ process.env.CORPUS_PUBLIC_URL ??= `http://localhost:${process.env.CORPUS_PORT}`;
 // Cernere frontendへのredirectは行わず、セッションはGLAB originのHttpOnly Cookieで保持する。
 process.env.CORPUS_AUTH_UI_MODE = 'composite';
 
+// 認証の配置モード。 Corpus は無言フォールバックを禁じており未設定だと起動を拒否する
+// (Corpus DESIGN §16.1)。 GLAB は Cloudflare Access のようなエッジ認証の背後には
+// 置かず、 Hub 内に Cernere composite ログイン UI を埋め込むので `composite` を名乗る。
+process.env.CORPUS_AUTH_MODE = 'composite';
+
 // GLAB サーバ自身のサービス識別 (Corpus マニフェスト /.well-known/
 // corpus-service.json の cernereProjectKey に使われる)。
 // Cernere 側の managed project は `EducationLab` (Cernere migration 027 /
