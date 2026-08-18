@@ -16,3 +16,4 @@ bot/glab-bot.config.json
 bot/.env
 *.tsbuildinfo
 .claude/
+.anatomia/link-stability.json

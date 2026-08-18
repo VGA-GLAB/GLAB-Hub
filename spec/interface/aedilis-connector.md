@@ -4,7 +4,9 @@
 `baseUrl = AEDILIS_BASE_URL`）越しに Aedilis のバックエンドへ中継する。
 イベントモジュールは GLAB PostgreSQL に施設マスタを持ち、Aedilis の施設一覧は未登録施設の
 候補表示にだけ使う。候補がイベントで初めて選択された時点で GLAB 施設マスタへ昇格する。
-`user_id` と現在の出席状況はこのコネクタを使わず、GLAB の `glab_user` が正本を持つ。
+`user_id` の参照行はこのコネクタを使わず、GLAB の `glab_user` が正本を持つ。出席の正本は
+`glab_attendance`（[`data/glab-attendance.md`](../data/glab-attendance.md)）であり、
+Aedilis はこのコネクタを含め出席検証に関与しない。
 
 ## 中継方式（`plugins/shared.ts` の `proxy`）
 
@@ -39,3 +41,4 @@
 
 - 機能: [`feature/facility.md`](../feature/facility.md)
 - 設定: [`setup/environment.md`](../setup/environment.md)
+- 出席: [`data/glab-attendance.md`](../data/glab-attendance.md)

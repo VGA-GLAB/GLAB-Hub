@@ -32,7 +32,7 @@ GLAB は Node test runner による自動テストと、ブラウザ/Discord の
 
 CLAUDE.md / DESIGN §4 の方針に沿い、優先度順に：
 
-1. `plugins/data.ts` は実 SQLite でスキーマ・単回答更新・複数回答追加・旧回答移行を検証する。
+1. `plugins/data.ts` は実 SQLite でスキーマの冪等と CRUD を検証する。
    hub (Corpus `ctx.db`) と Bot (自前接続) が同じ WAL ファイルを共有する構図は
    `tests/schema-wal-idempotence.test.ts` が Node 組み込み `node:sqlite` で再現し、
    `ensureSchema` の 2 接続・再実行冪等 (CREATE IF NOT EXISTS / 後付け列)、WAL 越しの

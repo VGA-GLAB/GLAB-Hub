@@ -29,7 +29,7 @@ GLAB 特化のプラグインパック（`plugins/`）と Discord Bot（`bot/`�
   から import して共有する。React は esbuild の `--alias` で corpus 側の 1 コピーに固定
   （二重ロードで hooks が壊れるのを防ぐ）
 - パネル（frontend）は `plugins/<id>/panel.ts` → esbuild で `panel.js` にビルド
-- 出席は `plugins/data.ts` の `glab_user` に user_id と現在状況だけを保持。
+- 出席は `plugins/data.ts` の `glab_attendance` が正本（`glab_user` は user_id の参照行のみ保持）。
   施設は `HttpServiceConnector` で Aedilis に接続。イベント・就活も自前データ。
 - Bot の設定は暗号化 config（`@ludiars/encrypted-config`）。token を平文で置かない
 

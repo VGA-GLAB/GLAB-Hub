@@ -49,10 +49,18 @@
         "by": "path",
         "maxFanOut": 9007199254740991
       }
+    },
+    {
+      "preset": "couplingCap",
+      "params": {
+        "targetPattern": "/scripts/",
+        "by": "path",
+        "maxFanOut": 9007199254740991
+      }
     }
   ],
   "templateRules": [],
-  "cardTemplate": "Summarise the \"platform-shell\" domain: GLAB Web hub の起動と全パネル共通基盤。server.ts が Corpus を GLAB の plugins/・public/ で起動し、public/src/ が GLAB frontend shell を、plugins/shared.ts・panel-kit.ts が全プラグイン共通のパネル骨格とユーティリティを、data.ts が SQLite スキーマ正本 (glab_user 等) を、service-health-connector.ts が接続先サービスの health/version 集約を担う。個別業務ロジックは持たず、プラグインが載る土台だけを責務とする。",
+  "cardTemplate": "Summarise the \"platform-shell\" domain: GLAB Web hub の起動と全パネル共通基盤。server.ts が Corpus を GLAB の plugins/・public/ で起動し、public/src/ が GLAB frontend shell を、plugins/shared.ts・panel-kit.ts が全プラグイン共通のパネル骨格とユーティリティを、data.ts が SQLite スキーマ正本 (glab_user 等) を、service-health-connector.ts が接続先サービスの health/version 集約を担う。scripts/ はビルド補助スクリプト (vendor asset のコピー等) の置き場で、個別業務ロジックは持たず、プラグインが載る土台だけを責務とする。",
   "source": "manual",
   "lockedFields": [
     "*"
@@ -61,7 +69,8 @@
     "plugin-host",
     "frontend-shell",
     "shared-schema",
-    "service-health-aggregation"
+    "service-health-aggregation",
+    "build-scripts"
   ],
   "specRefs": [
     "DESIGN 2. アーキテクチャ",

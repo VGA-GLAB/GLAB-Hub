@@ -8,7 +8,7 @@
 ユーザは Cernere で一元管理する。
 
 「小さく作る」方針：既存サービス（Aedilis / Cernere）で済むものは流用し、
-GLAB 固有のデータ（ユーザ参照・出席状況・イベント）と運用面（Discord）だけを自前で持つ。
+GLAB 固有のデータ（ユーザ参照・出席台帳・イベント）と運用面（Discord）だけを自前で持つ。
 
 ## 2. アーキテクチャ
 
@@ -20,7 +20,7 @@ GLAB は **2 つのランタイム**からなる：
    （イベント通知・就活投稿・LLM 対話）。
 
 Web hubとBotはイベントだけを **GLAB PostgreSQL** で共有する。SQLite
-（`data/corpus.db`、WAL）は現在の出席状況とBot求人等のローカル運用データに限定する。
+（`data/corpus.db`、WAL）は出席台帳とBot求人等のローカル運用データに限定する。
 在校生/OBの就活データとゲームレビュー回答はCernere共有schemaを使う。
 
 ```
@@ -49,12 +49,21 @@ Web hub (Corpus)   Discord Bot
 | id | 種別 | 内容 |
 |---|---|---|
 | Corpus内蔵ステータス | コネクタ集約 | 各実モジュールが登録するCr / Os / Ae / Vo / Di / Trのhealth・versionを集約 |
-| `attendance` | 自前データ + コネクタ | 進行中イベント + Os passkey → Aedilis `/api/checkin/verify` で attestation 検証後に直近出席を`glab_user`へ記録 |
+| `attendance` | 自前データ | 進行中イベント + Os passkey attestationを自前でEd25519検証（Os公開鍵は`glab_gateway`にキャッシュ）し、出席台帳`glab_attendance`へ記録 |
 | `facility` | コネクタ | Aedilis `/api/facilities`・`/api/reservations` をproject token付きで中継 |
 | `events` | 自前データ | GLAB PostgreSQLだけでイベントを登録/削除。施設名/IDと利用時間を保持 |
 | `jobs` | 自前データ + コネクタ | 求人情報の投稿/検索/クローズ (`glab_job`、Bot `/job` と共有)。本人の就活データは `/career` で Cernere `tirocinium_student_career` へ中継 |
 | `tirocinium` | コネクタ | Trの企業マスタを検索し、Cernere IDに紐づく志望企業、内定企業・職種・内定日を登録 |
 | `volputas` | コネクタ | 唯一の「レビュー」パネル。Volputas設問とCernere回答をCorpus内の3タブで表示 |
+| `di` | コネクタ | Discutere連携の「議論」「学習ビュー」を公開。議論開始時にCernere IDを監査用に関連付け |
+| `projects` | 自前データ | GitHub Release表示/DL/更新通知、Omnipotens解析レポートの保存と要約 |
+| `roles` | 自前データ | `glab_role_def` / `glab_member_role` によるロール定義とメンバー割当 |
+| `forum` | 自前データ | GLAB内で完結するフォーラム（スレッド・コメント） |
+| `consult` | 自前データ | 在席共有（おれひま）。`glab_consult` |
+| `progress` | コネクタ | Calliope進捗の表示面。エンジンはCalliope、自前DBへキャッシュしない |
+| `tech-links` | 自前データ | 技術リンク共有（タグ・コメント） |
+| `vantan-user` | Cernere連携 | 初回アクセス時の`vantan_user`プロフィール登録動線 |
+| `cernere-admin` | Cernere連携 | Cernere設定動線（project credential等の管理面） |
 
 アンケート設問はVolputas、回答はCernereのTEXT/INTEGER正規化テーブルを正本とする。
 GLABはVolputasが本人向けにフィルタしたデータを中継し、Corpus内で表示・回答するだけとする。
@@ -120,7 +129,9 @@ GLAB の初回アクセスでは、全パネル共通ゲートが Cernere の `v
 登録フォームを表示し、完了するまで通常パネルを描画しない。GLAB server は
 `project_credentials` で Cernere `/ws/project` に接続し、`data_sharing: readwrite` の
 許可範囲だけを読み書きする。プロフィール値を GLAB の SQLite へ複製しない。
-一方、Cernere の `user_id` と現在の出席状況は `glab_user` に保存し、GLAB が正本を持つ。
+一方、Cernere の `user_id` 参照は `glab_user` に保存し、GLAB が正本を持つ。出席の正本は
+`glab_attendance`（[`spec/data/glab-attendance.md`](./spec/data/glab-attendance.md)）で、
+`glab_user` は参照行の確保のみを行う。
 
 project credentialは固定保存しない。Excubitorがspawn直前にsecretを生成してCernereへ送り、
 Cernereが現行bcrypt hashとAES-256-GCM暗号履歴をDBへ永続化する。Exは返されたclient IDと

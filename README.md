@@ -16,12 +16,20 @@ GLAB 特化のプラグインパックと Discord Bot を載せた派生 hub。
 | レビュー | Web hub `volputas` → Volputasの設問を「ゲームレビュー」「ゲームアンケート」「ほかの人への質問」の3タブでCorpus表示 |
 | ステータス | 接続サービス（Cr / Ae / Vo / Di / Tr / Os）のhealthとバージョンを集約 |
 | Di | Web hub `di` → 「議論」「学習ビュー」のみを公開。議論開始時にCernere IDを監査用に関連付け |
+| プロジェクト | Web hub `projects` → GitHub Release表示/DL/更新通知、Omnipotens解析レポートの保存と要約 |
+| 進捗 | Web hub `progress` → Calliope進捗の表示面。自前DBへキャッシュしない |
+| ロール | Web hub `roles` → ロール定義とメンバー割当 |
+| フォーラム | Web hub `forum` → GLAB内で完結するスレッド・コメント |
+| 在席共有 | Web hub `consult` → 「おれひま」在席共有 |
+| 技術リンク | Web hub `tech-links` → 技術リンクの共有・タグ・コメント |
+| Cernere設定 | Web hub `cernere-admin` → project credential等のCernere設定動線 |
 | LLM やりとり | Discord Bot `/chat`（claude-cli / anthropic 切替） |
-| ユーザ管理 | Cernere（Corpus が認証、初回アクセス時に名前・役職・学科を登録） |
+| ユーザ管理 | Web hub `vantan-user` + Cernere（Corpus が認証、初回アクセス時に名前・役職・学科を登録） |
 
 施設予約は **Aedilis**、イベントは **GLAB PostgreSQL** が真実の源で、両機能は独立する。
-Web hubとDiscord Botは同じイベントストアを利用する。Cernere `user_id`参照と現在の
-出席状況、Botの求人投稿はGLAB SQLiteに保持する。在校生/OBの就活データとアンケート回答は
+Web hubとDiscord Botは同じイベントストアを利用する。Cernere `user_id`参照はGLAB
+SQLiteに保持し、出席の正本は`glab_attendance`（GLAB SQLite）、Botの求人投稿も
+GLAB SQLiteに保持する。在校生/OBの就活データとアンケート回答は
 **Cernere共有schema**、企業マスタと設問はそれぞれTr / Volputasを正本とする。
 
 ## 構成
@@ -31,8 +39,9 @@ GLAB/
 ├── corpus/        # submodule (LUDIARS/Corpus、 触らない)
 ├── public/        # GLab 自前の frontend (index.html / シェル / ブランド)
 │   └── src/branding.ts  # 画面に出る GLab の名前はここ
-├── plugins/       # Web hub モジュールパック
-│   ├── attendance/  facility/  events/  jobs/  tirocinium/  volputas/
+├── plugins/       # Web hub モジュールパック。モジュール一覧は plugins/pack.json の
+│   │              # modules を参照（15件）。共有クライアント置き場の plugins/cernere/ は
+│   │              # モジュールではない
 │   └── data.ts    # 出席・Bot求人等のSQLiteスキーマ
 ├── bot/           # Discord Bot (別プロセス、 独自 package)
 │   ├── commands/  llm/  notify/
