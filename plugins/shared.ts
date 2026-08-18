@@ -10,7 +10,6 @@ import type {
   ServiceConnector,
   TokenProvider,
 } from '../corpus/server/hub/sdk.ts';
-import { DownstreamTokenError } from '../corpus/server/hub/tokens.ts';
 import {
   VersionedHttpServiceConnector,
   type VersionedConnectorOptions,
@@ -137,16 +136,10 @@ export async function proxy(
       init,
     );
   } catch (e) {
-    if (e instanceof DownstreamTokenError) {
-      return Response.json({
-        error: 'downstream_token_unavailable',
-        connector: conn.id,
-        upstreamStatus: e.status,
-      }, {
-        status: 502,
-        headers: { 'cache-control': PRIVATE_NO_STORE },
-      });
-    }
+    // token 取得の失敗はここには来ない。 Corpus の TokenProvider は
+    // `Promise<string | null>` の宣言どおり null を返す実装に揃えられ
+    // (Corpus 62e35f6)、 トークン無しのまま参照先へ進んで参照先自身に
+    // 401/503 を返させる。 ここへ来るのは fetch 自体の失敗だけ。
     return Response.json(
       { error: 'connector_error', connector: conn.id },
       { status: 502, headers: { 'cache-control': PRIVATE_NO_STORE } },
@@ -195,16 +188,10 @@ export async function proxyStream(
   try {
     res = await authorizedConnectorFetch(c, conn, path + search, tokenProvider, projectKey, init);
   } catch (e) {
-    if (e instanceof DownstreamTokenError) {
-      return Response.json({
-        error: 'downstream_token_unavailable',
-        connector: conn.id,
-        upstreamStatus: e.status,
-      }, {
-        status: 502,
-        headers: { 'cache-control': PRIVATE_NO_STORE },
-      });
-    }
+    // token 取得の失敗はここには来ない。 Corpus の TokenProvider は
+    // `Promise<string | null>` の宣言どおり null を返す実装に揃えられ
+    // (Corpus 62e35f6)、 トークン無しのまま参照先へ進んで参照先自身に
+    // 401/503 を返させる。 ここへ来るのは fetch 自体の失敗だけ。
     return Response.json(
       { error: 'connector_error', connector: conn.id },
       { status: 502, headers: { 'cache-control': PRIVATE_NO_STORE } },

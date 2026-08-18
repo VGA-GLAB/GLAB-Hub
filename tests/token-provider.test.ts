@@ -30,20 +30,37 @@ describe('CernereProjectTokenProvider', () => {
     });
   });
 
-  it('reports project-token issuance failures instead of silently dropping auth', async () => {
+  // 発行失敗は throw ではなく null + 警告になった (Corpus 62e35f6)。 宣言
+  // (`Promise<string | null>`) と呼び出し側に実装を揃えたもの。 トークン
+  // 無しで参照先へ進み、 参照先自身に 401/503 を返させる。 握り潰しでない
+  // ことは警告が残ることで担保するので、 そこまで見る。
+  it('returns null on project-token issuance failure and still reports it', async () => {
     globalThis.fetch = (async () => Response.json(
       { error: 'signing unavailable' },
       { status: 500 },
     )) as typeof fetch;
 
-    const provider = new CernereProjectTokenProvider('https://cernere.example');
-    await assert.rejects(
-      provider.getDownstreamToken('user-token', {
+    const warnings: string[] = [];
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args.map(String).join(' '));
+    };
+
+    try {
+      const provider = new CernereProjectTokenProvider('https://cernere.example');
+      const token = await provider.getDownstreamToken('user-token', {
         service: 'volputas',
         projectKey: 'volputas',
         baseUrl: 'http://localhost:8892',
-      }),
-      /project-token unavailable for volputas \(500\)/,
-    );
+      });
+
+      assert.equal(token, null);
+      assert.ok(
+        warnings.some((line) => line.includes('volputas') && line.includes('500')),
+        `expected a warning naming the service and status, got ${JSON.stringify(warnings)}`,
+      );
+    } finally {
+      console.warn = originalWarn;
+    }
   });
 });

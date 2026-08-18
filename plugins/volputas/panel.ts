@@ -328,14 +328,12 @@ async function loadList(
     return;
   }
   if (!response.ok) {
-    const body = await response.clone().json().catch(() => null) as
-      | { error?: string }
-      | null;
-    const message = body?.error === 'downstream_token_unavailable'
-      ? 'サービス連携用のCernere認証を利用できません。管理者に設定確認を依頼してください。'
-      : response.status === 401
-        ? 'Cernereログインを確認してください。'
-        : `アンケート一覧を取得できませんでした (${response.status})。`;
+    // 連携トークンを取れない場合も、 hub は握り潰さず参照先の応答をそのまま
+    // 返す (Corpus 62e35f6 で TokenProvider が throw をやめ null 返しに揃った)。
+    // 認証まわりは参照先の 401 として現れるので、 401 の文言に集約する。
+    const message = response.status === 401
+      ? 'Cernereログインを確認してください。'
+      : `アンケート一覧を取得できませんでした (${response.status})。`;
     renderUnavailable(list, message);
     return;
   }
