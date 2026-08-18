@@ -32,7 +32,12 @@ GLAB は Node test runner による自動テストと、ブラウザ/Discord の
 
 CLAUDE.md / DESIGN §4 の方針に沿い、優先度順に：
 
-1. `plugins/data.ts` は in-memory の実 SQLite でスキーマ・単回答更新・複数回答追加・旧回答移行を検証する。
+1. `plugins/data.ts` は実 SQLite でスキーマ・単回答更新・複数回答追加・旧回答移行を検証する。
+   hub (Corpus `ctx.db`) と Bot (自前接続) が同じ WAL ファイルを共有する構図は
+   `tests/schema-wal-idempotence.test.ts` が Node 組み込み `node:sqlite` で再現し、
+   `ensureSchema` の 2 接続・再実行冪等 (CREATE IF NOT EXISTS / 後付け列)、WAL 越しの
+   新テーブル CRUD (`glab_job` / `glab_project` / `glab_project_member`)、一意キーの
+   二度目 (nonce replay / 同日同施設の出席 / review relay 再送) が false になることを担保する。
 2. Cernere project client は WebSocket 契約を fake transport で固定し、`volputas_users` を
    Cernere user ID で読むことと、欠落・型不正を権限なしにすることを検証する。
 3. 入力 Zod スキーマは設問型、回答範囲、複数回答設定の既定を検証する。

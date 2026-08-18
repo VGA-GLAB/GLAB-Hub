@@ -4,6 +4,9 @@
   "private": true,
   "description": "GLAB — 学校組織 GLAB 運営 hub (Corpus 派生)。 出席 / 施設予約 / イベント / 就活情報 + Discord Bot",
   "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "scripts": {
     "vendor:assets": "node scripts/copy-vendor-assets.mjs",
     "build:web": "npm run vendor:assets && esbuild public/src/app.ts --bundle --outfile=public/app.js --target=es2020 --sourcemap --format=esm --jsx=automatic --alias:react=./corpus/node_modules/react --alias:react-dom=./corpus/node_modules/react-dom --minify",
