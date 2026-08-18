@@ -1,11 +1,10 @@
-import { Hono, requireAdmin } from '../../corpus/server/hub/sdk.ts';
+import { Hono, getIdentity, requireAdmin } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusContext, CorpusModule } from '../../corpus/server/hub/sdk.ts';
-import { z } from 'zod';
 import { ensureSchema, queueReviewRelay } from '../data.ts';
-import { requireServiceToken } from '../projects/service-auth.ts';
+import { parseCreatedReview, relayFromCreatedReview } from './review-relay.ts';
 
 import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
-import { PRIVATE_NO_STORE, normalizeHttpBaseUrl, proxy, proxyStream, serviceToken } from '../shared.ts';
+import { normalizeHttpBaseUrl, proxy, proxyStream } from '../shared.ts';
 
 const GLAB_SURVEYS_PATH = '/api/v1/integrations/glab/surveys';
 const GLAB_REVIEWS_PATH = '/api/v1/integrations/glab/reviews';
@@ -13,25 +12,14 @@ const GLAB_RECENT_GAMES_PATH = '/api/v1/integrations/glab/recent-games';
 const GLAB_GAMES_PATH = '/api/v1/integrations/glab/games';
 const GLAB_EVIDENCE_PATH = '/api/v1/integrations/glab/evidence';
 
-const reviewRelaySchema = z.object({
-  reviewId: z.string().min(1).max(200),
-  projectId: z.string().nullable(),
-  gameTitle: z.string().min(1).max(200),
-  recommend: z.boolean().nullable(),
-  excerpt: z.string().min(1).max(2_000),
-  author: z.string().min(1).max(100),
-  // 長さ上限は全項目に付ける。 Discord カードの整形前に、 保存量と
-  // 1 メッセージ上限 (2,000) を受け口の時点で有界にしておく。
-  url: z.string().url().max(500),
-}).strict();
-
 const volputasModule: CorpusModule = {
   id: 'volputas',
   title: 'レビュー',
   icon: '📝',
   setup(ctx: CorpusContext) {
-    // 感想リレーの受け口が glab_review_relay を使うため、 他モジュールの
-    // 読み込み順に依存せず自分で冪等初期化する (data.ts の規約)。
+    // 感想リレー (POST /reviews の proxy 応答から glab_review_relay へキュー) が
+    // 同テーブルを使うため、 他モジュールの読み込み順に依存せず自分で冪等初期化する
+    // (data.ts の規約)。
     ensureSchema(ctx.db);
     const apiBaseUrl = normalizeHttpBaseUrl(ctx.env('VOLPUTAS_URL'), 'VOLPUTAS_URL');
     const connector = new VersionedHttpServiceConnector({
@@ -66,9 +54,34 @@ const volputasModule: CorpusModule = {
     routes.get('/reviews', (c) => proxy(
       c, connector, GLAB_REVIEWS_PATH, ctx.tokenProvider, 'volputas',
     ));
-    routes.post('/reviews', (c) => proxy(
-      c, connector, GLAB_REVIEWS_PATH, ctx.tokenProvider, 'volputas',
-    ));
+    // 投稿は Volputas に保存させ、 201 で返った record を GLAB が自分でリレー
+    // キューに積む。 感想の入口は GLAB (認証フロント) だけなので、 Volputas から
+    // GLAB への折り返し (service token) は持たない。 キュー失敗で投稿を失敗にしない。
+    routes.post('/reviews', async (c) => {
+      const response = await proxy(c, connector, GLAB_REVIEWS_PATH, ctx.tokenProvider, 'volputas');
+      if (response.status !== 201) return response;
+      const record = parseCreatedReview(await response.clone().json().catch(() => null));
+      if (!record) {
+        ctx.logger.warn('review relay skipped: unexpected Volputas response shape');
+        return response;
+      }
+      const relay = relayFromCreatedReview(record, {
+        authorDisplayName: getIdentity(c).displayName,
+        publicUrl: ctx.env('CORPUS_PUBLIC_URL'),
+      });
+      if (!relay) {
+        if (record.visibility === 'community') {
+          ctx.logger.warn(`review relay skipped (${record.id}): CORPUS_PUBLIC_URL is not set`);
+        }
+        return response;
+      }
+      try {
+        queueReviewRelay(ctx.db, relay);
+      } catch (error) {
+        ctx.logger.warn(`review relay enqueue failed (${record.id}): ${error instanceof Error ? error.message : String(error)}`);
+      }
+      return response;
+    });
     routes.get('/recent-games', (c) => proxy(
       c, connector, GLAB_RECENT_GAMES_PATH, ctx.tokenProvider, 'volputas',
     ));
@@ -151,26 +164,6 @@ const volputasModule: CorpusModule = {
       ctx.tokenProvider,
       'volputas',
     ));
-    routes.post(
-      '/external/review-relay',
-      requireServiceToken(serviceToken(ctx.env)),
-      async (c) => {
-        const parsed = reviewRelaySchema.safeParse(await c.req.json().catch(() => null));
-        if (!parsed.success) {
-          return c.json(
-            { error: 'invalid_review_relay', fields: parsed.error.flatten().fieldErrors },
-            400,
-            { 'cache-control': PRIVATE_NO_STORE },
-          );
-        }
-        const queued = queueReviewRelay(ctx.db, parsed.data);
-        return c.json(
-          queued ? { queued: true } : { queued: false, reason: 'already-queued' },
-          queued ? 201 : 200,
-          { 'cache-control': PRIVATE_NO_STORE },
-        );
-      },
-    );
     ctx.registerRoute(routes);
     ctx.registerPanel({ title: 'レビュー', icon: '📝' });
     ctx.logger.info(

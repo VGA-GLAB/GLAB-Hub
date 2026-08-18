@@ -155,17 +155,21 @@ test('markReviewRelayPosted removes a review from the notification queue', () =>
   assert.notEqual(db.rows.get('a')?.postedAt, null);
 });
 
-test('the relay receiver is guarded by a service token', () => {
+test('the review post proxy queues the relay itself; there is no inbound relay receiver', () => {
   const src = readSource('plugins/volputas/index.ts');
-  assert.ok(
-    /'\/external\/review-relay',\s*\n\s*requireServiceToken\(/.test(src),
-    'requireServiceToken must be wired directly onto the review-relay route',
-  );
+  // 感想の入口は GLAB の proxy だけなので、 Volputas からの折り返し (service token 付きの
+  // /external/review-relay) は持たない。 復活させると Volputas 側に GLAB_URL / GLAB_SERVICE_TOKEN
+  // が再び必要になる。
+  assert.doesNotMatch(src, /external\/review-relay/, 'inbound relay receiver must not exist');
+  assert.doesNotMatch(src, /requireServiceToken/, 'volputas module must not need a service token');
+  assert.match(src, /routes\.post\('\/reviews'/, 'review post proxy must exist');
+  assert.match(src, /parseCreatedReview\(/, 'relay must be built from the Volputas 201 response');
+  assert.match(src, /queueReviewRelay\(ctx\.db, relay\)/, 'relay must be queued into glab_review_relay');
 });
 
-test('the relay receiver initializes the shared schema it writes to', () => {
+test('the review post proxy initializes the shared schema it writes to', () => {
   const src = readSource('plugins/volputas/index.ts');
-  assert.ok(/ensureSchema\(ctx\.db\)/.test(src), 'glab_review_relay 未作成だと受け口が 500 になる');
+  assert.ok(/ensureSchema\(ctx\.db\)/.test(src), 'glab_review_relay 未作成だとキューが 500 になる');
 });
 
 test('the relay table keeps review_id unique for idempotency', () => {

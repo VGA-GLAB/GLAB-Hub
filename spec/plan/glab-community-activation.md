@@ -77,28 +77,27 @@ GLab を「学生がゲームを作り・遊び・語る場」として活性化
 **Nuntius は使わない** (neco 裁定 2026-07-31)。今後フォーラム操作も GLab bot に
 実装するため、**Discord への出口を GLab bot に一本化**する。
 
-- 経路:
+- 経路 (2026-08-18 改訂、neco 裁定: **GLAB がフロントなので Volputas からの折り返しは持たない**):
   ```
-  Volputas 投稿完了 (visibility=community のみ)
-    → POST {GLAB_URL}/api/x/volputas/external/review-relay  (X-Glab-Service-Token)
-    → GLAB hub が glab_review_relay に積む
+  GLAB POST /api/x/volputas/reviews (認証済みユーザ)
+    → proxy で Volputas POST /api/v1/integrations/glab/reviews に保存させる
+    → 201 の record (visibility=community のみ) を GLAB hub が glab_review_relay に積む
     → GLab bot の scheduler が posted_at IS NULL を拾って専用チャンネルへ投稿
     → 投稿成功時のみ posted_at / message_id を更新
   ```
   hub と bot は別プロセスで `data/corpus.db` を WAL 共有しているため、既存の
   「テーブルに積んで `notified_at` で二重防止」パターン (`bot/notify/scheduler.ts`) に乗る。
-- 認証: 外部サービス受け口の既存作法どおり `requireServiceToken`
-  (`X-Glab-Service-Token`、`timingSafeEqual`、**env 未設定は 503**)。
-  token は projects の外部 read API と同じ env `GLAB_PROJECTS_SERVICE_TOKEN` を再利用する
-  (受け口ごとの契約は `spec/interface/review-relay.md`)。
+  感想の入口は GLAB の proxy だけ (Volputas 側の producer は `integrations/glab/reviews`
+  のみ) なので、旧経路の Volputas → GLAB `/external/review-relay` (`X-Glab-Service-Token`)
+  と Volputas 側の relay client / `GLAB_URL` / `GLAB_SERVICE_TOKEN` は撤去した。
 - **冪等**: `glab_review_relay.review_id` を**主キー**にし `ON CONFLICT DO NOTHING`。
-  新規は 201 `{queued:true}`、再送は INSERT されず 200
-  `{queued:false, reason:'already-queued'}` を返す。Volputas 側の `relayed_at`
-  (送信成功時のみ更新) と合わせて**二重防御**。
-- best-effort: リレー失敗で投稿本体を壊さない。**表示名解決の失敗も含めて**
-  投稿レスポンスは 2xx を維持する。
-- 責務分界: Volputas は生データ (`recommend` は boolean|null) を送るだけで、
-  **日本語化・整形は表示側 = GLAB の `bot/format.ts`** が行う。
+  同じ record を二度キューしても行は増えない。
+- best-effort: キュー失敗で投稿本体を壊さない (Volputas の 201 をそのまま返す)。
+  表示名は GLAB が認証済み identity (`getIdentity(c).displayName`) から取り、匿名投稿は
+  「匿名」、名前が無ければ `Player`。
+- 責務分界: Volputas は保存して record を返すだけ (`recommend` は boolean|null)。
+  **リレー行の組み立て (`plugins/volputas/review-relay.ts`) と日本語化・整形 (`bot/format.ts`)
+  は GLAB** が行う。リンク先は GLAB 自身 (`CORPUS_PUBLIC_URL` + `?projectId=`)。
 - 投稿フォーマット: ゲーム名 / おすすめ・おすすめしない / 本文抜粋 /
   投稿者 (匿名可) / GLAB の該当ゲームページ URL。**2,000 字を超えないよう切り詰める**
   (削るのは可変長の本文だけで、投稿者と URL は常に残す)。
@@ -108,13 +107,14 @@ GLab を「学生がゲームを作り・遊び・語る場」として活性化
   チャンネル ID は **GLab bot の暗号化 config (`GLAB_REVIEW_CHANNEL_ID` → `channels.review`)**
   が正本 (`npm run config-setup` で登録)。未設定なら投稿を試みず (起動時に警告 1 回)、
   キューに滞留させる = 設定後に古い順から配信される (degraded)。
-- **メンション対策は多層**: ① Volputas 側で `@everyone`/`@here`/`<@…>` を
-  ゼロ幅スペースで中和 ② bot 投稿時に `allowedMentions: { parse: [] }` で
+- **メンション対策は多層**: ① GLAB のリレー組み立て (`review-relay.ts`) で
+  `@everyone`/`@here`/`<@…>` をゼロ幅スペースで中和 ② bot 投稿時に `allowedMentions: { parse: [] }` で
   **Discord API レベルで全メンションを無効化**。②が本命で、①は保険。
   `postToChannel` は `allowedMentions` をオプション引数で受けるよう拡張し、
   既存の event/job 通知の挙動は変えない。
-- 設定: Volputas 側は `GLAB_URL` / `GLAB_SERVICE_TOKEN` の 2 キーのみ
-  (`NUNTIUS_*` は廃止)。
+- 設定: Volputas 側に GLAB 向けの設定は不要 (`GLAB_URL` / `GLAB_SERVICE_TOKEN` は
+  2026-08-18 に撤去、`NUNTIUS_*` は廃止)。GLAB 側は `CORPUS_PUBLIC_URL` (既存) と
+  bot の `channels.review` だけ。
 
 ### 1.3 GLAB 側 UI
 
@@ -348,11 +348,12 @@ consult は v0.2 forum と**別物として設計**するが、**実装開始は
 ### 進捗 (2026-07-31 時点)
 
 - **P1 / P2 / P3 は main マージ済み** (GLAB: 設計書 → P3 → P1b → P2 GLAB 側、Volputas: P1a / P2 送信側)。
-- **P2 の GLAB 側**は受け口 (`/api/x/volputas/external/review-relay`)、`glab_review_relay`
-  テーブル、bot 投稿 (`channels.review` / `postToChannel` の `allowedMentions` 拡張) まで
-  実装済み (`spec/interface/review-relay.md`、`tests/review-relay-contract.test.ts`)。
-  あとは下表の運用設定 (`GLAB_PROJECTS_SERVICE_TOKEN` / `GLAB_REVIEW_CHANNEL_ID` /
-  Volputas 側 `GLAB_URL` / `GLAB_SERVICE_TOKEN`) が入れば Discord に流れる。
+- **P2 の GLAB 側**は proxy 応答からのキューイング (`plugins/volputas/review-relay.ts`)、
+  `glab_review_relay` テーブル、bot 投稿 (`channels.review` / `postToChannel` の
+  `allowedMentions` 拡張) まで実装済み (`spec/interface/review-relay.md`、
+  `tests/review-relay-contract.test.ts` / `tests/review-relay-builder.test.ts`)。
+  あとは `GLAB_REVIEW_CHANNEL_ID` が入れば Discord に流れる (2026-08-18 に Volputas
+  折り返しを撤去したので service token は不要)。
 - **P4a は Cernere 側で実装完了・レビュー待ち** (migration 037)。main マージはまだ。
 - **稼働前に必要な運用作業** (コードでは閉じない。未実施でも起動は落ちない:
   Discord 連携とリレーが degraded になるだけ):
@@ -363,8 +364,7 @@ consult は v0.2 forum と**別物として設計**するが、**実装開始は
   | 同上 | `GLAB_REVIEW_CHANNEL_ID` (`channels.review`) | 感想リレーの投稿先。未設定ならキューに滞留し、設定後に古い順から配信される |
   | Infisical (Cernere) | `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` / `DISCORD_REDIRECT_URI` | OAuth 連携。bot と**同じ Discord アプリ**から取れる |
   | Infisical (GLAB) | `GLAB_GITHUB_TOKEN` | public read のみ。未設定でも動く (60req/h に縮退) |
-  | Infisical (GLAB) | `GLAB_PROJECTS_SERVICE_TOKEN` | 外部受け口 (projects read / 感想リレー) 共通のトークン。**未設定だと受け口が 503** |
-  | Infisical (Volputas) | `GLAB_URL` / `GLAB_SERVICE_TOKEN` | リレー先。未設定ならリレーせず投稿だけ成立 |
+  | Infisical (GLAB) | `GLAB_PROJECTS_SERVICE_TOKEN` | 外部受け口 (projects read / consult / tech-links) 共通のトークン。**未設定だと受け口が 503**。感想リレーには不要 |
 
   Discord Developer Portal で**アプリを 1 つ**作れば、bot token (Bot タブ) と
   OAuth client id/secret (OAuth2 タブ) の両方がそこから取れる。
