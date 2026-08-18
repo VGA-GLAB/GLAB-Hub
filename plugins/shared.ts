@@ -11,8 +11,90 @@ import type {
   TokenProvider,
 } from '../corpus/server/hub/sdk.ts';
 import { DownstreamTokenError } from '../corpus/server/hub/tokens.ts';
+import {
+  VersionedHttpServiceConnector,
+  type VersionedConnectorOptions,
+} from './service-health-connector.ts';
 
 export const PRIVATE_NO_STORE = 'private, no-store';
+
+/** `CorpusContext.env` と同じ形。 env → 設定の写像だけを取る関数に渡す。 */
+export type EnvReader = (key: string) => string | undefined;
+
+// ─── Aedilis コネクタ ───────────────────────────────────────
+//
+// events (予約の作成・取消) と facility (施設・予約の中継) が同じ Aedilis を見る。
+// 設定を 2 箇所に置くと id / healthPath がいつのまにか食い違うので、 生成だけを
+// ここへ寄せる。 ctx.registerConnector を呼ぶのは facility の 1 箇所のままにする
+// (spec/plan/2026-07-16-review-fix-tasks.md T1: 登録の重複はさせない)。
+
+const AEDILIS_CONNECTOR_ID = 'aedilis';
+
+/** Aedilis 側 health (DESIGN.md §7)。 */
+const AEDILIS_HEALTH_PATH = '/api/health';
+
+const AEDILIS_BASE_URL_ENV = 'AEDILIS_BASE_URL';
+
+/** 未設定なら空文字 → コネクタが degraded / 503 を返し、 パネルが「未接続」を出す。 */
+export function aedilisBaseUrl(env: EnvReader): string {
+  return env(AEDILIS_BASE_URL_ENV) ?? '';
+}
+
+function aedilisConnectorOptions(env: EnvReader): VersionedConnectorOptions {
+  return {
+    id: AEDILIS_CONNECTOR_ID,
+    title: '施設予約 (Aedilis)',
+    scope: 'multi',
+    baseUrl: aedilisBaseUrl(env),
+    healthPath: AEDILIS_HEALTH_PATH,
+  };
+}
+
+export function makeAedilisConnector(env: EnvReader): VersionedHttpServiceConnector {
+  return new VersionedHttpServiceConnector(aedilisConnectorOptions(env));
+}
+
+// ─── 外部サービス向け API の service token ──────────────────
+//
+// consult / projects / tech-links / volputas の /external/* が同じ 1 本の token で
+// 認可される。 env 名を各モジュールに直書きすると改名時に取りこぼすので、 読み取りだけ
+// ここへ寄せる (照合そのものは projects/service-auth.ts の requireServiceToken)。
+
+const SERVICE_TOKEN_ENV = 'GLAB_PROJECTS_SERVICE_TOKEN';
+
+export function serviceToken(env: EnvReader): string | undefined {
+  return env(SERVICE_TOKEN_ENV);
+}
+
+// ─── URL 正規化 ─────────────────────────────────────────────
+
+/**
+ * env で受け取った外部サービスの base URL を検証して末尾スラッシュ付きに揃える。
+ *
+ * 資格情報・クエリ・フラグメントを含む URL は、 そのまま `new URL(path, base)` の
+ * 基底にすると意図しない宛先を作るので受け付けない。 未設定 (空) は null を返し、
+ * 呼び出し側が「未接続」の分岐に落とす。
+ */
+export function normalizeHttpBaseUrl(value: string | undefined, envName: string): string | null {
+  const candidate = value?.trim();
+  if (!candidate) return null;
+
+  let url: URL;
+  try {
+    url = new URL(candidate);
+  } catch {
+    throw new Error(`${envName} must be an absolute HTTP(S) URL`);
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error(`${envName} must use HTTP or HTTPS`);
+  }
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error(`${envName} must not contain credentials, query, or fragment`);
+  }
+
+  url.pathname = `${url.pathname.replace(/\/+$/, '')}/`;
+  return url.toString();
+}
 
 /** 個人向け応答をキャッシュさせない共通ヘッダ設定 (各モジュールのルートから呼ぶ)。 */
 export function noStore(c: { header(name: string, value: string): void }): void {

@@ -4,7 +4,6 @@ import {
   ensureGlabUser,
   getGlabUser,
   listGlabUsers,
-  setAttendanceStatus,
   type GlabUserRow,
   type SqlDb,
   type SqlStatement,
@@ -34,20 +33,10 @@ class UserDataDb implements SqlDb {
             created_at: Number(params[1]),
             updated_at: Number(params[2]),
             updated_by: null,
+            attendance_event_id: null,
+            attendance_checked_in_at: null,
           });
           return { lastInsertRowid: 1, changes: 1 };
-        }
-        if (sql.includes('UPDATE glab_user')) {
-          const userId = String(params[3]);
-          const current = this.rows.get(userId);
-          if (!current) return { lastInsertRowid: 0, changes: 0 };
-          this.rows.set(userId, {
-            ...current,
-            attendance_status: params[0] as GlabUserRow['attendance_status'],
-            updated_at: Number(params[1]),
-            updated_by: String(params[2]),
-          });
-          return { lastInsertRowid: 0, changes: 1 };
         }
         return { lastInsertRowid: 0, changes: 0 };
       },
@@ -66,13 +55,11 @@ describe('GLAB user and attendance data', () => {
     assert.equal(listGlabUsers(db).length, 1);
   });
 
-  it('updates only the GLAB-owned attendance status and actor id', () => {
+  it('reads back the row it created (glab_user は参照行の確保だけを担う)', () => {
     const db = new UserDataDb();
     ensureGlabUser(db, 'cernere-user-2');
-    const updated = setAttendanceStatus(db, 'cernere-user-2', 'present', 'admin-1');
 
-    assert.equal(updated?.attendance_status, 'present');
-    assert.equal(updated?.updated_by, 'admin-1');
-    assert.equal(getGlabUser(db, 'cernere-user-2')?.attendance_status, 'present');
+    assert.equal(getGlabUser(db, 'cernere-user-2')?.user_id, 'cernere-user-2');
+    assert.equal(getGlabUser(db, 'missing-user'), null);
   });
 });

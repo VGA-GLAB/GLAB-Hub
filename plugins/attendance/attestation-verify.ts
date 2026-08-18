@@ -8,17 +8,17 @@ export interface AttestationPayload {
   issuedAt: number;
 }
 
-export interface GatewayPublicKey {
+interface GatewayPublicKey {
   lanId: string;
   facilityId: string;
   publicKeyPem: string;
 }
 
-export type AttestationVerification =
+type AttestationVerification =
   | { ok: true; payload: AttestationPayload; gateway: GatewayPublicKey }
   | { ok: false; reason: 'attestation_malformed' | 'unknown_gateway' | 'attestation_invalid' | 'attestation_stale' };
 
-export interface VerifyAttestationOptions {
+interface VerifyAttestationOptions {
   findGateway(lanId: string): GatewayPublicKey | null;
   now(): number;
   freshnessMs: number;

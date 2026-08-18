@@ -6,7 +6,7 @@
 
 import { el, section } from '../panel-kit.ts';
 
-export interface GoalProgress {
+interface GoalProgress {
   source: string;
   status: string | null;
   observed: number;
@@ -14,7 +14,7 @@ export interface GoalProgress {
   lag: number;
 }
 
-export interface ProjectHealth {
+interface ProjectHealth {
   status: 'no_sprint' | 'complete' | 'on_track' | 'at_risk';
   projectedCompletion: string | null;
   scopeCreepRate: number;
@@ -22,14 +22,14 @@ export interface ProjectHealth {
   goalProgress: GoalProgress | null;
 }
 
-export interface ProjectBurndown {
+interface ProjectBurndown {
   committedMinutes: number;
   remainingMinutes: number;
   plannedRemainingMinutes: number;
   elapsedFraction: number;
 }
 
-export interface ProjectRisk {
+interface ProjectRisk {
   level: string;
   projectedCompletion: string | null;
   deadline: string | null;
@@ -37,14 +37,14 @@ export interface ProjectRisk {
   slackDaysP80: number | null;
 }
 
-export interface StalledTask {
+interface StalledTask {
   taskRef: string;
   sourceStatus: string;
   committedAt: string | null;
   stalledDays: number;
 }
 
-export interface ProjectSprint {
+interface ProjectSprint {
   id: string;
   status: string;
   periodStart: string;
@@ -155,7 +155,7 @@ function stalledSection(tasks: StalledTask[]): HTMLElement {
 }
 
 /** PJ 1 件分のカード。 */
-export function renderProject(project: ProjectProgress): HTMLElement {
+function renderProject(project: ProjectProgress): HTMLElement {
   const card = el('div', 'gl-bubble');
   card.appendChild(headerRow(project));
   card.appendChild(sprintLine(project.sprint));

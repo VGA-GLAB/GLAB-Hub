@@ -8,6 +8,7 @@ import {
   VersionedHttpServiceConnector,
   type VersionedConnectorOptions,
 } from '../service-health-connector.ts';
+import type { EnvReader } from '../shared.ts';
 
 export const CALLIOPE_CONNECTOR_ID = 'calliope';
 
@@ -16,8 +17,6 @@ export const CALLIOPE_PROGRESS_PATH = '/api/glab/progress';
 
 /** `/api/*` の認可対象外 (Calliope src/routes/health.ts)。 token 無しでも通る。 */
 const CALLIOPE_HEALTH_PATH = '/health';
-
-export type EnvReader = (key: string) => string | undefined;
 
 /**
  * Calliope はログイン中ユーザの Cernere トークンを受け付けない

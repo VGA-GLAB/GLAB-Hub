@@ -1,15 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import {
-  createDiEntryPoints,
-  normalizeDiBaseUrl,
-  resolveDiLaunchUrl,
-} from '../plugins/di/entry-points.ts';
+import { createDiEntryPoints, resolveDiLaunchUrl } from '../plugins/di/entry-points.ts';
+import { normalizeHttpBaseUrl } from '../plugins/shared.ts';
 
 describe('Di entry points', () => {
   it('exposes only discussion and learning entry points', () => {
-    const baseUrl = normalizeDiBaseUrl('https://di.example/app', 'DISCUTERE_WEB_URL');
+    const baseUrl = normalizeHttpBaseUrl('https://di.example/app', 'DISCUTERE_WEB_URL');
     assert.ok(baseUrl);
     assert.deepEqual(createDiEntryPoints(baseUrl), {
       discussionLaunchPath: '/discussion-launch',

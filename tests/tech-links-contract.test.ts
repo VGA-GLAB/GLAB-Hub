@@ -29,7 +29,7 @@ test('normalizeLinkUrl rejects values that are not URLs at all', () => {
 });
 
 test('free-text search escapes LIKE wildcards instead of interpolating them', () => {
-  const src = readSource('plugins/tech-links/index.ts');
+  const src = readSource('plugins/tech-links/store.ts');
   assert.ok(/ESCAPE/.test(src), 'LIKE filters must declare an escape character');
   assert.ok(/replace\(\/\[\\\\%_\]\/g/.test(src), 'the search term must have % _ \\ escaped');
   assert.ok(!/`%\$\{q\}%`/.test(src), 'the raw query must not be interpolated into a LIKE pattern');
@@ -50,19 +50,19 @@ test('the external share route requires both a service token and a user identity
 });
 
 test('unshare matches on source, source_ref and the caller', () => {
-  const src = readSource('plugins/tech-links/index.ts');
+  const src = readSource('plugins/tech-links/store.ts');
   assert.ok(/source_ref/.test(src), 'source_ref matching missing');
   assert.ok(/posted_by/.test(src), 'the caller must be part of the delete condition');
 });
 
 test('deletion is logical, not physical', () => {
-  const src = readSource('plugins/tech-links/index.ts');
+  const src = readSource('plugins/tech-links/store.ts');
   assert.ok(/deleted_at/.test(src), 'deleted_at must be used');
   assert.ok(!/DELETE FROM glab_tech_link\b/.test(src), 'links must not be hard deleted');
 });
 
 test('listing hides deleted links', () => {
-  const src = readSource('plugins/tech-links/index.ts');
+  const src = readSource('plugins/tech-links/store.ts');
   assert.ok(/deleted_at IS NULL/.test(src), 'listing must filter out deleted rows');
 });
 

@@ -54,8 +54,9 @@ test('the bot reaches the consult module at its mounted path', () => {
 });
 
 test('resolved consult threads are acknowledged so they are archived once', () => {
+  const store = readSource('plugins/consult/store.ts');
+  assert.ok(/resolved_posted_at IS NULL/.test(store), 'resolved feed must exclude acknowledged consults');
   const hub = readSource('plugins/consult/index.ts');
-  assert.ok(/resolved_posted_at IS NULL/.test(hub), 'resolved feed must exclude acknowledged consults');
   assert.ok(/consults\/:id\/resolved-posted/.test(hub), 'the resolved ack endpoint is missing');
   const bot = readSource('bot/notify/scheduler.ts');
   assert.ok(/resolved-posted/.test(bot), 'the scheduler must acknowledge resolved consults');

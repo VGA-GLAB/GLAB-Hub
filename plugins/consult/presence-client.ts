@@ -2,7 +2,7 @@ import type { CernereProjectClient } from '../cernere/project-client.ts';
 import { declarePresenceSchema } from './presence-schema.ts';
 
 export interface AvailableMember { userId: string; displayName: string; discordId: string | null; }
-export interface PresenceIdentity { userId: string; displayName: string; }
+interface PresenceIdentity { userId: string; displayName: string; }
 
 // Cernere は「どのサービスか」を知らずに解決する設計なので、presence 専用コマンドは無い。
 // おれひまは managed_project の汎用コマンドの上に組み立てる:

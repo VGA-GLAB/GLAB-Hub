@@ -141,7 +141,7 @@ CREATE INDEX IF NOT EXISTS glab_tech_link_comment_link ON glab_tech_link_comment
 
 `;
 
-export const ATTENDANCE_STATUSES = [
+const ATTENDANCE_STATUSES = [
   'unknown',
   'present',
   'absent',
@@ -149,7 +149,7 @@ export const ATTENDANCE_STATUSES = [
   'excused',
 ] as const;
 
-export type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
+type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
 
 export interface GlabUserRow {
   user_id: string;
@@ -172,7 +172,7 @@ export interface AttendanceRow {
   detail: string | null;
 }
 
-export interface GatewayRow {
+interface GatewayRow {
   lan_id: string;
   facility_id: string;
   public_key_pem: string;
@@ -260,7 +260,7 @@ function ensureCommunitySchema(db: SqlDb): void {
   }
 }
 
-export const DEFAULT_ROLE_DEFS = [
+const DEFAULT_ROLE_DEFS = [
   { key: 'lead', label: '運営', sort: 0 },
   { key: 'planner', label: '企画', sort: 1 },
   { key: 'programmer', label: 'プログラマ', sort: 2 },
@@ -334,7 +334,7 @@ export function markReviewRelayPosted(db: SqlDb, reviewId: string, messageId: st
   ).run(Date.now(), messageId, reviewId);
 }
 
-export interface ForumNotificationRow {
+interface ForumNotificationRow {
   id: string;
   title: string;
   body: string;
@@ -418,27 +418,6 @@ export function listGlabUsers(db: SqlDb): GlabUserRow[] {
   ).all() as GlabUserRow[];
 }
 
-export function setAttendanceStatus(
-  db: SqlDb,
-  userId: string,
-  status: AttendanceStatus,
-  updatedBy: string,
-): GlabUserRow | null {
-  const result = db.prepare(
-    `UPDATE glab_user
-     SET attendance_status = ?, updated_at = ?, updated_by = ?
-     WHERE user_id = ?`,
-  ).run(status, Date.now(), updatedBy, userId);
-  if (result.changes > 0 && status !== 'present') {
-    db.prepare(
-      `UPDATE glab_user
-       SET attendance_event_id = NULL, attendance_checked_in_at = NULL
-       WHERE user_id = ?`,
-    ).run(userId);
-  }
-  return result.changes > 0 ? getGlabUser(db, userId) : null;
-}
-
 // ─── 出席台帳 ───────────────────────────────────────────────
 
 export function dateInJst(timestamp: number): string {
@@ -481,7 +460,7 @@ export function reserveAttendanceNonce(db: SqlDb, nonce: string, usedAt = Date.n
     ON CONFLICT(nonce) DO NOTHING`).run(nonce, usedAt).changes > 0;
 }
 
-export interface NewAttendance {
+interface NewAttendance {
   userId: string;
   date: string;
   facilityId: string;
@@ -532,7 +511,7 @@ export function attendanceSummary(db: SqlDb, from: string, to: string): Array<{
 
 // ─── 就活情報 ────────────────────────────────────────────────
 
-export interface NewJob {
+interface NewJob {
   company: string;
   position?: string | null;
   category?: string | null;
@@ -647,7 +626,7 @@ export interface ProjectRow {
   releases_synced_at?: number | null;
 }
 
-export interface ProjectReleaseRow {
+interface ProjectReleaseRow {
   project_id: string;
   release_id: number;
   tag: string;
@@ -669,7 +648,7 @@ export interface ProjectWithMembers extends ProjectRow {
   members: ProjectMemberRow[];
 }
 
-export interface NewProject {
+interface NewProject {
   name: string;
   description?: string | null;
   repoUrl?: string | null;
@@ -700,7 +679,7 @@ export function getProject(db: SqlDb, id: string): ProjectRow | null {
   return (db.prepare(`SELECT * FROM glab_project WHERE id = ?`).get(id) as ProjectRow) ?? null;
 }
 
-export interface ProjectQuery {
+interface ProjectQuery {
   status?: ProjectStatus;
 }
 

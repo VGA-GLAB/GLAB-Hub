@@ -26,7 +26,7 @@ export interface EventRow {
   occurrence_date?: string | null;
 }
 
-export interface NewEvent {
+interface NewEvent {
   title: string;
   body?: string | null;
   location?: string | null;
@@ -57,7 +57,7 @@ const EVENT_COLUMNS = `
   discord_message_id, audience_roles, recurrence
 `;
 
-export class EventStore {
+class EventStore {
   constructor(private readonly sql: DatabaseClient) {}
 
   async initialize(): Promise<void> {

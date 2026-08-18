@@ -15,7 +15,7 @@ export interface WsLike {
   close(code?: number, reason?: string): void;
 }
 
-export interface CernereProjectClientConfig {
+interface CernereProjectClientConfig {
   cernereBaseUrl: string;
   clientId: string;
   clientSecret: string;

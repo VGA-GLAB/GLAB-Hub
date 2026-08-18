@@ -8,7 +8,6 @@
 import {
   readConfig,
   setConfig,
-  deleteConfig,
   resolveConfigPath,
   type ResolvedConfig,
   type StoreOptions,
@@ -60,8 +59,4 @@ export function readBotConfig(env: NodeJS.ProcessEnv = process.env): ResolvedCon
 
 export function setBotConfig(key: string, value: string, env: NodeJS.ProcessEnv = process.env): void {
   setConfig(key, value, STORE_OPTS, env);
-}
-
-export function deleteBotConfig(key: string, env: NodeJS.ProcessEnv = process.env): void {
-  deleteConfig(key, STORE_OPTS, env);
 }

@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import {
-  normalizeHttpBaseUrl,
-} from '../plugins/volputas/entry-points.ts';
+import { normalizeHttpBaseUrl } from '../plugins/shared.ts';
 
 describe('Volputas API URL', () => {
   it('normalizes the configured API root', () => {

@@ -13,21 +13,14 @@
 
 import { Hono } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusModule, CorpusContext } from '../../corpus/server/hub/sdk.ts';
-import { proxy } from '../shared.ts';
-import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
+import { aedilisBaseUrl, makeAedilisConnector, proxy } from '../shared.ts';
 
 const facilityModule: CorpusModule = {
   id: 'facility',
   title: '施設',
   icon: '🏫',
   setup(ctx: CorpusContext) {
-    const aedilis = new VersionedHttpServiceConnector({
-      id: 'aedilis',
-      title: '施設予約 (Aedilis)',
-      scope: 'multi',
-      baseUrl: ctx.env('AEDILIS_BASE_URL') ?? '',
-      healthPath: '/api/health',
-    });
+    const aedilis = makeAedilisConnector(ctx.env);
     ctx.registerConnector(aedilis);
 
     const r = new Hono();
@@ -53,7 +46,7 @@ const facilityModule: CorpusModule = {
 
     ctx.registerPanel({ title: '施設', icon: '🏫' });
     ctx.logger.info(
-      `facility → Aedilis (${ctx.env('AEDILIS_BASE_URL') || '未設定 = degraded'})`,
+      `facility → Aedilis (${aedilisBaseUrl(ctx.env) || '未設定 = degraded'})`,
     );
   },
 };

@@ -14,7 +14,7 @@ interface FacilityRow {
   aedilis_facility_id: string;
 }
 
-export class FacilityStore {
+class FacilityStore {
   constructor(private readonly sql: DatabaseClient) {}
 
   async initialize(): Promise<void> {

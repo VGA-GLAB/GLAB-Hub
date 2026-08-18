@@ -1,10 +1,7 @@
 import { Hono, getIdentity } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusContext, CorpusModule } from '../../corpus/server/hub/sdk.ts';
-import {
-  createDiEntryPoints,
-  normalizeDiBaseUrl,
-  resolveDiLaunchUrl,
-} from './entry-points.ts';
+import { createDiEntryPoints, resolveDiLaunchUrl } from './entry-points.ts';
+import { normalizeHttpBaseUrl } from '../shared.ts';
 import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
 
 const diModule: CorpusModule = {
@@ -12,8 +9,8 @@ const diModule: CorpusModule = {
   title: 'Di',
   icon: '💬',
   setup(ctx: CorpusContext) {
-    const apiBaseUrl = normalizeDiBaseUrl(ctx.env('DISCUTERE_URL'), 'DISCUTERE_URL');
-    const webBaseUrl = normalizeDiBaseUrl(
+    const apiBaseUrl = normalizeHttpBaseUrl(ctx.env('DISCUTERE_URL'), 'DISCUTERE_URL');
+    const webBaseUrl = normalizeHttpBaseUrl(
       ctx.env('DISCUTERE_WEB_URL'),
       'DISCUTERE_WEB_URL',
     ) ?? apiBaseUrl;

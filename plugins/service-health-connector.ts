@@ -21,7 +21,7 @@ export interface VersionedConnectorOptions {
   headers?: Record<string, string>;
 }
 
-export interface ConnectorProbe {
+interface ConnectorProbe {
   health: ConnectorHealth;
   payload: unknown;
 }

@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { getEventStore, type EventRow } from './store.ts';
 import { canSee, resolveRoles, parseAudience as audience } from '../roles/audience.ts';
 import { getFacilityStore, type GlabFacility } from './facility-store.ts';
-import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
+import { makeAedilisConnector } from '../shared.ts';
 import {
   AedilisEventClient,
   AedilisRequestError,
@@ -231,13 +231,8 @@ const eventsModule: CorpusModule = {
   title: 'イベント',
   icon: '📅',
   async setup(ctx: CorpusContext) {
-    const connector = new VersionedHttpServiceConnector({
-      id: 'aedilis',
-      title: '施設予約 (Aedilis)',
-      scope: 'multi',
-      baseUrl: ctx.env('AEDILIS_BASE_URL') ?? '',
-      healthPath: '/api/health',
-    });
+    // registerConnector は facility 側の 1 箇所だけ (重複登録しない)。
+    const connector = makeAedilisConnector(ctx.env);
     const aedilis = new AedilisEventClient(connector, ctx.tokenProvider);
     ctx.registerRoute(makeRoutes(ctx, aedilis));
     ctx.registerPanel({ title: 'イベント', icon: '📅' });

@@ -12,7 +12,7 @@ import type { BotConfig } from './config.ts';
 
 const CONSULT_API_BASE = '/api/x/consult';
 
-export type GlabResult<T> = { ok: true; data: T } | { ok: false; status: number | null };
+type GlabResult<T> = { ok: true; data: T } | { ok: false; status: number | null };
 
 /** GLAB 連携 (base URL + service token) が設定済みか。 未設定なら degraded 扱い。 */
 export function glabConfigured(cfg: BotConfig): boolean {

@@ -7,9 +7,9 @@ const SUCCESS_TTL_MS = 10 * 60 * 1000;
 const DEGRADED_TTL_MS = 60 * 1000;
 
 export interface GitHubContributor { login: string; avatarUrl: string }
-export interface GitHubReleaseAsset { id: number; name: string; size: number; browserDownloadUrl: string }
+interface GitHubReleaseAsset { id: number; name: string; size: number; browserDownloadUrl: string }
 export interface GitHubRelease { releaseId: number; tag: string; name: string; publishedAt: string; assets: GitHubReleaseAsset[] }
-export interface GitHubProjectData {
+interface GitHubProjectData {
   description: string | null;
   topics: string[];
   readme: string | null;

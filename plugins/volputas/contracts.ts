@@ -56,7 +56,7 @@ export interface EmotionCurveRecord {
   createdAt: string;
 }
 
-export interface SurveyResponseView {
+interface SurveyResponseView {
   surveyId: string;
   answers: Record<string, string | number>;
   submittedAt: string;
@@ -74,7 +74,7 @@ export interface ReviewView {
   author: { name: string } | { pseudo: string };
 }
 
-export interface RecentGameView {
+interface RecentGameView {
   name: string;
   playtimeTwoWeeksMinutes: number;
 }
@@ -119,11 +119,6 @@ export function parseGameList(value: unknown): GameView[] | null {
   if (!isRecord(value) || value.ok !== true || !Array.isArray(value.data)) return null;
   const games = value.data.map(parseGame);
   return games.every((game): game is GameView => game !== null) ? games : null;
-}
-
-export function parseGameDetail(value: unknown): GameView | null {
-  if (!isRecord(value) || value.ok !== true) return null;
-  return parseGame(value.data);
 }
 
 export function parseEmotionCurveList(value: unknown): EmotionCurveRecord[] | null {

@@ -3,9 +3,9 @@ import type { CorpusContext, CorpusModule } from '../../corpus/server/hub/sdk.ts
 import { z } from 'zod';
 import { ensureSchema, queueReviewRelay } from '../data.ts';
 import { requireServiceToken } from '../projects/service-auth.ts';
-import { normalizeHttpBaseUrl } from './entry-points.ts';
+
 import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
-import { PRIVATE_NO_STORE, proxy, proxyStream } from '../shared.ts';
+import { PRIVATE_NO_STORE, normalizeHttpBaseUrl, proxy, proxyStream, serviceToken } from '../shared.ts';
 
 const GLAB_SURVEYS_PATH = '/api/v1/integrations/glab/surveys';
 const GLAB_REVIEWS_PATH = '/api/v1/integrations/glab/reviews';
@@ -153,7 +153,7 @@ const volputasModule: CorpusModule = {
     ));
     routes.post(
       '/external/review-relay',
-      requireServiceToken(ctx.env('GLAB_PROJECTS_SERVICE_TOKEN')),
+      requireServiceToken(serviceToken(ctx.env)),
       async (c) => {
         const parsed = reviewRelaySchema.safeParse(await c.req.json().catch(() => null));
         if (!parsed.success) {

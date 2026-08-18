@@ -1,9 +1,7 @@
 import { Hono } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusContext, CorpusModule } from '../../corpus/server/hub/sdk.ts';
-import {
-  createCernereAdminEntryPoints,
-  normalizeCernereWebUrl,
-} from './entry-points.ts';
+import { createCernereAdminEntryPoints } from './entry-points.ts';
+import { normalizeHttpBaseUrl } from '../shared.ts';
 
 /**
  * Cernere のデータ管理 / 設定への動線。
@@ -18,7 +16,7 @@ const cernereAdminModule: CorpusModule = {
   title: 'Cernere 設定',
   icon: '⚙️',
   setup(ctx: CorpusContext) {
-    const webBaseUrl = normalizeCernereWebUrl(ctx.env('CERNERE_WEB_URL'), 'CERNERE_WEB_URL');
+    const webBaseUrl = normalizeHttpBaseUrl(ctx.env('CERNERE_WEB_URL'), 'CERNERE_WEB_URL');
     const entryPoints = webBaseUrl ? createCernereAdminEntryPoints(webBaseUrl) : null;
 
     const routes = new Hono();

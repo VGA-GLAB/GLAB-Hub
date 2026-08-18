@@ -44,6 +44,7 @@ import {
 } from '../data.ts';
 import { GitHubClient, parseRepoUrl } from './github-client.ts';
 import { requireServiceToken } from './service-auth.ts';
+import { serviceToken } from '../shared.ts';
 import {
   AnalysisReportError,
   readAnalysisHtml,
@@ -237,7 +238,7 @@ function makePanelRoutes(r: Hono, ctx: CorpusContext, github: GitHubClient): voi
 
 function makeExternalRoutes(r: Hono, ctx: CorpusContext): void {
   const db = ctx.db;
-  const guard = requireServiceToken(ctx.env('GLAB_PROJECTS_SERVICE_TOKEN'));
+  const guard = requireServiceToken(serviceToken(ctx.env));
 
   r.get('/external/projects', guard, (c) => {
     const projects = listProjectsWithMembers(db);
@@ -263,7 +264,7 @@ const projectsModule: CorpusModule = {
     ctx.registerRoute(routes);
     ctx.registerPanel({ title: 'プロジェクト', icon: '🎮' });
     ctx.logger.info(
-      `projects ready (registry = GLAB 正本${ctx.env('GLAB_PROJECTS_SERVICE_TOKEN') ? '' : ' / 外部 read API は未設定 = 503'})`,
+      `projects ready (registry = GLAB 正本${serviceToken(ctx.env) ? '' : ' / 外部 read API は未設定 = 503'})`,
     );
   },
 };

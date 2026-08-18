@@ -10,7 +10,7 @@ import { readBotConfig } from './config-store.ts';
 
 const BOT_DIR = dirname(fileURLToPath(import.meta.url));
 
-export type LlmBackend = 'claude-cli' | 'anthropic' | 'mock';
+type LlmBackend = 'claude-cli' | 'anthropic' | 'mock';
 
 export interface BotConfig {
   discordToken: string;
