@@ -43,7 +43,10 @@ process.env.CORPUS_AUTH_UI_MODE = 'composite';
 // excubitor.catalog.yaml の cernere_launch_credentials.target_project (= 同じ key) で
 // 起動直前に発行するので、ここと catalog の値は必ず一致させる。
 process.env.CORPUS_SERVICE_ID ??= 'EducationLab';
-process.env.CORPUS_DISPLAY_NAME ??= 'GLAB';
+// hub の名乗り。 マニフェストの displayName と、 ステータスタブの自己コネクタ
+// (Corpus SelfConnector) の表示名の両方に使われる。画面用ブランド表記
+// (`public/src/branding.ts`) とは別の、サービスを識別する名称。
+process.env.CORPUS_DISPLAY_NAME ??= 'GLab-Hub';
 process.env.CORPUS_SERVICE_VERSION ??= process.env.npm_package_version ?? '0.1.0';
 
 console.log('[glab] starting Corpus with GLAB plugin pack');

@@ -35,7 +35,7 @@ npm run dev                 # http://localhost:5187
 
 `server.ts` は環境変数で Corpus に所在を伝える：`CORPUS_PLUGIN_DIR=plugins`,
 `CORPUS_DATA=<root>/data`, `CORPUS_PUBLIC_DIR=public`, `CORPUS_PORT=5187`,
-`CORPUS_SERVICE_ID=EducationLab`（Cernere managed project key）, `CORPUS_DISPLAY_NAME=GLAB`（いずれも `??=` で上書き可）。
+`CORPUS_SERVICE_ID=EducationLab`（Cernere managed project key）, `CORPUS_DISPLAY_NAME=GLab-Hub`（いずれも `??=` で上書き可）。
 
 ## モジュール追加の流れ（CLAUDE.md）
 

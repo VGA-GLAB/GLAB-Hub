@@ -25,6 +25,9 @@ GLAB 特化のプラグインパック（`plugins/`）と Discord Bot（`bot/`�
   Corpus のトップページは Cernere composite ログインだけの汎用シェルなので、名乗り・
   シェル・スタイルは派生 hub 側が持つ。表示名は `public/src/branding.ts` と
   `public/index.html` の `<title>` の 2 箇所
+- **サーバ側の名乗りは `server.ts` の `CORPUS_DISPLAY_NAME`**（= `GLab-Hub`）。
+  マニフェストの `displayName` と、ステータスタブ「ローカル (この PC のサービス)」に
+  出る自己コネクタの表示名の両方がこの env を見る（Corpus `SelfConnector`）
 - 汎用機構（`api.ts` / `cernere-login.tsx` / declarative renderer）は `corpus/public/src/`
   から import して共有する。React は esbuild の `--alias` で corpus 側の 1 コピーに固定
   （二重ロードで hooks が壊れるのを防ぐ）

@@ -29,7 +29,8 @@ const config: EnvCliConfig = {
     // Cernere managed project key。excubitor.catalog.yaml の
     // cernere_launch_credentials.target_project と一致させる。
     CORPUS_SERVICE_ID: "EducationLab",
-    CORPUS_DISPLAY_NAME: "GLAB",
+    // server.ts の ??= より優先されるため、サービス表示名と同じ値を生成する。
+    CORPUS_DISPLAY_NAME: "GLab-Hub",
 
     // ─── Cernere 認証 ────────────────────────────────────────
     CERNERE_BASE_URL: "",
