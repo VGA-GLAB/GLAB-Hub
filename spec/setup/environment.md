@@ -10,6 +10,7 @@ GLAB は 2 系統の設定を持つ：**hub** は通常Excubitor spawn env（単
 | `CERNERE_BASE_URL` | `http://localhost:8080` | ○ | Cernere 認証（PASETO V4） |
 | `CERNERE_PROJECT_CLIENT_ID` | （空） | ○ | Cernereが起動時発行したGLAB client ID（Ex注入） |
 | `CERNERE_PROJECT_CLIENT_SECRET` | （空） | ○ | Exが起動ごとに生成したsecret（固定保存せず子envのみ） |
+| `CERNERE_FACE_PHOTO_TOKEN` | （空） | — | 名簿・出席確認画面で顔写真を表示するための Cernere tool client token（scope `face-photo:read`）。未設定なら他人の写真は取得せず 503 を返す（fail closed）。Cernere は project token を写真経路で拒否するため、この token は project 資格情報とは別に発行する |
 | `CORPUS_PUBLIC_URL` | `http://localhost:5187` | ○ | 自身の public URL（PASETO audience） |
 | `CORPUS_ADMIN_IDS` | （空） | ○ | Cernereが返すadmin user ID（Exがカンマ区切りで注入） |
 | `CORPUS_PORT` | `5187` | | listen port（VantanHub 5186 の次） |

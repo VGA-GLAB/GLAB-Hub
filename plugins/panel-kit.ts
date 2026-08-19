@@ -65,6 +65,8 @@ export function ensureStyles(): void {
     .gl-section-title { margin: 0 0 0.5rem; font-size: 0.95rem; }
     .gl-muted { color: #8b90a0; }
     .gl-row { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+    .gl-col { display: flex; gap: 0.6rem; flex-direction: column; align-items: flex-start; }
+    .gl-face-photo { border-radius: 0.4rem; object-fit: cover; }
     .gl-list { list-style: none; margin: 0; padding: 0; }
     .gl-list li { padding: 0.5rem 0; border-bottom: 1px solid #252934; }
     .gl-input, .gl-textarea, .gl-select {

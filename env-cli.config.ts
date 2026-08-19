@@ -36,6 +36,8 @@ const config: EnvCliConfig = {
     CERNERE_BASE_URL: "",
     CERNERE_PROJECT_CLIENT_ID: "",
     CERNERE_PROJECT_CLIENT_SECRET: "",
+    // 管理者の顔写真1件取得用。実値は Infisical / Ex から注入し、リポへ保存しない。
+    CERNERE_FACE_PHOTO_TOKEN: "",
 
     // ─── Admin user IDs (Cernere sub claim をカンマ区切り) ────
     CORPUS_ADMIN_IDS: "",

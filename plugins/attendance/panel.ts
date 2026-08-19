@@ -16,9 +16,21 @@ interface AttendanceRecord {
   date: string;
   facilityId: string;
   checkedInAt: number;
-  source: 'passkey' | 'manual';
+  source: 'passkey' | 'manual' | 'face' | 'face_passive' | 'staff_override' | 'session' | 'password';
+  assurance: string | null;
   eventTitle: string | null;
 }
+
+/** 台帳に残る経路の表示名。どの経路で通ったか分からない行を作らない。 */
+const SOURCE_LABELS: Record<AttendanceRecord['source'], string> = {
+  passkey: 'パスキー',
+  manual: '手動',
+  face: '顔認証',
+  face_passive: '顔認証 (生体性)',
+  staff_override: '職員承認',
+  session: 'セッション',
+  password: 'パスワード',
+};
 
 interface ActiveEvent {
   id: number;
@@ -122,7 +134,7 @@ async function adminSection(ctx: PanelContext, rerender: () => Promise<void>): P
   const date = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
   const response = await ctx.api(`/list?date=${encodeURIComponent(date)}`);
   if (!response.ok) admin.body.append(errorNotice('本日の台帳を取得できませんでした。'));
-  else appendAttendanceList(admin.body, (await response.json() as { attendance?: AttendanceRecord[] }).attendance ?? []);
+  else appendAttendanceList(admin.body, (await response.json() as { attendance?: AttendanceRecord[] }).attendance ?? [], null, ctx);
 
   const form = el('form', 'gl-row');
   const userId = el('input', 'gl-input');
@@ -148,7 +160,37 @@ async function adminSection(ctx: PanelContext, rerender: () => Promise<void>): P
   return admin.wrap;
 }
 
-function appendAttendanceList(container: HTMLElement, rows: AttendanceRecord[], ownName?: string | null): void {
+/**
+ * 職員の一覧で 1 人分だけ写真を引く。名簿を開いた時点で全員分を取りに行かない
+ * (spec/feature/face-photo-profile.md §1)。写真が無ければ状態バッジを出す。
+ */
+function appendFacePhoto(item: HTMLElement, ctx: PanelContext, userId: string): void {
+  const slot = el('span', 'gl-tag', '写真を見る');
+  slot.onclick = () => {
+    slot.onclick = null;
+    slot.textContent = '取得中…';
+    void ctx.hubApi(`/api/x/vantan-user/face-photo/user/${encodeURIComponent(userId)}`)
+      .then(async (response) => {
+        if (response.status === 404) { slot.textContent = '未登録 / 審査待ち'; return; }
+        if (!response.ok) { slot.textContent = '取得できません'; return; }
+        const blob = await response.blob();
+        const image = el('img', 'gl-face-photo');
+        const url = URL.createObjectURL(blob);
+        const release = () => URL.revokeObjectURL(url);
+        image.onload = release;
+        image.onerror = release;
+        image.src = url;
+        image.alt = '';
+        image.width = 48;
+        image.height = 48;
+        slot.replaceWith(image);
+      })
+      .catch(() => { slot.textContent = '取得できません'; });
+  };
+  item.append(slot);
+}
+
+function appendAttendanceList(container: HTMLElement, rows: AttendanceRecord[], ownName?: string | null, ctx?: PanelContext): void {
   if (!rows.length) {
     container.append(el('p', 'gl-muted', '出席記録はありません。'));
     return;
@@ -158,7 +200,8 @@ function appendAttendanceList(container: HTMLElement, rows: AttendanceRecord[], 
     const item = el('li');
     item.append(el('strong', undefined, ownName || row.displayName || row.userId));
     item.append(el('span', 'gl-muted', ` ${row.date} / ${row.facilityId} / ${fmtDateTime(row.checkedInAt)}`));
-    item.append(el('span', 'gl-tag', row.source === 'manual' ? '手動' : 'passkey'));
+    item.append(el('span', 'gl-tag', SOURCE_LABELS[row.source] ?? row.source));
+    if (ctx) appendFacePhoto(item, ctx, row.userId);
     list.append(item);
   }
   container.append(list);

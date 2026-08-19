@@ -1,11 +1,23 @@
 import { createPublicKey, verify } from 'node:crypto';
 
+/** Ostiarius が実際に使った本人確認手段 (Ostiarius/server/attestation.ts と同値)。 */
+export type AttestationMethod =
+  | 'face' | 'face_passive' | 'passkey' | 'staff_override' | 'session' | 'password';
+export type AttestationAssurance = 'high' | 'medium' | 'manual' | 'low';
+
+const ATTESTATION_METHODS: readonly AttestationMethod[] =
+  ['face', 'face_passive', 'passkey', 'staff_override', 'session', 'password'];
+const ATTESTATION_ASSURANCES: readonly AttestationAssurance[] = ['high', 'medium', 'manual', 'low'];
+
 export interface AttestationPayload {
   sub: string;
   placeId: string;
   lanId: string;
   nonce: string;
   issuedAt: number;
+  /** P1 以前に署名された 5 フィールドの payload を読むため optional。 */
+  method?: AttestationMethod;
+  assurance?: AttestationAssurance;
 }
 
 interface GatewayPublicKey {
@@ -69,11 +81,17 @@ function parsePayload(json: string): AttestationPayload {
     typeof value.nonce !== 'string' || !value.nonce ||
     typeof value.issuedAt !== 'number' || !Number.isFinite(value.issuedAt)
   ) throw new Error('invalid attestation payload');
+  // method / assurance は P1 以降の追加フィールド。 知らない値は「無かった」ものとして
+  // 落とす — 台帳の source に未知の文字列を書かないため。
+  const method = ATTESTATION_METHODS.find((item) => item === value.method);
+  const assurance = ATTESTATION_ASSURANCES.find((item) => item === value.assurance);
   return {
     sub: value.sub,
     placeId: value.placeId,
     lanId: value.lanId,
     nonce: value.nonce,
     issuedAt: value.issuedAt,
+    ...(method ? { method } : {}),
+    ...(assurance ? { assurance } : {}),
   };
 }

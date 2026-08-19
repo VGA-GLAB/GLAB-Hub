@@ -44,7 +44,9 @@ CREATE TABLE IF NOT EXISTS glab_attendance (
   date          TEXT NOT NULL,
   facility_id   TEXT NOT NULL,
   checked_in_at INTEGER NOT NULL,
-  source        TEXT NOT NULL CHECK (source IN ('passkey', 'manual')),
+  source        TEXT NOT NULL CHECK (source IN
+                  ('passkey', 'manual', 'face', 'face_passive', 'staff_override', 'session', 'password')),
+  assurance     TEXT,
   event_id      INTEGER,
   detail        TEXT,
   UNIQUE(user_id, date, facility_id)
@@ -161,13 +163,21 @@ export interface GlabUserRow {
   attendance_checked_in_at: number | null;
 }
 
+/**
+ * 出席が成立した経路。 Ostiarius の attestation `method` をそのまま台帳へ書く。
+ * 'manual' は職員の手入力、 'passkey' は method を持たない旧 attestation の既定。
+ */
+export type AttendanceSource =
+  | 'passkey' | 'manual' | 'face' | 'face_passive' | 'staff_override' | 'session' | 'password';
+
 export interface AttendanceRow {
   id: string;
   user_id: string;
   date: string;
   facility_id: string;
   checked_in_at: number;
-  source: 'passkey' | 'manual';
+  source: AttendanceSource;
+  assurance: string | null;
   event_id: number | null;
   detail: string | null;
 }
@@ -210,6 +220,7 @@ export interface ReviewRelayRow {
 /** スキーマ初期化 (冪等)。 plugins は ctx.db で、 bot は自前接続で 1 度呼ぶ。 */
 export function ensureSchema(db: SqlDb): void {
   db.exec(GLAB_SCHEMA);
+  ensureAttendanceSourceValues(db);
   ensureAttendanceEventColumns(db);
   ensureProjectGitHubColumns(db);
   ensureReviewRelaySchema(db);
@@ -390,6 +401,74 @@ function ensureColumns(
   }
 }
 
+/**
+ * 出席台帳の source 制約を Ostiarius の attestation method へ広げる。
+ *
+ * 既存 DB は CHECK (source IN ('passkey','manual')) で作られており、 顔で通った
+ * 出席を書けない。 SQLite は CHECK を後から変更できないので、 制約だけを差し替えた
+ * テーブルへ全行を移し替える。 既存行の source は書き換えない (遡って face にしない)。
+ */
+function ensureAttendanceSourceValues(db: SqlDb): void {
+  const attendanceTableSql = (): string => {
+    const row = db.prepare(
+      `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'glab_attendance'`,
+    ).get() as { sql?: unknown } | undefined;
+    return typeof row?.sql === 'string' ? row.sql : '';
+  };
+  const sql = attendanceTableSql();
+  if (!sql || sql.includes("'face'")) return; // 既に広い制約 (新規作成分を含む)
+
+  const foreignKeysEnabled = Number((db.prepare('PRAGMA foreign_keys').get() as {
+    foreign_keys?: unknown;
+  } | undefined)?.foreign_keys) === 1;
+  let transactionStarted = false;
+  if (foreignKeysEnabled) db.exec('PRAGMA foreign_keys = OFF');
+  try {
+    // Hub / Bot の別接続が同時に起動しても、取得後の再判定で二重移行しない。
+    db.exec('BEGIN IMMEDIATE');
+    transactionStarted = true;
+    if (attendanceTableSql().includes("'face'")) {
+      db.exec('COMMIT');
+      transactionStarted = false;
+      return;
+    }
+    db.exec(`CREATE TABLE glab_attendance_migrated (
+      id            TEXT PRIMARY KEY,
+      user_id       TEXT NOT NULL,
+      date          TEXT NOT NULL,
+      facility_id   TEXT NOT NULL,
+      checked_in_at INTEGER NOT NULL,
+      source        TEXT NOT NULL CHECK (source IN
+                      ('passkey', 'manual', 'face', 'face_passive', 'staff_override', 'session', 'password')),
+      assurance     TEXT,
+      event_id      INTEGER,
+      detail        TEXT,
+      UNIQUE(user_id, date, facility_id)
+    )`);
+    db.exec(`INSERT INTO glab_attendance_migrated
+      (id, user_id, date, facility_id, checked_in_at, source, assurance, event_id, detail)
+      SELECT id, user_id, date, facility_id, checked_in_at, source, NULL, event_id, detail
+      FROM glab_attendance`);
+    db.exec('DROP TABLE glab_attendance');
+    db.exec('ALTER TABLE glab_attendance_migrated RENAME TO glab_attendance');
+    db.exec('CREATE INDEX IF NOT EXISTS glab_attendance_date ON glab_attendance(date)');
+    db.exec('CREATE INDEX IF NOT EXISTS glab_attendance_user ON glab_attendance(user_id)');
+    db.exec('COMMIT');
+    transactionStarted = false;
+  } catch (error) {
+    if (transactionStarted) {
+      try {
+        db.exec('ROLLBACK');
+      } catch {
+        // 元の移行失敗を報告する。SQLite が既に巻き戻した場合の二次失敗は上書きしない。
+      }
+    }
+    throw error;
+  } finally {
+    if (foreignKeysEnabled) db.exec('PRAGMA foreign_keys = ON');
+  }
+}
+
 // ─── GLAB ユーザ / 現在の出席状況 ───────────────────────────
 
 /** 初回アクセス時に Cernere user_id の参照行だけを GLAB に確保する。 */
@@ -465,7 +544,8 @@ interface NewAttendance {
   date: string;
   facilityId: string;
   checkedInAt: number;
-  source: 'passkey' | 'manual';
+  source: AttendanceSource;
+  assurance?: string | null;
   eventId?: number | null;
   detail?: Record<string, unknown> | null;
 }
@@ -474,11 +554,12 @@ interface NewAttendance {
 export function recordAttendance(db: SqlDb, attendance: NewAttendance): boolean {
   ensureGlabUser(db, attendance.userId);
   return db.prepare(`INSERT INTO glab_attendance
-    (id, user_id, date, facility_id, checked_in_at, source, event_id, detail)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    (id, user_id, date, facility_id, checked_in_at, source, assurance, event_id, detail)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(user_id, date, facility_id) DO NOTHING`).run(
     randomUUID(), attendance.userId, attendance.date, attendance.facilityId,
-    attendance.checkedInAt, attendance.source, attendance.eventId ?? null,
+    attendance.checkedInAt, attendance.source, attendance.assurance ?? null,
+    attendance.eventId ?? null,
     attendance.detail == null ? null : JSON.stringify(attendance.detail),
   ).changes > 0;
 }
@@ -495,7 +576,7 @@ export function listAttendance(db: SqlDb, query: {
   if (query.to) { where.push('date <= ?'); params.push(query.to); }
   const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const limit = query.limit ?? 100;
-  return db.prepare(`SELECT id, user_id, date, facility_id, checked_in_at, source, event_id, detail
+  return db.prepare(`SELECT id, user_id, date, facility_id, checked_in_at, source, assurance, event_id, detail
     FROM glab_attendance ${clause} ORDER BY checked_in_at DESC LIMIT ?`).all(...params, limit) as AttendanceRow[];
 }
 

@@ -117,6 +117,16 @@ describe('plugins/data.ts — 実 SQLite (WAL) を hub / bot の 2 接続で共�
         id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, status TEXT NOT NULL,
         repo_url TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
       )`);
+      legacyDb.exec(`CREATE TABLE glab_attendance (
+        id TEXT PRIMARY KEY, user_id TEXT NOT NULL, date TEXT NOT NULL,
+        facility_id TEXT NOT NULL, checked_in_at INTEGER NOT NULL,
+        source TEXT NOT NULL CHECK (source IN ('passkey', 'manual')),
+        event_id INTEGER, detail TEXT, UNIQUE(user_id, date, facility_id)
+      )`);
+      legacyDb.exec(`INSERT INTO glab_attendance
+        (id, user_id, date, facility_id, checked_in_at, source)
+        VALUES ('attendance-1', 'user-1', '2026-08-18', 'room-a', 1, 'passkey')`);
+      legacyDb.exec('PRAGMA foreign_keys = ON');
       assert.doesNotThrow(() => ensureSchema(legacyDb));
       const once = columnNames(legacyDb, 'glab_project');
       assert.ok(once.includes('description_synced_at'));
@@ -128,6 +138,20 @@ describe('plugins/data.ts — 実 SQLite (WAL) を hub / bot の 2 接続で共�
       assert.deepEqual(columnNames(legacyDb, 'glab_project'), once);
       const userCols = columnNames(legacyDb, 'glab_user');
       assert.equal(userCols.filter((c) => c === 'attendance_event_id').length, 1);
+      assert.ok(columnNames(legacyDb, 'glab_attendance').includes('assurance'));
+      const migratedAttendance = legacyDb.prepare(
+        'SELECT source, assurance FROM glab_attendance WHERE id = ?',
+      ).get('attendance-1') as { source: string; assurance: string | null };
+      assert.equal(migratedAttendance.source, 'passkey');
+      assert.equal(migratedAttendance.assurance, null);
+      assert.equal(
+        (legacyDb.prepare('PRAGMA foreign_keys').get() as { foreign_keys: number }).foreign_keys,
+        1,
+      );
+      assert.doesNotThrow(() => legacyDb.prepare(`INSERT INTO glab_attendance
+        (id, user_id, date, facility_id, checked_in_at, source, assurance)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`)
+        .run('attendance-2', 'user-2', '2026-08-18', 'room-a', 2, 'face', 'high'));
     } finally {
       legacy?.close();
       rmSync(legacyDir, { recursive: true, force: true });

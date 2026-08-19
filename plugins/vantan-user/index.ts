@@ -7,6 +7,7 @@ import {
   vantanUserInputSchema,
 } from './profile-schema.ts';
 import { ensureGlabUser, ensureSchema } from '../data.ts';
+import { registerFacePhotoRoutes } from './face-photo-routes.ts';
 import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
 
 const vantanUserModule: CorpusModule = {
@@ -60,6 +61,8 @@ const vantanUserModule: CorpusModule = {
         return c.json({ error: 'cernere_unavailable' }, 503);
       }
     });
+
+    registerFacePhotoRoutes(router, ctx);
 
     ctx.registerRoute(router);
     ctx.registerPanel({ title: 'プロフィール', icon: '👤' });

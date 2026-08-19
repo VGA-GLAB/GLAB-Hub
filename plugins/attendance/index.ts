@@ -72,6 +72,7 @@ function attendanceView(db: CorpusDb, row: AttendanceRow, event: EventRow | null
     facilityId: row.facility_id,
     checkedInAt: row.checked_in_at,
     source: row.source,
+    assurance: row.assurance,
     eventId: event?.id ?? null,
     eventTitle: event?.title ?? null,
   };
@@ -166,7 +167,10 @@ export function makeRoutes(ctx: CorpusContext, ostiarius: VersionedHttpServiceCo
       date: dateInJst(verified.payload.issuedAt),
       facilityId: verified.payload.placeId,
       checkedInAt: verified.payload.issuedAt,
-      source: 'passkey',
+      // 実際に通った経路をそのまま台帳へ。 method を持たない旧 attestation だけ
+      // 従来どおり passkey として記録する (遡って書き換えはしない)。
+      source: verified.payload.method ?? 'passkey',
+      assurance: verified.payload.assurance ?? null,
       eventId: event?.id ?? null,
       detail: { lanId: verified.payload.lanId },
     });

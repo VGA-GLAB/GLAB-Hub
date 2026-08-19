@@ -58,3 +58,23 @@ test('malformed attestations are rejected without throwing', () => {
     assert.equal(result.ok === false && result.reason, 'attestation_malformed');
   }
 });
+
+test('method / assurance は署名 payload から取り出される', () => {
+  const result = verifyAttestation(makeAttestation({ method: 'face', assurance: 'high' }), opts);
+  assert.equal(result.ok, true);
+  assert.equal(result.ok && result.payload.method, 'face');
+  assert.equal(result.ok && result.payload.assurance, 'high');
+});
+
+test('method を持たない旧 attestation は method 無しで通る (台帳側で passkey 扱い)', () => {
+  const result = verifyAttestation(makeAttestation(), opts);
+  assert.equal(result.ok, true);
+  assert.equal(result.ok && result.payload.method, undefined);
+});
+
+test('未知の method / assurance は落として台帳へ書かせない', () => {
+  const result = verifyAttestation(makeAttestation({ method: 'telepathy', assurance: 'absolute' }), opts);
+  assert.equal(result.ok, true);
+  assert.equal(result.ok && result.payload.method, undefined);
+  assert.equal(result.ok && result.payload.assurance, undefined);
+});
