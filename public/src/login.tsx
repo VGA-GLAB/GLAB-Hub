@@ -46,8 +46,9 @@ async function exchangeAuthCode(authCode: string): Promise<void> {
 
 /**
  * Email / パスワードの composite フォームに、 Cernere ホストのパスキーを併設する。
- * パスキーの儀式は WebAuthn の RP ID を保つため Cernere origin のポップアップで
- * 行い、 返ってきた authCode だけを GLab が user token へ交換する。
+ * パスキーの儀式は WebAuthn の RP ID を保つため Cernere origin で行い、
+ * 返ってきた authCode だけを GLab が user token へ交換する。 導線は
+ * composite の alternatives スロットへ渡してカード内に収める。
  * Cernere frontend の所在が公開設定に無い場合はパスキー導線を出さない。
  * @implements SPEC-GLAB-SHELL-002
  */
@@ -88,23 +89,23 @@ function CompositeLoginHost({
           deviceSubmit: '確認する',
           deviceResend: 'コードを再送',
         }}
+        alternativesLabel="または"
+        alternatives={
+          cernereFrontendUrl ? (
+            <CompositePasskeyPopup
+              cernereUrl={cernereFrontendUrl}
+              className="ghost login-passkey"
+              buttonLabel="パスキーでログイン"
+              pendingLabel="パスキーを確認中…"
+              onAuthCode={(code) => {
+                setError('');
+                return exchangeAuthCode(code);
+              }}
+              onError={(cause) => setError(cause.message)}
+            />
+          ) : null
+        }
       />
-      {cernereFrontendUrl && (
-        <div className="login-alt">
-          <span className="login-alt-label">または</span>
-          <CompositePasskeyPopup
-            cernereUrl={cernereFrontendUrl}
-            className="ghost login-passkey"
-            buttonLabel="パスキーでログイン"
-            pendingLabel="パスキーを確認中…"
-            onAuthCode={(code) => {
-              setError('');
-              return exchangeAuthCode(code);
-            }}
-            onError={(cause) => setError(cause.message)}
-          />
-        </div>
-      )}
     </>
   );
 }

@@ -54,19 +54,7 @@ html, body {
 }
 .login h1 { margin: 0; font-size: 2rem; letter-spacing: 0.06em; }
 
-/* composite フォームに併設するパスキー導線。 CompositeLogin のカード幅に揃える。 */
-.login-alt {
-  width: 100%;
-  max-width: 400px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.login-alt-label {
-  color: var(--muted);
-  font-size: 0.8rem;
-}
+/* composite カード内の alternatives スロットへ差し込むパスキー導線。 */
 button.login-passkey {
   width: 100%;
   border-color: var(--bg-3);
