@@ -17,6 +17,10 @@ frontend の外殻を `public/` に所有する。実装関数は以下の claus
 - **SPEC-GLAB-SHELL-004** — declarative panel は Corpus renderer を使い、ETag 付き
   descriptor cache を再検証する。SSE の service / panel key が現在表示中の panel と
   一致した場合だけ再描画する。
+- **SPEC-GLAB-SHELL-005** — dashboard は認証済み本人のプロフィール、ロール、および
+  既存 GLAB 表から集約した本人の活動と集計だけを same-origin API で表示する。活動の
+  件数は上限を設け、表示する可変データは text node とし、予期しない内部値を画面やログへ
+  出力しない。
 
 ## 配信と build
 

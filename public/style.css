@@ -11,6 +11,20 @@
   --down: #d9534f;
   --error: #ff6b6b;
   --radius: 10px;
+
+  /* Cernere composite UI (CompositeLogin / CompositePasskeyPopup) との橋渡し。
+     composite はインラインスタイルで下記の名前を参照し、 未定義だと
+     `var(--text, #000)` のような明色前提のフォールバックへ落ちる。 GLab の
+     シェルはダーク固定なので、 黒文字がダーク背景に乗って読めなくなっていた。
+     GLab 側のトークンへ写像して、 composite もダークで正しく表示させる。 */
+  --text: var(--fg);
+  --text-muted: var(--muted);
+  --bg-surface: var(--bg-2);
+  --bg-surface-2: var(--bg-3);
+  --border: var(--bg-3);
+  --green: var(--up);
+  --amber: var(--degraded);
+  --red: var(--down);
 }
 
 * { box-sizing: border-box; }
@@ -39,6 +53,27 @@ html, body {
   padding: 2rem;
 }
 .login h1 { margin: 0; font-size: 2rem; letter-spacing: 0.06em; }
+
+/* composite フォームに併設するパスキー導線。 CompositeLogin のカード幅に揃える。 */
+.login-alt {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.login-alt-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+button.login-passkey {
+  width: 100%;
+  border-color: var(--bg-3);
+  color: var(--fg);
+}
+button.login-passkey:hover:not(:disabled) { background: var(--bg-3); }
+button.login-passkey:disabled { color: var(--muted); cursor: progress; }
 
 button {
   font: inherit;

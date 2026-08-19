@@ -5,7 +5,7 @@
 // (`public/index.html` の <title> も同じ文字列に合わせること)。
 
 /** ヘッダ / ログイン画面に出す hub の名前。 */
-export const BRAND_TITLE = 'Officina - GLab';
+export const BRAND_TITLE = 'VANTAN GLab';
 
 /** ログイン画面のサブテキスト (メッセージが無いときの既定)。 */
 export const LOGIN_SUBTITLE = 'ログインはここから';

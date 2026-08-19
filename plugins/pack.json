@@ -1,7 +1,8 @@
 {
   "name": "glab-pack",
-  "description": "GLAB 運営プラグインパック — 初回プロフィール登録 + 出席 / 施設 / イベント / 就活 / 企業 / Volputasレビュー / Di / プロジェクト / Cernere設定動線",
+  "description": "GLAB 運営プラグインパック — ダッシュボード / 初回プロフィール登録 + 出席 / 施設 / イベント / 就活 / 企業 / Volputasレビュー / Di / プロジェクト / Cernere設定動線",
   "modules": [
+    "dashboard",
     "attendance",
     "di",
     "facility",

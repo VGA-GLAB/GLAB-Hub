@@ -10,7 +10,7 @@
   "scripts": {
     "vendor:assets": "node scripts/copy-vendor-assets.mjs",
     "build:web": "npm run vendor:assets && esbuild public/src/app.ts --bundle --outfile=public/app.js --target=es2020 --sourcemap --format=esm --jsx=automatic --alias:react=./corpus/node_modules/react --alias:react-dom=./corpus/node_modules/react-dom --minify",
-    "build:panels": "esbuild plugins/attendance/panel.ts plugins/cernere-admin/panel.ts plugins/consult/panel.ts plugins/di/panel.ts plugins/facility/panel.ts plugins/forum/panel.ts plugins/events/panel.ts plugins/jobs/panel.ts plugins/projects/panel.ts plugins/progress/panel.ts plugins/roles/panel.ts plugins/tech-links/panel.ts plugins/tirocinium/panel.ts plugins/vantan-user/panel.ts plugins/volputas/panel.ts --bundle --format=esm --target=es2020 --outdir=plugins --outbase=plugins --sourcemap",
+    "build:panels": "esbuild plugins/attendance/panel.ts plugins/cernere-admin/panel.ts plugins/consult/panel.ts plugins/dashboard/panel.ts plugins/di/panel.ts plugins/facility/panel.ts plugins/forum/panel.ts plugins/events/panel.ts plugins/jobs/panel.ts plugins/projects/panel.ts plugins/progress/panel.ts plugins/roles/panel.ts plugins/tech-links/panel.ts plugins/tirocinium/panel.ts plugins/vantan-user/panel.ts plugins/volputas/panel.ts --bundle --format=esm --target=es2020 --outdir=plugins --outbase=plugins --sourcemap",
     "build": "npm run build:web && npm run build:panels",
     "predev": "npm run build",
     "dev": "tsx watch --env-file-if-exists=.env.secrets --env-file-if-exists=.env server.ts",

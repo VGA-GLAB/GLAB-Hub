@@ -7,7 +7,10 @@
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { CompositeLogin } from '../../corpus/lib/cernere/packages/composite/src/ui/index.ts';
+import {
+  CompositeLogin,
+  CompositePasskeyPopup,
+} from '../../corpus/lib/cernere/packages/composite/src/ui/index.ts';
 import {
   buildPasskeyRedirectUrl,
   CernereCompositeAuthClient,
@@ -41,13 +44,21 @@ async function exchangeAuthCode(authCode: string): Promise<void> {
   location.reload();
 }
 
-/** @implements SPEC-GLAB-SHELL-002 */
+/**
+ * Email / パスワードの composite フォームに、 Cernere ホストのパスキーを併設する。
+ * パスキーの儀式は WebAuthn の RP ID を保つため Cernere origin のポップアップで
+ * 行い、 返ってきた authCode だけを GLab が user token へ交換する。
+ * Cernere frontend の所在が公開設定に無い場合はパスキー導線を出さない。
+ * @implements SPEC-GLAB-SHELL-002
+ */
 function CompositeLoginHost({
   client,
   message,
+  cernereFrontendUrl,
 }: {
   client: CernereCompositeAuthClient;
   message: string;
+  cernereFrontendUrl: string;
 }) {
   const [error, setError] = useState('');
   return (
@@ -78,6 +89,22 @@ function CompositeLoginHost({
           deviceResend: 'コードを再送',
         }}
       />
+      {cernereFrontendUrl && (
+        <div className="login-alt">
+          <span className="login-alt-label">または</span>
+          <CompositePasskeyPopup
+            cernereUrl={cernereFrontendUrl}
+            className="ghost login-passkey"
+            buttonLabel="パスキーでログイン"
+            pendingLabel="パスキーを確認中…"
+            onAuthCode={(code) => {
+              setError('');
+              return exchangeAuthCode(code);
+            }}
+            onError={(cause) => setError(cause.message)}
+          />
+        </div>
+      )}
     </>
   );
 }
@@ -167,7 +194,13 @@ export function mountGlabLogin(mount: HTMLElement, message: string): () => void 
         return;
       }
       client = new CernereCompositeAuthClient();
-      root.render(<CompositeLoginHost client={client} message={message} />);
+      root.render(
+        <CompositeLoginHost
+          client={client}
+          message={message}
+          cernereFrontendUrl={config.cernereFrontendUrl ?? ''}
+        />,
+      );
     } catch (cause) {
       if (!disposed) {
         root.render(

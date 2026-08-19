@@ -1,6 +1,6 @@
 // GLab のシェル — ヘッダ (ブランド / ログアウト) とタブ。
 //
-// タブは「ステータス + GLab プラグイン + 参照サービスのパネル」。
+// タブは「GLab プラグイン + 参照サービスのパネル + ステータス」。
 // ドメイン UI は一切持たない (中身は plugins/<id>/panel.ts 側)。
 
 import { clearLegacyToken } from '../../corpus/public/src/api.ts';
@@ -15,6 +15,9 @@ import { clearTrackedPanel, initHmr } from './hmr.ts';
 import { renderOverview } from './overview.ts';
 import { renderModulePanel, renderServicePanel } from './panels.ts';
 
+/** ログイン直後に開くタブ (dashboard プラグインのモジュール id)。 */
+const LANDING_TAB_ID = 'dashboard';
+
 interface Tab {
   id: string;
   label: string;
@@ -28,13 +31,18 @@ function buildTabs(
   modules: ModuleInfo[],
   services: ServiceInfo[],
 ): Tab[] {
+  // ダッシュボードはログイン直後に開く面なので、 読み込み順に関わらず先頭へ出す。
+  const ordered = [
+    ...modules.filter((m) => m.id === LANDING_TAB_ID),
+    ...modules.filter((m) => m.id !== LANDING_TAB_ID),
+  ];
   return [
-    { id: '__overview', label: '🟢 ステータス', render: () => void renderOverview(main) },
-    ...modules.map((m) => ({
+    ...ordered.map((m) => ({
       id: m.id,
       label: `${m.icon ?? '▫'} ${m.title}`,
       render: () => void renderModulePanel(main, m, identity),
     })),
+    { id: '__overview', label: '🟢 ステータス', render: () => void renderOverview(main) },
     ...services.flatMap((svc) =>
       (svc.manifest?.panels ?? []).map((panel) => ({
         id: `svc:${svc.id}:${panel.id}`,
@@ -97,6 +105,8 @@ export function renderShell(
     buttons.set(tab.id, btn);
     nav.appendChild(btn);
   }
-  activate('__overview');
+  // ダッシュボードが読み込まれていればそこから始める。 プラグインが無効な
+  // 構成でも画面が空にならないよう、 従来のステータスへ落とす。
+  activate(tabs.some((t) => t.id === LANDING_TAB_ID) ? LANDING_TAB_ID : '__overview');
   initHmr();
 }
