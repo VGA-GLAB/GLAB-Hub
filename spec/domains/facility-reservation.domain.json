@@ -1,22 +1,20 @@
 {
   "name": "facility-reservation",
   "description": "Aedilis の施設・予約 API の中継。project token を付けて /api/facilities・/api/reservations を呼ぶだけのコネクタで、施設データを GLAB に複製しない。接続先未設定時は停止せず「未接続」を表示する degraded モードで動く。",
-  "presetRules": [
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
     {
-      "preset": "couplingCap",
-      "params": {
-        "targetPattern": "/plugins/facility/",
-        "by": "path",
-        "maxFanOut": 9007199254740991
-      }
+      "pathPattern": "/plugins/facility/"
+    },
+    {
+      "pathPattern": "(^|/)plugins/facility/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)tests/facilit[a-z0-9-]*\\.test\\.ts$"
     }
   ],
-  "templateRules": [],
   "cardTemplate": "Summarise the \"facility-reservation\" domain: Aedilis の施設・予約 API の中継。project token を付けて /api/facilities・/api/reservations を呼ぶだけのコネクタで、施設データを GLAB に複製しない。接続先未設定時は停止せず「未接続」を表示する degraded モードで動く。",
-  "source": "manual",
-  "lockedFields": [
-    "*"
-  ],
   "mechanics": [
     "connector-relay",
     "degraded-mode"

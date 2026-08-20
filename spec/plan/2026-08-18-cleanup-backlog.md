@@ -102,8 +102,8 @@
 
 | # | 種別 | file:line | 内容 | 対処案 | リスク | 束 |
 |---|---|---|---|---|---|---|
-| G1 | 未宣言ディレクトリ | `scripts/copy-vendor-assets.mjs` | `.anatomia/domains/*.json` の `targetPattern` 23 件のいずれにも `scripts/` が該当しない。`spec/anatomia-domains.md:47-53` の「意図的に含めないもの」にも `tests/` と `corpus/` しか挙がっていない | `platform-shell` の `targetPattern` に `/scripts/` を足すか、`spec/anatomia-domains.md` の「意図的に含めないもの」にビルド補助スクリプトとして明記する | 低。`.anatomia/domains/*.json` は `source: "manual"` / `lockedFields: ["*"]` なので手編集が正しい経路 (`spec/anatomia-domains.md:14-18`) | B2 |
-| G2 | 未追跡ファイル | `.anatomia/link-stability.json` | Anatomia が生成した成果物が未追跡のまま置かれている (対象コミット時点で `git status` に `??` として出る) | commit するか `.gitignore` に足すかを決める。`.anatomia/domains/*.json` が追跡済みなので、生成物か手編集物かで判断する | 低。ただし放置すると全セッションの `git status` が汚れ続ける | B2 |
+| G1 | 未宣言ディレクトリ | `scripts/copy-vendor-assets.mjs` | `spec/domains/*.domain.json` の `membership.pathPattern` のいずれにも `scripts/` が該当しない。`spec/anatomia-domains.md:47-53` の「意図的に含めないもの」にも `tests/` と `corpus/` しか挙がっていない | `platform-shell` の `membership.pathPattern` に `/scripts/` を足すか、`spec/anatomia-domains.md` の「意図的に含めないもの」にビルド補助スクリプトとして明記する | 低。`spec/domains/*.domain.json` は手編集が正しい経路 (`spec/anatomia-domains.md`) | B2 |
+| G2 | 未追跡ファイル | `.anatomia/link-stability.json` | Anatomia が生成した成果物が未追跡のまま置かれている (対象コミット時点で `git status` に `??` として出る) | commit するか `.gitignore` に足すかを決める。`spec/domains/*.domain.json` が追跡済みなので、生成物か手編集物かで判断する | 低。ただし放置すると全セッションの `git status` が汚れ続ける | B2 |
 
 ---
 

@@ -53,7 +53,7 @@ catalog 契約の形 (`scale` / `choice` / `freetext`) に限る。既定は非�
 
 ## コミュニティ感想フィード
 
-ドメイン: `game-feedback` (`.anatomia/domains/game-feedback.*.json`)。
+ドメイン: `game-feedback` (`spec/domains/game-feedback.domain.json`)。
 実装関数は下記の clause ID を `@implements` で参照する。
 
 - **SPEC-VOLPUTAS-REVIEWS-001** —

@@ -1,30 +1,26 @@
 {
   "name": "careers",
   "description": "就活まわり。jobs/ が求人の投稿・検索・クローズ (glab_job、Bot /job と共有) と本人の就活データの Cernere tirocinium_student_career への中継を、tirocinium/ が Tirocinium の企業マスタ検索と志望・内定企業の登録を担う。企業の公開情報は Tirocinium が正本で GLAB に複製しない。",
-  "presetRules": [
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
     {
-      "preset": "couplingCap",
-      "params": {
-        "targetPattern": "/plugins/jobs/",
-        "by": "path",
-        "maxFanOut": 9007199254740991
-      }
+      "pathPattern": "/plugins/jobs/"
     },
     {
-      "preset": "couplingCap",
-      "params": {
-        "targetPattern": "/plugins/tirocinium/",
-        "by": "path",
-        "maxFanOut": 9007199254740991
-      }
+      "pathPattern": "/plugins/tirocinium/"
+    },
+    {
+      "pathPattern": "(^|/)plugins/jobs/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)plugins/tirocinium/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)tests/(?:job|career|tirocinium)[a-z0-9-]*\\.test\\.ts$"
     }
   ],
-  "templateRules": [],
   "cardTemplate": "Summarise the \"careers\" domain: 就活まわり。jobs/ が求人の投稿・検索・クローズ (glab_job、Bot /job と共有) と本人の就活データの Cernere tirocinium_student_career への中継を、tirocinium/ が Tirocinium の企業マスタ検索と志望・内定企業の登録を担う。企業の公開情報は Tirocinium が正本で GLAB に複製しない。",
-  "source": "manual",
-  "lockedFields": [
-    "*"
-  ],
   "mechanics": [
     "job-board",
     "student-career-relay",

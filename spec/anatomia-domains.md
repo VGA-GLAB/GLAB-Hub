@@ -1,7 +1,7 @@
 # GLAB Anatomia ドメイン定義
 
 GLAB の責務境界を Anatomia のドメインとして明文化したもの。正本は
-`.anatomia/domains/*.json` (Anatomia の EditableDomainDef 形式) で、本書はその
+`spec/domains/*.domain.json` (Anatomia の EditableDomainDef 形式) で、本書はその
 設計意図と境界条件を人間向けに記述する。
 
 ## なぜ必要か
@@ -14,14 +14,9 @@ plugins/pack.json のモジュール構成と DESIGN.md 2〜7 章から一括で
 
 ## 形式
 
-各ドメインは `.anatomia/domains/<slug>.<hash>.json` に 1 ファイル。所属は
-`presetRules` の membership marker (`couplingCap` に事実上無限の `maxFanOut` を
-与え、`targetPattern` をパス正規表現として使う) で表現する。上限は発火しないので
-違反を増やさずに所属だけを宣言できる。
-
-`source: "manual"` / `lockedFields: ["*"]` を付けてあるため、`anatomia domains
-draft` や `reconstruct` を回しても手書きの定義は上書きされない。ドメインを
-変更するときはこの JSON を直接編集する。
+各ドメインは `spec/domains/<slug>.domain.json` に 1 ファイル。所属は
+`membership` の `pathPattern` で表現する。パス正規表現はコードと対応するテストを
+ともに含め、ドメインを変更するときはこの JSON を直接編集する。
 
 ## ドメイン一覧
 
@@ -44,13 +39,13 @@ draft` や `reconstruct` を回しても手書きの定義は上書きされな�
 (`spec/tasks/2026-07-16-03-progress-panel.md` / 接続契約は
 [`interface/calliope-connector.md`](./interface/calliope-connector.md))。
 `plugins/progress/` を移動・改名するときは、この行と
-`.anatomia/domains/progress-tracking.*.json` の `targetPattern` を
+`spec/domains/progress-tracking.domain.json` の `membership.pathPattern` を
 `project-showcase` との境界ごと引き直す。
 
 ## 意図的に含めないもの
 
-- `tests/` — テストコードはドメインの実装体ではない。Anatomia 側も production
-  判定から除外する。
+- `tests/` — テストコードは production の実装体ではないが、変更を正しい責務へ
+  分類できるよう、各ドメインの `membership.pathPattern` に対応するテスト名を含める。
 - `corpus/` — submodule であり GLAB の責務ではない。変更禁止。
 - 「その他」に相当する受け皿ドメイン — Anatomia の `unassigned` は所属関係の
   状態であってドメインではない。受け皿を作ると境界の議論が起きなくなる。

@@ -1,22 +1,20 @@
 {
   "name": "attendance",
   "description": "集会出席の記録。進行中イベントと Ostiarius passkey を突き合わせ、attestation を GLAB 側で自前検証したうえで直近出席を glab_user へ記録する。出席台帳と Ostiarius health を含み、GLAB が正本を持つ数少ないデータ領域。",
-  "presetRules": [
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
     {
-      "preset": "couplingCap",
-      "params": {
-        "targetPattern": "/plugins/attendance/",
-        "by": "path",
-        "maxFanOut": 9007199254740991
-      }
+      "pathPattern": "/plugins/attendance/"
+    },
+    {
+      "pathPattern": "(^|/)plugins/attendance/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)tests/(?:attendance|attestation)[a-z0-9-]*\\.test\\.ts$"
     }
   ],
-  "templateRules": [],
   "cardTemplate": "Summarise the \"attendance\" domain: 集会出席の記録。進行中イベントと Ostiarius passkey を突き合わせ、attestation を GLAB 側で自前検証したうえで直近出席を glab_user へ記録する。出席台帳と Ostiarius health を含み、GLAB が正本を持つ数少ないデータ領域。",
-  "source": "manual",
-  "lockedFields": [
-    "*"
-  ],
   "mechanics": [
     "attestation-verify",
     "attendance-ledger",

@@ -1,22 +1,20 @@
 {
   "name": "events-scheduling",
   "description": "イベントの登録・削除・週間ビューと繰り返し展開。GLAB PostgreSQL だけを正本とし、施設名/ID と利用時間を保持する。役職可視性の適用と、Aedilis 予約との連動 (GLAB 保存失敗時の予約取消 compensation) を含む。二重通知は notified_at で防ぐ。",
-  "presetRules": [
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
     {
-      "preset": "couplingCap",
-      "params": {
-        "targetPattern": "/plugins/events/",
-        "by": "path",
-        "maxFanOut": 9007199254740991
-      }
+      "pathPattern": "/plugins/events/"
+    },
+    {
+      "pathPattern": "(^|/)plugins/events/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)tests/events-[a-z0-9-]*\\.test\\.ts$"
     }
   ],
-  "templateRules": [],
   "cardTemplate": "Summarise the \"events-scheduling\" domain: イベントの登録・削除・週間ビューと繰り返し展開。GLAB PostgreSQL だけを正本とし、施設名/ID と利用時間を保持する。役職可視性の適用と、Aedilis 予約との連動 (GLAB 保存失敗時の予約取消 compensation) を含む。二重通知は notified_at で防ぐ。",
-  "source": "manual",
-  "lockedFields": [
-    "*"
-  ],
   "mechanics": [
     "recurrence-expansion",
     "reservation-compensation",

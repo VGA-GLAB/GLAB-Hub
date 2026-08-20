@@ -1,38 +1,26 @@
 {
   "name": "community-space",
   "description": "メンバー同士の交流面。forum/ がフォーラムのスレッド表示、consult/ が相談チャンネルと在席 (おれひま) 表示、tech-links/ が技術リンクの共有と URL 正規化を担う。運用は Discord 側と対になる。",
-  "presetRules": [
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
     {
-      "preset": "couplingCap",
-      "params": {
-        "targetPattern": "/plugins/forum/",
-        "by": "path",
-        "maxFanOut": 9007199254740991
-      }
+      "pathPattern": "/plugins/forum/"
     },
     {
-      "preset": "couplingCap",
-      "params": {
-        "targetPattern": "/plugins/consult/",
-        "by": "path",
-        "maxFanOut": 9007199254740991
-      }
+      "pathPattern": "/plugins/consult/"
     },
     {
-      "preset": "couplingCap",
-      "params": {
-        "targetPattern": "/plugins/tech-links/",
-        "by": "path",
-        "maxFanOut": 9007199254740991
-      }
+      "pathPattern": "/plugins/tech-links/"
+    },
+    {
+      "pathPattern": "(^|/)plugins/(?:forum|consult|tech-links)/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)tests/(?:forum|consult|tech-links)[a-z0-9-]*\\.test\\.ts$"
     }
   ],
-  "templateRules": [],
   "cardTemplate": "Summarise the \"community-space\" domain: メンバー同士の交流面。forum/ がフォーラムのスレッド表示、consult/ が相談チャンネルと在席 (おれひま) 表示、tech-links/ が技術リンクの共有と URL 正規化を担う。運用は Discord 側と対になる。",
-  "source": "manual",
-  "lockedFields": [
-    "*"
-  ],
   "mechanics": [
     "forum-threads",
     "presence",

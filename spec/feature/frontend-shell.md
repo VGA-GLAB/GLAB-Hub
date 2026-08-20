@@ -1,6 +1,6 @@
 # GLAB frontend shell
 
-ドメイン: `platform-shell` (`.anatomia/domains/platform-shell.*.json`)。
+ドメイン: `platform-shell` (`spec/domains/platform-shell.domain.json`)。
 GLAB は Corpus の認証・hub API・宣言的 renderer を再利用しつつ、ブランド表示と
 frontend の外殻を `public/` に所有する。実装関数は以下の clause ID を
 `@implements` で参照する。

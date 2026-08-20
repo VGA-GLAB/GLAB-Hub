@@ -1,46 +1,29 @@
 {
   "name": "identity-access",
   "description": "Cernere を単一情報源とする本人性・所属・権限。plugins/cernere/ が project credential と Cernere クライアントを作り、cernere-admin/ が設定動線、vantan-user/ が初回プロフィール登録ゲート (name / role_title / department_name)、roles/ が役職に基づく可視性判定を担う。プロフィール値を GLAB SQLite へ複製しないことが境界条件。",
-  "presetRules": [
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
     {
-      "preset": "couplingCap",
-      "params": {
-        "targetPattern": "/plugins/cernere/",
-        "by": "path",
-        "maxFanOut": 9007199254740991
-      }
+      "pathPattern": "/plugins/cernere/"
     },
     {
-      "preset": "couplingCap",
-      "params": {
-        "targetPattern": "/plugins/cernere-admin/",
-        "by": "path",
-        "maxFanOut": 9007199254740991
-      }
+      "pathPattern": "/plugins/cernere-admin/"
     },
     {
-      "preset": "couplingCap",
-      "params": {
-        "targetPattern": "/plugins/vantan-user/",
-        "by": "path",
-        "maxFanOut": 9007199254740991
-      }
+      "pathPattern": "/plugins/vantan-user/"
     },
     {
-      "preset": "couplingCap",
-      "params": {
-        "targetPattern": "/plugins/roles/",
-        "by": "path",
-        "maxFanOut": 9007199254740991
-      }
+      "pathPattern": "/plugins/roles/"
+    },
+    {
+      "pathPattern": "(^|/)plugins/(?:cernere|cernere-admin|roles|vantan-user)/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)tests/(?:cernere|glab-user|glab-gateway|face-photo|local-ostiarius|audience-visibility|role)[a-z0-9-]*\\.test\\.ts$"
     }
   ],
-  "templateRules": [],
   "cardTemplate": "Summarise the \"identity-access\" domain: Cernere を単一情報源とする本人性・所属・権限。plugins/cernere/ が project credential と Cernere クライアントを作り、cernere-admin/ が設定動線、vantan-user/ が初回プロフィール登録ゲート (name / role_title / department_name)、roles/ が役職に基づく可視性判定を担う。プロフィール値を GLAB SQLite へ複製しないことが境界条件。",
-  "source": "manual",
-  "lockedFields": [
-    "*"
-  ],
   "mechanics": [
     "composite-auth",
     "first-access-registration",

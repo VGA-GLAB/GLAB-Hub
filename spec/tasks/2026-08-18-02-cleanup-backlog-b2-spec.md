@@ -37,7 +37,7 @@ docs-only で消化し、spec ↔ 実装の乖離 (出席正本の記述不一�
   `tests/schema-wal-idempotence.test.ts` の現行内容 (ensureSchema の冪等 +
   `glab_job`/`glab_project`/`glab_project_member` CRUD) を反映している (B8)。
 - `spec/tasks/` の archive 規約が無いことの運用注記が存在する (F1)。
-- `.anatomia/domains/platform-shell.*.json` に `scripts/` の所属宣言があり、
+- `spec/domains/platform-shell.domain.json` に `scripts/` の所属宣言があり、
   JSON として構文が妥当である (G1)。
 - `.anatomia/link-stability.json` が `.gitignore` に登録されている (G2)。
 - 変更が `plugins/` / `bot/` / `tests/` / `server.ts` / `corpus/` /

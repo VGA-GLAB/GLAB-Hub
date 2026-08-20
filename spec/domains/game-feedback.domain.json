@@ -1,22 +1,20 @@
 {
   "name": "game-feedback",
   "description": "ゲームの定性評価と嗜好アンケート。Volputas の設問と Cernere の回答を本人向けにフィルタした形で中継し、感想フィードと Omnipotens 解析ビューを表示する。設問は Volputas、回答は Cernere が正本で、GLAB は表示と投稿の面だけを持つ。",
-  "presetRules": [
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
     {
-      "preset": "couplingCap",
-      "params": {
-        "targetPattern": "/plugins/volputas/",
-        "by": "path",
-        "maxFanOut": 9007199254740991
-      }
+      "pathPattern": "/plugins/volputas/"
+    },
+    {
+      "pathPattern": "(^|/)plugins/volputas/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)tests/(?:volputas|survey|game-feedback)[a-z0-9-]*\\.test\\.ts$"
     }
   ],
-  "templateRules": [],
   "cardTemplate": "Summarise the \"game-feedback\" domain: ゲームの定性評価と嗜好アンケート。Volputas の設問と Cernere の回答を本人向けにフィルタした形で中継し、感想フィードと Omnipotens 解析ビューを表示する。設問は Volputas、回答は Cernere が正本で、GLAB は表示と投稿の面だけを持つ。",
-  "source": "manual",
-  "lockedFields": [
-    "*"
-  ],
   "mechanics": [
     "survey-relay",
     "review-feed",

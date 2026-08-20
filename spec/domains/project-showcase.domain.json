@@ -1,22 +1,20 @@
 {
   "name": "project-showcase",
   "description": "制作プロジェクトの公開面。GitHub public API から Release を取得して表示・ダウンロード動線と更新通知を出し、Omnipotens 解析レポートの保存と要約表示を行う。サービス間認証は service-auth.ts が担う。",
-  "presetRules": [
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
     {
-      "preset": "couplingCap",
-      "params": {
-        "targetPattern": "/plugins/projects/",
-        "by": "path",
-        "maxFanOut": 9007199254740991
-      }
+      "pathPattern": "/plugins/projects/"
+    },
+    {
+      "pathPattern": "(^|/)plugins/projects/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)tests/(?:github-client|project)[a-z0-9-]*\\.test\\.ts$"
     }
   ],
-  "templateRules": [],
   "cardTemplate": "Summarise the \"project-showcase\" domain: 制作プロジェクトの公開面。GitHub public API から Release を取得して表示・ダウンロード動線と更新通知を出し、Omnipotens 解析レポートの保存と要約表示を行う。サービス間認証は service-auth.ts が担う。",
-  "source": "manual",
-  "lockedFields": [
-    "*"
-  ],
   "mechanics": [
     "github-release-sync",
     "analysis-report-store",
