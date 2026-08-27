@@ -21,6 +21,12 @@ interface AttendanceRecord {
   eventTitle: string | null;
 }
 
+interface TodayAttendanceRecord {
+  displayName: string | null;
+  checkedInAt: number;
+  source: AttendanceRecord['source'];
+}
+
 /** 台帳に残る経路の表示名。どの経路で通ったか分からない行を作らない。 */
 const SOURCE_LABELS: Record<AttendanceRecord['source'], string> = {
   passkey: 'パスキー',
@@ -70,6 +76,16 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
       && await canReachLocalOstiarius(availability.ostiarius.baseUrl),
     );
     container.append(checkinSection(availability, localOstiariusReachable, ctx, render));
+
+    const todayResponse = await ctx.api('/today');
+    const roster = section('今日の出席簿');
+    if (!todayResponse.ok) {
+      roster.body.append(errorNotice('今日の出席簿を取得できませんでした。'));
+    } else {
+      const body = await todayResponse.json() as { attendance?: TodayAttendanceRecord[] };
+      appendTodayRoster(roster.body, body.attendance ?? []);
+    }
+    container.append(roster.wrap);
 
     const mineResponse = await ctx.api('/mine');
     const mine = section('直近30日の出席履歴');
@@ -188,6 +204,33 @@ function appendFacePhoto(item: HTMLElement, ctx: PanelContext, userId: string): 
       .catch(() => { slot.textContent = '取得できません'; });
   };
   item.append(slot);
+}
+
+/**
+ * 今日の出席簿。 到着順の名簿として名前・時刻・経路だけを出す (日付・写真は出さない)。
+ * 名簿はメンバー全員が見るため、 face photo の取得導線は付けない (職員一覧専用)。
+ */
+function appendTodayRoster(container: HTMLElement, rows: TodayAttendanceRecord[]): void {
+  if (!rows.length) {
+    container.append(el('p', 'gl-muted', 'まだ誰も出席していません。'));
+    return;
+  }
+  container.append(el('div', 'gl-muted', `本日 ${rows.length} 人が出席`));
+  const list = el('ul', 'gl-list');
+  for (const row of rows) {
+    const item = el('li');
+    item.append(el('strong', undefined, row.displayName || '名前未登録'));
+    item.append(el('span', 'gl-muted', ` ${fmtTime(row.checkedInAt)}`));
+    item.append(el('span', 'gl-tag', SOURCE_LABELS[row.source] ?? row.source));
+    list.append(item);
+  }
+  container.append(list);
+}
+
+function fmtTime(timestamp: number): string {
+  return new Date(timestamp).toLocaleTimeString('ja-JP', {
+    timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit',
+  });
 }
 
 function appendAttendanceList(container: HTMLElement, rows: AttendanceRecord[], ownName?: string | null, ctx?: PanelContext): void {

@@ -11,6 +11,7 @@ GLAB メンバーは会場 Wi-Fi 内の Ostiarius（Os）から取得した pass
 - attestation の `sub` はログイン中の Cernere user ID と一致しなければ 403 `subject_mismatch`。nonce は先に一度だけ予約し、重複は 409 `replay_detected`。
 - 同じ user/date/facility に別 nonce で再度出席した場合、台帳は更新せず 200 `{ ok: true, alreadyCheckedIn: true }` を返す。
 - `GET /mine` は本人の直近30日、admin の `GET /list?date=&facilityId=` は絞り込んだ台帳、`GET /summary?from=&to=` は日別・施設別人数を返す。`from` / `to` は `YYYY-MM-DD` 以外なら 400 `invalid_date_range`。
+- `GET /today` は今日（JST）の出席簿を到着順で返す。認証済みメンバー全員が閲覧できるため、行は表示名・時刻・経路だけに限定し、user ID・施設・assurance・イベント情報は返さない。パネルには顔写真の取得導線を付けない（写真は職員一覧専用、`spec/feature/face-photo-profile.md`）。
 - 台帳のイベント名は行ごとに引かず、重複を除いた `event_id` 単位で 1 回だけ取得する。イベント紐付けの無い台帳だけなら（`event_id` が全て NULL なら）イベントストアには触れない。
 - 出席の成立はイベントに依存しない。イベントストア（Postgres）が引けない場合は `event_id` を紐付けずに記録し、`POST /checkin` は成功を返す。記録後にイベントを引き直さない（台帳に書けたのに 500 を返さないため）。
 - admin は `POST /manual { userId, date, facilityId }` で `source='manual'` の出席を記録する。記録者は detail に保存する。

@@ -20,6 +20,7 @@ import { getEventStore, type EventRow } from '../events/store.ts';
 import type { EventOccurrence } from '../events/recurrence.ts';
 import { canSee, parseAudience, resolveRoles } from '../roles/audience.ts';
 import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
+import { noStore } from '../shared.ts';
 import { verifyAttestation } from './attestation-verify.ts';
 import { refreshGatewayPublicKey } from './gateway-register.ts';
 import { ostiariusBrowserBaseUrl } from './ostiarius-health.ts';
@@ -75,6 +76,15 @@ function attendanceView(db: CorpusDb, row: AttendanceRow, event: EventRow | null
     assurance: row.assurance,
     eventId: event?.id ?? null,
     eventTitle: event?.title ?? null,
+  };
+}
+
+/** 全メンバー向け名簿には、表示に必要な最小限の項目だけを公開する。 */
+function todayAttendanceView(db: CorpusDb, row: AttendanceRow): Record<string, unknown> {
+  return {
+    displayName: getDisplayName(db, row.user_id),
+    checkedInAt: row.checked_in_at,
+    source: row.source,
   };
 }
 
@@ -177,6 +187,15 @@ export function makeRoutes(ctx: CorpusContext, ostiarius: VersionedHttpServiceCo
     if (!created) return c.json({ ok: true, alreadyCheckedIn: true });
     // 記録後にイベントを引き直さない — ここで失敗すると台帳に書けたのに 500 を返す。
     return c.json({ ok: true, alreadyCheckedIn: false, event: eventView(event) });
+  });
+
+  // 今日の出席簿。 認証済みメンバー全員が閲覧できる (admin 専用の /list とは別口)。
+  // 台帳は checked_in_at 降順で返るので、 名簿としては到着順 (昇順) に並べ直す。
+  router.get('/today', (c) => {
+    noStore(c);
+    const today = dateInJst(Date.now());
+    const rows = listAttendance(db, { date: today, limit: ADMIN_LIST_LIMIT }).reverse();
+    return c.json({ date: today, attendance: rows.map((row) => todayAttendanceView(db, row)) });
   });
 
   router.get('/mine', async (c) => {
