@@ -36,4 +36,14 @@ describe('attendance ledger contract', () => {
     assert.ok(roster);
     assert.doesNotMatch(roster, /userId|facilityId|assurance|eventTitle|appendFacePhoto/);
   });
+
+  it('continues to the daily roster when availability is unavailable', async () => {
+    const panel = await readFile('plugins/attendance/panel.ts', 'utf8');
+    const beforeTodayRequest = panel.match(
+      /const availabilityResponse = await ctx\.api\('\/availability'\);([\s\S]*?)const todayResponse = await ctx\.api\('\/today'\);/,
+    )?.[1];
+    assert.ok(beforeTodayRequest);
+    assert.match(beforeTodayRequest, /if \(!availabilityResponse\.ok\) \{/);
+    assert.doesNotMatch(beforeTodayRequest, /\breturn\b/);
+  });
 });

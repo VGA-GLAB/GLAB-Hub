@@ -68,14 +68,14 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
     const availabilityResponse = await ctx.api('/availability');
     if (!availabilityResponse.ok) {
       container.append(errorNotice('出席可能状態を取得できませんでした。'));
-      return;
+    } else {
+      const availability = await availabilityResponse.json() as Availability;
+      const localOstiariusReachable = Boolean(
+        availability.event && availability.ostiarius.baseUrl
+        && await canReachLocalOstiarius(availability.ostiarius.baseUrl),
+      );
+      container.append(checkinSection(availability, localOstiariusReachable, ctx, render));
     }
-    const availability = await availabilityResponse.json() as Availability;
-    const localOstiariusReachable = Boolean(
-      availability.event && availability.ostiarius.baseUrl
-      && await canReachLocalOstiarius(availability.ostiarius.baseUrl),
-    );
-    container.append(checkinSection(availability, localOstiariusReachable, ctx, render));
 
     const todayResponse = await ctx.api('/today');
     const roster = section('今日の出席簿');
