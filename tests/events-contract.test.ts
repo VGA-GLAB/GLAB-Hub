@@ -17,6 +17,17 @@ test('the event range is bounded before weekly occurrences are expanded', async 
   assert.match(routes, /invalid_event_range/);
 });
 
+test('events without a facility skip Aedilis and the panel supports all-day input', async () => {
+  const [routes, panel] = await Promise.all([
+    text('plugins/events/index.ts'),
+    text('plugins/events/panel.ts'),
+  ]);
+  assert.match(routes, /facilityId: z\.string\(\)\.trim\(\)\.max\(255\)\.optional\(\)/);
+  assert.match(routes, /if \(facilityIdInput\)/);
+  assert.match(panel, /facilityId: facility\.value \|\| undefined/);
+  assert.match(panel, /if \(allDay\.checked\)/);
+});
+
 test('every event consumer applies the audience rule, not just GET /events', async () => {
   const [command, attendance] = await Promise.all([
     text('bot/commands/event.ts'),

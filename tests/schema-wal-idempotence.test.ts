@@ -16,20 +16,28 @@ import { DatabaseSync } from 'node:sqlite';
 import { after, before, describe, it } from 'node:test';
 import {
   closeJob,
+  createMember,
   createJob,
   createProject,
+  deleteMember,
+  ensureGlabUser,
   ensureSchema,
+  getMember,
   getJob,
   getProject,
   getProjectWithMembers,
   listJobs,
   listProjects,
   markReviewRelayPosted,
+  linkMemberToUser,
+  listMembers,
   queueReviewRelay,
   recordAttendance,
   removeProjectMember,
   reserveAttendanceNonce,
   reviewsForNotification,
+  setMemberDiscordUserId,
+  updateMember,
   updateProject,
   upsertProjectMember,
   type SqlDb,
@@ -53,6 +61,7 @@ const EXPECTED_TABLES = [
   'glab_forum_thread',
   'glab_forum_comment',
   'glab_consult',
+  'glab_member',
   'glab_review_relay',
 ];
 
@@ -202,6 +211,37 @@ describe('plugins/data.ts — 実 SQLite (WAL) を hub / bot の 2 接続で共�
     assert.equal(removeProjectMember(bot, project.id, 'user-1'), false);
     assert.equal(getProjectWithMembers(hub, project.id)?.members.length, 0);
     assert.ok(listProjects(bot).some((p) => p.id === project.id));
+  });
+
+  it('glab_member: 未登録名簿を安全に更新・解決・Cernere ユーザへリンクする', () => {
+    const member = createMember(hub, {
+      displayName: 'Temporary Name',
+      discordHandle: 'old_handle',
+      clubRole: 'producer',
+    }, 'admin-1');
+    assert.equal(getMember(bot, member.id)?.discord_handle, 'old_handle');
+
+    assert.equal(setMemberDiscordUserId(bot, member.id, 'stale_handle', '111'), false);
+    assert.equal(setMemberDiscordUserId(bot, member.id, 'old_handle', '111'), true);
+    assert.equal(getMember(hub, member.id)?.discord_user_id, '111');
+
+    updateMember(hub, member.id, { status: 'alumni' }, 'admin-1');
+    assert.equal(getMember(bot, member.id)?.discord_user_id, '111', '他列の更新で解決済み ID を失わない');
+
+    const updated = updateMember(hub, member.id, { discordHandle: 'new_handle' }, 'admin-1');
+    assert.equal(updated?.discord_handle, 'new_handle');
+    assert.equal(updated?.discord_user_id, null, 'handle 変更時は古い Discord ID を破棄する');
+
+    assert.equal(linkMemberToUser(hub, member.id, 'unknown-user', 'admin-1'), null);
+    ensureGlabUser(hub, 'cernere-user-1');
+    const linked = linkMemberToUser(bot, member.id, 'cernere-user-1', 'admin-1');
+    assert.equal(linked?.user_id, 'cernere-user-1');
+    assert.equal(linked?.display_name, null, 'リンク後は一時保持していた氏名を破棄する');
+    assert.equal(updateMember(hub, member.id, { displayName: 'Must Not Persist' }, 'admin-1')?.display_name, null);
+
+    assert.equal(listMembers(bot).some((row) => row.id === member.id), true);
+    assert.equal(deleteMember(bot, member.id), true);
+    assert.equal(deleteMember(bot, member.id), false);
   });
 
   it('一意キーの二度目は false: nonce replay / 同日同施設の出席 / review relay の再送', () => {

@@ -23,8 +23,8 @@ GLAB所有のイベントを保持するPostgreSQLテーブル。スキーマと
 | `location` | TEXT | 場所表示 |
 | `starts_at` | TIMESTAMPTZ NOT NULL | 開始時刻 |
 | `ends_at` | TIMESTAMPTZ | 終了時刻。Web登録では必須 |
-| `facility_id` | TEXT | GLAB施設マスタID |
-| `reservation_id` | TEXT | 対応するAedilis予約ID |
+| `facility_id` | TEXT | GLAB施設マスタID。施設なしイベントではNULL |
+| `reservation_id` | TEXT | 対応するAedilis予約ID。施設なしイベントではNULL |
 | `created_by` | TEXT NOT NULL | Cernere user ID |
 | `created_at` | TIMESTAMPTZ NOT NULL | 登録時刻 |
 | `notified_at` | TIMESTAMPTZ | Discord通知時刻（`recurrence='weekly'` では使わない） |
@@ -42,8 +42,8 @@ GLAB所有のイベントを保持するPostgreSQLテーブル。スキーマと
 
 ## 整合性
 
-- Web登録はGLAB施設ID・開始・終了を必須とする。
-- 作成はAedilis予約成功後、削除はAedilis予約取消後にGLABへ反映する。
+- Web登録は開始・終了を必須とし、施設指定は任意とする。
+- 施設指定時の作成はAedilis予約成功後、削除はAedilis予約取消後にGLABへ反映する。施設なしイベントはAedilisを呼ばない。
 - Discord `/event` はGLAB PostgreSQLの一覧だけを提供する。
 - 出席は `starts_at <= now < ends_at` のイベントがある時だけ有効になる。
 

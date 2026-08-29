@@ -1,6 +1,6 @@
 {
   "name": "identity-access",
-  "description": "Cernere を単一情報源とする本人性・所属・権限。plugins/cernere/ が project credential と Cernere クライアントを作り、cernere-admin/ が設定動線、vantan-user/ が初回プロフィール登録ゲート (name / role_title / department_name)、roles/ が役職に基づく可視性判定を担う。プロフィール値を GLAB SQLite へ複製しないことが境界条件。",
+  "description": "Cernere を単一情報源とする本人性・所属・権限。plugins/cernere/ が project credential と Cernere クライアントを作り、cernere-admin/ が設定動線、vantan-user/ が初回プロフィール登録ゲート、roles/ が役職に基づく可視性判定、members/ が管理者限定の部員名簿と Cernere ユーザへのリンクを担う。プロフィール値は原則複製せず、未登録部員の表示名だけをリンク成立まで一時保持する。",
   "presetRules": [],
   "templateRules": [],
   "membership": [
@@ -17,24 +17,30 @@
       "pathPattern": "/plugins/roles/"
     },
     {
-      "pathPattern": "(^|/)plugins/(?:cernere|cernere-admin|roles|vantan-user)/(?:.*/)?[^/]+$"
+      "pathPattern": "/plugins/members/"
     },
     {
-      "pathPattern": "(^|/)tests/(?:cernere|glab-user|glab-gateway|face-photo|local-ostiarius|audience-visibility|role)[a-z0-9-]*\\.test\\.ts$"
+      "pathPattern": "(^|/)plugins/(?:cernere|cernere-admin|members|roles|vantan-user)/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)tests/(?:cernere|glab-user|glab-gateway|face-photo|local-ostiarius|audience-visibility|member|role)[a-z0-9-]*\\.test\\.ts$"
     }
   ],
-  "cardTemplate": "Summarise the \"identity-access\" domain: Cernere を単一情報源とする本人性・所属・権限。plugins/cernere/ が project credential と Cernere クライアントを作り、cernere-admin/ が設定動線、vantan-user/ が初回プロフィール登録ゲート (name / role_title / department_name)、roles/ が役職に基づく可視性判定を担う。プロフィール値を GLAB SQLite へ複製しないことが境界条件。",
+  "cardTemplate": "Summarise the \"identity-access\" domain: Cernere を単一情報源とする本人性・所属・権限。members/ の管理者限定名簿を含み、未登録部員の表示名だけを Cernere リンク成立まで一時保持する。",
   "mechanics": [
     "composite-auth",
     "first-access-registration",
-    "audience-visibility"
+    "audience-visibility",
+    "membership-roster"
   ],
   "specRefs": [
     "DESIGN 7. 認証",
     "spec/feature/first-access-registration.md",
     "spec/feature/forum-roles.md",
     "spec/data/vantan-user.md",
-    "spec/data/glab-user.md"
+    "spec/data/glab-user.md",
+    "spec/data/glab-member.md",
+    "spec/feature/member-roster.md"
   ],
   "rationale": "GLAB DESIGN.md 2〜7 章と plugins/pack.json のモジュール構成から、責務境界ごとに手で定義した。"
 }

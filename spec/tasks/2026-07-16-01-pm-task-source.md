@@ -5,12 +5,15 @@ kind: 設計相談
 status: done
 delegation_run_id: bbcbf07e-b97c-4a7c-85d0-1080e1e95196
 created: 2026-07-16T00:00:00.000Z
+decided: 2026-07-17T00:00:00.000Z
+decided_by: neco
 source_session: lictor-9747bcfe-3969-4e12-959d-6cf39d3287fc
 memoria_task_id: 534
 actio_task_id: null
 memory_links:
   - E:/Document/Ars/Calliope/docs/design/glab-pm.md
   - E:/Document/Ars/GLAB/DESIGN.md
+  - spec/faq/glab-pm-task-source.md
 ---
 # 設計相談: GLAB 学生 PJ のタスク正本・velocity ソース・自律性境界
 
@@ -32,9 +35,9 @@ Calliope×GLAB PM 連携 (Calliope docs/design/glab-pm.md §H1) の前提裁定�
 ## 完了条件
 
 - 3 点の比較 (decision-metrics 4 軸: AI 学習量 / 作業コスト / 目的達成度 / 主目的一致度) を
-  まとめた提案を本 md に追記し、ユーザ (neco) へメンションで裁定を仰ぐ。
-- 裁定結果を本 md とCalliope docs/design/glab-pm.md §H1 に追記して確定させる。
-- コードは書かない (設計相談)。
+  まとめた提案を本 md に追記し、ユーザ (neco) へメンションで裁定を仰ぐ。 → **完了**
+- 裁定結果を本 md とCalliope docs/design/glab-pm.md §H1 に追記して確定させる。 → **本 md 完了 / Calliope 側は別 PR**
+- コードは書かない (設計相談)。 → **遵守**
 
 ## スコープ (編集可ディレクトリ)
 

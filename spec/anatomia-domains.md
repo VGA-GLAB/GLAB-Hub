@@ -23,7 +23,7 @@ plugins/pack.json のモジュール構成と DESIGN.md 2〜7 章から一括で
 | ドメイン | 範囲 | 責務と境界 |
 |---|---|---|
 | `platform-shell` | `server.ts`, `public/src/`, `plugins/shared.ts`, `panel-kit.ts`, `data.ts`, `service-health-connector.ts`, `scripts/` | プラグインが載る土台。Corpus 起動、GLAB frontend shell、共通パネル骨格、SQLite スキーマ正本、接続先 health 集約、ビルド補助スクリプト。業務ロジックは持たない |
-| `identity-access` | `plugins/cernere/`, `cernere-admin/`, `vantan-user/`, `roles/` | Cernere を単一情報源とする本人性・所属・権限。プロフィール値を GLAB SQLite へ複製しない |
+| `identity-access` | `plugins/cernere/`, `cernere-admin/`, `vantan-user/`, `roles/`, `members/` | Cernere を単一情報源とする本人性・所属・権限。未登録部員の表示名だけは名簿リンク成立まで一時保持する |
 | `attendance` | `plugins/attendance/` | 集会出席。attestation の自前検証と出席台帳。GLAB が正本を持つ |
 | `events-scheduling` | `plugins/events/` | イベント登録/削除/週間ビュー/繰り返し。GLAB PostgreSQL が正本。予約失敗時の compensation を含む |
 | `facility-reservation` | `plugins/facility/` | Aedilis 施設・予約 API の中継のみ。施設データを複製しない。未設定時は degraded |

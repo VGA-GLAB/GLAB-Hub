@@ -10,6 +10,7 @@ import { openSharedDb } from './db.ts';
 import { createLlmClient } from './llm/client.ts';
 import { ALL_COMMANDS, registerCommands } from './commands/registry.ts';
 import { startScheduler } from './notify/scheduler.ts';
+import { startMemberResolver } from './member-resolver.ts';
 import type { CommandDeps } from './commands/types.ts';
 import {
   closeEventStore,
@@ -31,6 +32,8 @@ async function main(): Promise<void> {
   const deps: CommandDeps = { db, cfg, llm, client };
 
   let stopScheduler: (() => void) | null = null;
+  let stopMemberResolver: (() => Promise<void>) | null = null;
+  let shutdownPromise: Promise<void> | null = null;
   client.once(Events.ClientReady, async (c) => {
     console.log(`[glab-bot] logged in as ${c.user.tag} (LLM backend=${llm.backend})`);
     try {
@@ -38,7 +41,9 @@ async function main(): Promise<void> {
     } catch (e) {
       console.error('[glab-bot] command 登録に失敗:', e);
     }
+    if (shutdownPromise) return;
     stopScheduler = startScheduler(client, db, cfg);
+    if (cfg.guildId) stopMemberResolver = startMemberResolver(client, db, cfg.guildId);
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
@@ -58,11 +63,16 @@ async function main(): Promise<void> {
     }
   });
 
-  const shutdown = async (): Promise<void> => {
-    stopScheduler?.();
-    client.destroy();
-    db.close?.();
-    await closeEventStore();
+  const shutdown = (): Promise<void> => {
+    if (shutdownPromise) return shutdownPromise;
+    shutdownPromise = (async () => {
+      stopScheduler?.();
+      await stopMemberResolver?.();
+      client.destroy();
+      db.close?.();
+      await closeEventStore();
+    })();
+    return shutdownPromise;
   };
   process.once('SIGINT', () => void shutdown().finally(() => process.exit(0)));
   process.once('SIGTERM', () => void shutdown().finally(() => process.exit(0)));

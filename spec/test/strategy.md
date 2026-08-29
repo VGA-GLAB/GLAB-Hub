@@ -36,7 +36,7 @@ CLAUDE.md / DESIGN §4 の方針に沿い、優先度順に：
    hub (Corpus `ctx.db`) と Bot (自前接続) が同じ WAL ファイルを共有する構図は
    `tests/schema-wal-idempotence.test.ts` が Node 組み込み `node:sqlite` で再現し、
    `ensureSchema` の 2 接続・再実行冪等 (CREATE IF NOT EXISTS / 後付け列)、WAL 越しの
-   新テーブル CRUD (`glab_job` / `glab_project` / `glab_project_member`)、一意キーの
+   新テーブル CRUD (`glab_job` / `glab_project` / `glab_project_member` / `glab_member`)、一意キーの
    二度目 (nonce replay / 同日同施設の出席 / review relay 再送) が false になることを担保する。
 2. Cernere project client は WebSocket 契約を fake transport で固定し、`volputas_users` を
    Cernere user ID で読むことと、欠落・型不正を権限なしにすることを検証する。
@@ -51,6 +51,7 @@ Foedus の `--skip-external-schema` は Cernere schema-export に到達できな
 ## 関連
 
 - データ: [`data/glab-event.md`](../data/glab-event.md) / [`data/glab-job.md`](../data/glab-job.md)
+- 名簿: [`data/glab-member.md`](../data/glab-member.md) / [`feature/member-roster.md`](../feature/member-roster.md)
 - 接点: [`interface/corpus-db-shared.md`](../interface/corpus-db-shared.md)
 - Volputas: [`interface/volputas-connector.md`](../interface/volputas-connector.md)
 - Calliope: [`interface/calliope-connector.md`](../interface/calliope-connector.md)

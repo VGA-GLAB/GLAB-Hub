@@ -141,6 +141,24 @@ CREATE TABLE IF NOT EXISTS glab_tech_link_comment (
 );
 CREATE INDEX IF NOT EXISTS glab_tech_link_comment_link ON glab_tech_link_comment(link_id);
 
+-- 部員名簿 (管理者のみ閲覧)。 PII の正本は Cernere vantan_user — GLAB が氏名を持つのは
+-- 「Cernere 未登録の部員」の間だけで、 user_id をリンクした時点で display_name を NULL 化し
+-- 以後の氏名・学科は Cernere から表示時に引く (正本の二重化を作らない)。
+-- discord_user_id / discord_handle は bot 連携の機能データとして保持し続ける。
+CREATE TABLE IF NOT EXISTS glab_member (
+  id              TEXT PRIMARY KEY,
+  user_id         TEXT UNIQUE,
+  display_name    TEXT,
+  discord_user_id TEXT UNIQUE,
+  discord_handle  TEXT,
+  status          TEXT NOT NULL DEFAULT 'active'
+    CHECK (status IN ('active', 'invited', 'alumni', 'suspended')),
+  club_role       TEXT,
+  joined_at       INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL,
+  updated_by      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS glab_member_status ON glab_member(status, updated_at);
 `;
 
 const ATTENDANCE_STATUSES = [
@@ -882,4 +900,144 @@ export function listProjectsWithMembers(
   query: ProjectQuery = {},
 ): ProjectWithMembers[] {
   return listProjects(db, query).map((row) => withMembers(db, row));
+}
+
+// ── 部員名簿 (glab_member、 管理者のみ) ─────────────────────────────
+
+export const MEMBER_STATUSES = ['active', 'invited', 'alumni', 'suspended'] as const;
+export type MemberStatus = (typeof MEMBER_STATUSES)[number];
+
+export interface MemberRow {
+  id: string;
+  user_id: string | null;
+  display_name: string | null;
+  discord_user_id: string | null;
+  discord_handle: string | null;
+  status: MemberStatus;
+  club_role: string | null;
+  joined_at: number;
+  updated_at: number;
+  updated_by: string;
+}
+
+export interface NewMember {
+  displayName: string;
+  discordHandle?: string | null;
+  status?: MemberStatus;
+  clubRole?: string | null;
+}
+
+export function createMember(db: SqlDb, m: NewMember, createdBy: string): MemberRow {
+  const id = randomUUID();
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO glab_member
+       (id, user_id, display_name, discord_user_id, discord_handle, status, club_role,
+        joined_at, updated_at, updated_by)
+     VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    id,
+    m.displayName,
+    null,
+    m.discordHandle ?? null,
+    m.status ?? 'active',
+    m.clubRole ?? null,
+    now,
+    now,
+    createdBy,
+  );
+  return getMember(db, id)!;
+}
+
+export function getMember(db: SqlDb, id: string): MemberRow | null {
+  return (db.prepare(`SELECT * FROM glab_member WHERE id = ?`).get(id) as MemberRow) ?? null;
+}
+
+export function listMembers(db: SqlDb): MemberRow[] {
+  return db
+    .prepare(`SELECT * FROM glab_member ORDER BY status ASC, joined_at ASC`)
+    .all() as MemberRow[];
+}
+
+export interface MemberPatch {
+  displayName?: string | null;
+  discordHandle?: string | null;
+  status?: MemberStatus;
+  clubRole?: string | null;
+}
+
+export function updateMember(db: SqlDb, id: string, patch: MemberPatch, updatedBy: string): MemberRow | null {
+  const assignments = ['updated_at = ?', 'updated_by = ?'];
+  const params: unknown[] = [Date.now(), updatedBy];
+  if (patch.displayName !== undefined) {
+    // リンク済み行には氏名を書き戻さない — 氏名の正本は Cernere。
+    assignments.push('display_name = CASE WHEN user_id IS NULL THEN ? ELSE NULL END');
+    params.push(patch.displayName);
+  }
+  if (patch.discordHandle !== undefined) {
+    // SET の各式は更新前の行を参照する。同じ handle なら ID を維持し、変更・削除なら破棄する。
+    assignments.push('discord_user_id = CASE WHEN discord_handle IS ? THEN discord_user_id ELSE NULL END');
+    params.push(patch.discordHandle);
+    assignments.push('discord_handle = ?');
+    params.push(patch.discordHandle);
+  }
+  if (patch.status !== undefined) {
+    assignments.push('status = ?');
+    params.push(patch.status);
+  }
+  if (patch.clubRole !== undefined) {
+    assignments.push('club_role = ?');
+    params.push(patch.clubRole);
+  }
+  params.push(id);
+  const result = db.prepare(
+    `UPDATE glab_member SET ${assignments.join(', ')} WHERE id = ?`,
+  ).run(...params);
+  if (result.changes === 0) return null;
+  return getMember(db, id);
+}
+
+/**
+ * 名簿行を Cernere ユーザにリンクする。 以後の氏名は Cernere vantan_user が正本になるため、
+ * GLAB 側に残っていた display_name (未登録期間の PII) は同時に破棄する。
+ */
+export function linkMemberToUser(db: SqlDb, id: string, userId: string, updatedBy: string): MemberRow | null {
+  const result = db.prepare(
+    `UPDATE glab_member
+     SET user_id = ?, display_name = NULL, updated_at = ?, updated_by = ?
+     WHERE id = ? AND user_id IS NULL
+       AND EXISTS (SELECT 1 FROM glab_user WHERE user_id = ?)
+       AND NOT EXISTS (SELECT 1 FROM glab_member WHERE user_id = ?)`,
+  ).run(userId, Date.now(), updatedBy, id, userId, userId);
+  if (result.changes === 0) return null;
+  return getMember(db, id);
+}
+
+export function deleteMember(db: SqlDb, id: string): boolean {
+  const result = db.prepare(`DELETE FROM glab_member WHERE id = ?`).run(id);
+  return ((result as { changes?: number }).changes ?? 0) > 0;
+}
+
+/** discord_handle だけあって数値 ID 未解決の部員 (bot の名前→ID 解決タスク用)。 */
+export function membersNeedingDiscordResolution(db: SqlDb): MemberRow[] {
+  return db
+    .prepare(
+      `SELECT * FROM glab_member
+       WHERE discord_user_id IS NULL AND discord_handle IS NOT NULL AND discord_handle != ''`,
+    )
+    .all() as MemberRow[];
+}
+
+/** bot が解決開始時と同じ handle の未解決行にだけ数値 user ID を書き戻す。 */
+export function setMemberDiscordUserId(
+  db: SqlDb,
+  id: string,
+  expectedHandle: string,
+  discordUserId: string,
+): boolean {
+  const result = db.prepare(
+    `UPDATE glab_member SET discord_user_id = ?, updated_at = ?
+     WHERE id = ? AND discord_user_id IS NULL AND discord_handle = ?`,
+  ).run(discordUserId, Date.now(), id, expectedHandle);
+  return result.changes > 0;
 }

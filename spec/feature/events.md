@@ -14,13 +14,13 @@ GLAB の集会 / 勉強会などのイベントを **GLAB PostgreSQL** で登録
 |---|---|---|
 | `GET /facilities` | 認証ユーザ | GLAB施設マスタと未登録のAedilis候補を分けて返す |
 | `GET /events`（`?all=1` で過去含む、`from` / `to` で期間指定） | 認証ユーザ | 閲覧権限のある GLAB イベントを `{ events: [...] }` で返す。`from`/`to` が日時として解釈できない、`to <= from`、期間が 366 日超のときは 400 `invalid_event_range` |
-| `POST /events` | 認証ユーザ | Aedilis予約を作成してからGLABイベントを保存する |
+| `POST /events` | 認証ユーザ | 施設指定時だけAedilis予約を作成してからGLABイベントを保存する。施設なしでも登録できる |
 | `DELETE /events/:id` | 登録者 or admin | Aedilis予約を取り消してからGLABイベントを削除する。予約が既に無い (404) 場合は続行、その他のキャンセル失敗は502 (`?force=1`でローカル削除を強行可) |
 
-- `title` / `facilityId` は必須。`startsAt` / `endsAt` はepoch msまたはISO文字列を受け、`endsAt > startsAt`を必須とする。
-- Web UIはGLAB施設とAedilis候補をselectで表示し、1〜8時間の使用時間から終了時刻を算出する。
+- `title` は必須、`facilityId` は任意。`startsAt` / `endsAt` はepoch msまたはISO文字列を受け、`endsAt > startsAt`を必須とする。
+- Web UIはGLAB施設とAedilis候補をselectで表示し、通常イベントは1〜8時間の使用時間から終了時刻を算出する。終日指定では選択日の00:00〜23:59:59.999とする。
 - Aedilis候補を初めて使う時は、候補の名前と対応IDをGLAB施設マスタへ昇格する。
-- Aedilis予約が失敗した場合はGLABイベントを作成しない。GLAB保存が失敗した場合は作成済み予約をbest-effortで取り消す。
+- 施設指定時にAedilis予約が失敗した場合はGLABイベントを作成しない。GLAB保存が失敗した場合は作成済み予約をbest-effortで取り消す。
 - 登録時に `cacheDisplayName(db, userId, displayName)` で表示名をキャッシュする。
 
 ## 状態
