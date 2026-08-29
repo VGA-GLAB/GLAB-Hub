@@ -16,7 +16,13 @@ import {
   type ReviewView,
   type SurveyQuestion,
   type SurveyView,
+  type RecentGameView,
 } from './contracts.ts';
+import {
+  parseDiReviewTrends,
+  type DiReviewTrendView,
+} from '../di/review-trend-contract.ts';
+import { mergeReviewSuggestions } from './review-suggestions.ts';
 import { createOmnipotensReviewSection } from './omnipotens-panel.ts';
 import { createGameAdminSection, gameSelector, loadGames } from './games-panel.ts';
 import { renderEmotionCurves } from './emotion-curve-panel.ts';
@@ -286,30 +292,45 @@ async function renderReviewForm(
     });
   };
   container.appendChild(form);
-  await loadRecentGames(ctx, suggestions, selector.element);
+  await loadRecentTrends(ctx, suggestions, games, selector.selectSuggestion);
 }
 
-/** @implements SPEC-VOLPUTAS-REVIEWS-003 */
-async function loadRecentGames(
+/** @implements SPEC-VOLPUTAS-REVIEWS-003 @implements SPEC-VOLPUTAS-REVIEWS-008 */
+async function loadRecentTrends(
   ctx: PanelContext,
   container: HTMLElement,
-  gameField: HTMLElement,
+  games: GameView[] | null,
+  selectSuggestion: (suggestion: { gameId: string | null; gameTitle: string }) => boolean,
 ): Promise<void> {
-  // ゲームマスタから選ぶ形になっているときは、 Steam の直近プレイを差し込む
-  // 先が無い。 サジェストは自由入力に落ちているときだけ意味を持つ。
-  if (!(gameField instanceof HTMLInputElement)) return;
-  const response = await ctx.api('/recent-games').catch(() => null);
-  if (!response?.ok) return;
-  const games = parseRecentGames(await response.json().catch(() => null));
-  if (!games || games.length === 0) return;
-  container.appendChild(el('span', 'gl-muted', '最近遊んだゲーム:'));
-  for (const game of games) {
-    const button = el('button', 'gl-btn ghost', game.name);
+  const [recentGames, diTrends] = await Promise.all([
+    loadPersonalRecentGames(ctx),
+    loadDiReviewTrends(ctx),
+  ]);
+  const suggestions = mergeReviewSuggestions(games ?? [], recentGames, diTrends);
+  if (suggestions.length === 0) return;
+  container.appendChild(el('span', 'gl-muted', '最近の流行り:'));
+  for (const suggestion of suggestions.slice(0, 8)) {
+    const button = el('button', 'gl-btn ghost', suggestion.gameTitle);
     button.type = 'button';
-    button.title = `${game.playtimeTwoWeeksMinutes}分`;
-    button.onclick = () => { gameField.value = game.name; };
+    button.title = suggestion.detail;
+    button.onclick = () => { selectSuggestion(suggestion); };
     container.appendChild(button);
   }
+}
+
+async function loadPersonalRecentGames(ctx: PanelContext): Promise<RecentGameView[]> {
+  const response = await ctx.api('/recent-games').catch(() => null);
+  if (!response?.ok) return [];
+  return parseRecentGames(await response.json().catch(() => null)) ?? [];
+}
+
+/** @implements SPEC-VOLPUTAS-REVIEWS-007 */
+async function loadDiReviewTrends(
+  ctx: PanelContext,
+): Promise<DiReviewTrendView[]> {
+  const response = await ctx.hubApi('/api/x/di/review-trends').catch(() => null);
+  if (!response?.ok) return [];
+  return parseDiReviewTrends(await response.json().catch(() => null)) ?? [];
 }
 
 async function loadList(
@@ -512,6 +533,7 @@ function ensureSurveyStyles(): void {
     .gl-review-suggestions { display:flex; gap:.4rem; flex-wrap:wrap; align-items:center; }
     .gl-game-admin { background:#1c1f29; border:1px solid #2f3442; border-radius:10px; padding:.8rem; margin:1rem 0; }
     .gl-game-row { border-bottom:1px solid #2f3442; padding:.4rem 0; }
+    .gl-steam-url-form .gl-input { flex:1 1 18rem; }
     .gl-game-form { display:grid; gap:.6rem; margin-top:.8rem; max-width:32rem; }
     .gl-curve-workspace { display:grid; grid-template-columns:minmax(18rem, 3fr) minmax(15rem, 2fr); gap:1rem; }
     .gl-curve-recorder, .gl-curve-history { min-width:0; display:grid; gap:.6rem; align-content:start; }

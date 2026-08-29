@@ -1,5 +1,6 @@
 import { el, type PanelContext } from '../panel-kit.ts';
 import { parseGameList, type GameView } from './contracts.ts';
+import { steamAppIdFromStoreUrl } from './review-suggestions.ts';
 
 /**
  * ゲームマスタの読み出しと管理 UI。
@@ -27,6 +28,7 @@ export function gameSelector(games: GameView[] | null): {
   element: HTMLElement;
   read: () => { gameId: string | null; gameTitle: string };
   reset: () => void;
+  selectSuggestion: (suggestion: { gameId: string | null; gameTitle: string }) => boolean;
 } {
   const active = (games ?? []).filter((game) => game.isActive);
   if (active.length === 0) {
@@ -37,6 +39,10 @@ export function gameSelector(games: GameView[] | null): {
       element: input,
       read: () => ({ gameId: null, gameTitle: input.value.trim() }),
       reset: () => { input.value = ''; },
+      selectSuggestion: (suggestion) => {
+        input.value = suggestion.gameTitle;
+        return true;
+      },
     };
   }
 
@@ -58,6 +64,15 @@ export function gameSelector(games: GameView[] | null): {
       return { gameId: game?.id ?? null, gameTitle: game?.title ?? '' };
     },
     reset: () => { select.value = ''; },
+    selectSuggestion: (suggestion) => {
+      const game = active.find((candidate) => (
+        candidate.id === suggestion.gameId
+        || candidate.title.localeCompare(suggestion.gameTitle, undefined, { sensitivity: 'accent' }) === 0
+      ));
+      if (!game) return false;
+      select.value = game.id;
+      return true;
+    },
   };
 }
 
@@ -84,8 +99,9 @@ export async function createGameAdminSection(
 }
 
 function gameRow(ctx: PanelContext, game: GameView, onChange: () => void): HTMLElement {
-  const row = el('div', 'gl-row gl-game-row');
-  row.append(
+  const row = el('div', 'gl-game-row');
+  const summary = el('div', 'gl-row');
+  summary.append(
     el('strong', undefined, game.title),
     el('span', 'gl-muted', [game.team, game.platform].filter(Boolean).join(' / ')),
     el('span', `gl-tag ${game.isActive ? 'open' : 'closed'}`, game.isActive ? '受付中' : '停止中'),
@@ -100,8 +116,48 @@ function gameRow(ctx: PanelContext, game: GameView, onChange: () => void): HTMLE
       body: JSON.stringify({ isActive: !game.isActive }),
     }).then(onChange).catch(() => { toggle.disabled = false; });
   };
-  row.appendChild(toggle);
+  summary.appendChild(toggle);
+  row.append(summary, steamUrlEditor(ctx, game, onChange));
   return row;
+}
+
+function steamUrlEditor(ctx: PanelContext, game: GameView, onChange: () => void): HTMLElement {
+  const form = el('form', 'gl-row gl-steam-url-form');
+  const input = el('input', 'gl-input') as HTMLInputElement;
+  input.type = 'url';
+  input.placeholder = 'SteamストアURL（最近の流行り集計に使用）';
+  input.value = game.storeUrl ?? '';
+  const message = el('small', 'gl-muted');
+  const save = el('button', 'gl-btn ghost', 'Steam URLを保存');
+  save.type = 'submit';
+  form.append(input, save, message);
+  form.onsubmit = (event) => {
+    event.preventDefault();
+    const storeUrl = input.value.trim();
+    if (storeUrl && steamAppIdFromStoreUrl(storeUrl) === null) {
+      message.textContent = 'HTTPS の Steam ゲーム詳細 URL を入力してください。';
+      return;
+    }
+    save.disabled = true;
+    message.textContent = '保存中…';
+    void ctx.api(`/games/${encodeURIComponent(game.id)}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ storeUrl: storeUrl || null }),
+    }).then((response) => {
+      save.disabled = false;
+      if (!response.ok) {
+        message.textContent = `保存できませんでした (${response.status})。`;
+        return;
+      }
+      message.textContent = '保存しました。';
+      onChange();
+    }).catch(() => {
+      save.disabled = false;
+      message.textContent = '保存できませんでした。';
+    });
+  };
+  return form;
 }
 
 function registrationForm(ctx: PanelContext, onChange: () => void): HTMLElement {
@@ -113,16 +169,24 @@ function registrationForm(ctx: PanelContext, onChange: () => void): HTMLElement 
   team.placeholder = '制作チーム';
   const platform = el('input', 'gl-input') as HTMLInputElement;
   platform.placeholder = 'プレイ環境 (PC / Quest など)';
+  const storeUrl = el('input', 'gl-input') as HTMLInputElement;
+  storeUrl.type = 'url';
+  storeUrl.placeholder = 'SteamストアURL（任意）';
   const message = el('p', 'gl-muted');
   const submit = el('button', 'gl-btn', 'ゲームを登録');
   submit.type = 'submit';
-  form.append(title, team, platform, message, submit);
+  form.append(title, team, platform, storeUrl, message, submit);
 
   form.onsubmit = (event) => {
     event.preventDefault();
     const name = title.value.trim();
     if (!name) {
       message.textContent = 'ゲーム名を入力してください。';
+      return;
+    }
+    const storeUrlValue = storeUrl.value.trim();
+    if (storeUrlValue && steamAppIdFromStoreUrl(storeUrlValue) === null) {
+      message.textContent = 'HTTPS の Steam ゲーム詳細 URL を入力してください。';
       return;
     }
     submit.disabled = true;
@@ -134,6 +198,7 @@ function registrationForm(ctx: PanelContext, onChange: () => void): HTMLElement 
         title: name,
         team: team.value.trim() || null,
         platform: platform.value.trim() || null,
+        storeUrl: storeUrlValue || null,
       }),
     }).then(async (response) => {
       submit.disabled = false;
@@ -142,6 +207,7 @@ function registrationForm(ctx: PanelContext, onChange: () => void): HTMLElement 
         title.value = '';
         team.value = '';
         platform.value = '';
+        storeUrl.value = '';
         onChange();
         return;
       }

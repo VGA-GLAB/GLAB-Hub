@@ -85,7 +85,6 @@ const volputasModule: CorpusModule = {
     routes.get('/recent-games', (c) => proxy(
       c, connector, GLAB_RECENT_GAMES_PATH, ctx.tokenProvider, 'volputas',
     ));
-
     // ゲームマスタ。 一覧は全員、 登録と更新は管理者だけ。 requireAdmin は
     // 画面と操作を出すかどうかの判断で、 権限の正本は Volputas 側が
     // Cernere token の role で見る (GLAB を迂回されても書けない)。

@@ -18,7 +18,8 @@
   "mechanics": [
     "survey-relay",
     "review-feed",
-    "omnipotens-view"
+    "omnipotens-view",
+    "di-review-trends"
   ],
   "specRefs": [
     "spec/data/glab-survey.md",

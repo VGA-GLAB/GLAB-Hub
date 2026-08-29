@@ -86,6 +86,15 @@ catalog 契約の形 (`scale` / `choice` / `freetext`) に限る。既定は非�
 - **SPEC-VOLPUTAS-REVIEWS-006** —
   感想系の 2 エンドポイントは `{ ok, data }` 包みではなく素の JSON 配列を返す
   (アンケート系との差分)。GLAB 側の parser もその前提で検証する。
+- **SPEC-VOLPUTAS-REVIEWS-007** —
+  Di の `/api/integrations/glab/review-trends` を `/api/x/di/review-trends` から中継する。
+  傾向の正本は Di が取得・保存済みの Steam レビュー記録であり、GLAB は Steam へ直接取得を
+  行わない。ブラウザへ返すのはゲーム slug、App ID、直近7日件数、好評率、最新日時だけで、
+  レビュー本文、Steam ID、投稿者属性、投稿識別子は中継しない。
+- **SPEC-VOLPUTAS-REVIEWS-008** —
+  感想フォームは Di の取得済みレビュー件数が多い公開中ゲームと本人の最近プレイを同名で
+  重複排除し、「最近の流行り」として最大8件表示する。Di 側の失敗は本人候補を消さず、
+  本人候補側の失敗はレビュー候補を消さない。ゲームマスタがある場合、未登録タイトルは候補に出さない。
 
 Volputas 未設定時も GLAB は degraded で起動し、パネルは「未接続」を表示する。
 設定値が存在するのに不正な場合は silent fallback せず起動を失敗させる。
@@ -96,9 +105,14 @@ Volputas 未設定時も GLAB は degraded で起動し、パネルは「未接�
   `plugins/volputas/games-panel.ts`（ゲームマスタ）/
   `plugins/volputas/emotion-curve-panel.ts`（感情曲線）/
   `plugins/volputas/contracts.ts`（parser）/
+  `plugins/volputas/review-suggestions.ts`（候補の対応付け・統合・順位付け）/
+  `plugins/di/review-trend-contract.ts`（Di の匿名化済み傾向応答契約）/
+  `plugins/di/index.ts`（Di review trend 中継）/
   `plugins/volputas/review-digest.ts`（ダイジェストの切り詰め）/
   `plugins/shared.ts`（`proxyStream`）/
   `plugins/projects/panel.ts`（projects カード）
 - テスト: `tests/volputas-reviews-contract.test.ts` /
-  `tests/volputas-game-catalog.test.ts`
+  `tests/volputas-game-catalog.test.ts` /
+  `tests/volputas-review-suggestions.test.ts` /
+  `tests/di-review-trends.test.ts`
 - Volputas 側: `spec/feature/glab-game-catalog.md` / `spec/feature/glab-emotion-curves.md`

@@ -17,7 +17,8 @@
   "cardTemplate": "Summarise the \"discussion\" domain: Discutere 連携の議論・学習ビュー。設問や議論ログは Discutere が正本で、GLAB は入口とパネル表示を担う。",
   "mechanics": [
     "connector-relay",
-    "entry-points"
+    "entry-points",
+    "review-trend-relay"
   ],
   "specRefs": [
     "DESIGN 3. モジュール（Web hub plugins/）"

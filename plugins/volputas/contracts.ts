@@ -74,7 +74,7 @@ export interface ReviewView {
   author: { name: string } | { pseudo: string };
 }
 
-interface RecentGameView {
+export interface RecentGameView {
   name: string;
   playtimeTwoWeeksMinutes: number;
 }
