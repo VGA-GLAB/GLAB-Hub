@@ -21,6 +21,9 @@ frontend の外殻を `public/` に所有する。実装関数は以下の claus
   既存 GLAB 表から集約した本人の活動と集計だけを same-origin API で表示する。活動の
   件数は上限を設け、表示する可変データは text node とし、予期しない内部値を画面やログへ
   出力しない。
+- **SPEC-GLAB-SHELL-006** — dashboard の先頭に、その東京日付で固定された全員共通の
+  5分クエストとスポットライトを表示する。「できた！」は認証済み本人の日次達成だけを冪等に記録する。
+  日次選択の契約は [`daily-engagement.md`](./daily-engagement.md) に従う。
 
 ## 配信と build
 

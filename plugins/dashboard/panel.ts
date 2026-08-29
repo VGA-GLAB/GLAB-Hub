@@ -1,6 +1,5 @@
-// ダッシュボードのパネル。 自分のプロフィールと最近のアクティビティを表示する。
-//
-// 編集導線は持たない (プロフィールの編集は 「プロフィール」 パネルの責務)。
+// ダッシュボードのパネル。今日の共通コンテンツ、自分のプロフィール、活動を表示する。
+// プロフィール編集は「プロフィール」パネルの責務で、ここでは日次達成だけを記録する。
 
 import {
   el,
@@ -10,6 +9,10 @@ import {
   section,
   type PanelContext,
 } from '../panel-kit.ts';
+import {
+  renderDailyEngagement,
+  type DailyEngagementView,
+} from './daily-engagement-card.ts';
 
 type ActivityKind =
   | 'attendance'
@@ -32,6 +35,7 @@ interface Summary {
   profile: { name: string; roleTitle: string; departmentName: string } | null;
   profileComplete: boolean;
   profileError: string | null;
+  daily: DailyEngagementView;
   roles: { key: string; label: string }[];
   stats: {
     attendanceDays30: number;
@@ -77,6 +81,7 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
     return;
   }
 
+  container.appendChild(renderDailyEngagement(summary.daily, ctx));
   container.appendChild(renderProfile(summary));
   container.appendChild(renderStats(summary));
   container.appendChild(renderActivity(summary.activity));

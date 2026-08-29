@@ -51,6 +51,8 @@ GLABはCernere frontendを起動依存に持たない。Corpusがproject credent
 | `GLAB_DATABASE_URL` | — | ○ | Web hubと共通のGLABイベントPostgreSQL。`npm run config-setup`で暗号化configに保存（env指定も可） |
 | `GLAB_EVENT_CHANNEL_ID` | — | | イベント通知先 |
 | `GLAB_JOB_CHANNEL_ID` | — | | 就活通知先 |
+| `GLAB_DAILY_CHANNEL_ID` | `GLAB_EVENT_CHANNEL_ID` | | 5分クエストとスポットライトの日次通知先 |
+| `GLAB_DAILY_NOTIFY_AT` | `09:00` | | 日次通知時刻（Asia/Tokyo の `HH:MM`） |
 | `GLAB_ADMIN_USER_IDS` | — | | admin の Discord ユーザ ID（カンマ区切り） |
 | `GLAB_LLM_BACKEND` | `claude-cli` | | `claude-cli` / `anthropic` / `mock` |
 | `GLAB_LLM_MODEL` | `claude-opus-4-8` | | LLM モデル |

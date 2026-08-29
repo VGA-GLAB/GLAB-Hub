@@ -6,6 +6,7 @@
 
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { normalizeDailyNotifyAt } from '../plugins/daily-engagement/catalog.ts';
 import { readBotConfig } from './config-store.ts';
 
 const BOT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -20,7 +21,14 @@ export interface BotConfig {
   dbPath: string;
   /** GLAB所有イベントのPostgreSQL。 */
   databaseUrl: string;
-  channels: { event: string; job: string; review: string; forum: string; consultForum: string };
+  channels: {
+    event: string;
+    job: string;
+    review: string;
+    forum: string;
+    consultForum: string;
+    daily: string;
+  };
   glabBaseUrl: string;
   glabServiceToken: string;
   /** admin 扱いする Discord ユーザ id。 */
@@ -40,6 +48,10 @@ export interface BotConfig {
     intervalMs: number;
     eventWindowMs: number;
     jobWindowMs: number;
+  };
+  daily: {
+    /** Asia/Tokyo の HH:MM。 */
+    notifyAt: string;
   };
 }
 
@@ -66,6 +78,7 @@ export function loadConfig(): BotConfig {
   };
 
   const backend = (pick('GLAB_LLM_BACKEND', 'claude-cli') as LlmBackend) || 'claude-cli';
+  const eventChannel = pick('GLAB_EVENT_CHANNEL_ID');
 
   return {
     discordToken: pick('DISCORD_TOKEN'),
@@ -74,11 +87,13 @@ export function loadConfig(): BotConfig {
     dbPath: pick('GLAB_DB_PATH', resolve(BOT_DIR, '..', 'data', 'corpus.db')),
     databaseUrl: pick('GLAB_DATABASE_URL'),
     channels: {
-      event: pick('GLAB_EVENT_CHANNEL_ID'),
+      event: eventChannel,
       job: pick('GLAB_JOB_CHANNEL_ID'),
       review: pick('GLAB_REVIEW_CHANNEL_ID'),
       forum: pick('GLAB_FORUM_CHANNEL_ID'),
       consultForum: pick('GLAB_CONSULT_FORUM_CHANNEL_ID'),
+      // 専用チャンネルを設けない構成では、既存のお知らせ先を明示的に再利用する。
+      daily: pick('GLAB_DAILY_CHANNEL_ID', eventChannel),
     },
     glabBaseUrl: pick('GLAB_BASE_URL'),
     glabServiceToken: pick('GLAB_PROJECTS_SERVICE_TOKEN'),
@@ -101,6 +116,9 @@ export function loadConfig(): BotConfig {
       intervalMs: pickNum('GLAB_REMINDER_INTERVAL_MS', 300_000),
       eventWindowMs: pickNum('GLAB_EVENT_WINDOW_MS', 24 * 3_600_000),
       jobWindowMs: pickNum('GLAB_JOB_WINDOW_MS', 3 * 24 * 3_600_000),
+    },
+    daily: {
+      notifyAt: normalizeDailyNotifyAt(pick('GLAB_DAILY_NOTIFY_AT', '09:00')),
     },
   };
 }

@@ -1,0 +1,26 @@
+{
+  "name": "daily-engagement",
+  "description": "全員共通の5分クエストとプロジェクト・スポットライトを東京日付で固定し、ユーザー別達成とDiscord通知成功だけを共有SQLiteへ記録する日次エンゲージメント領域。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)plugins/daily-engagement/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)tests/daily-engagement[a-z0-9-]*\\.test\\.ts$"
+    }
+  ],
+  "cardTemplate": "Summarise the daily-engagement domain: shared daily quest and spotlight selection, per-user completion, and persisted Discord delivery guard.",
+  "mechanics": [
+    "daily-selection",
+    "fair-project-rotation",
+    "per-user-completion",
+    "notification-idempotency"
+  ],
+  "specRefs": [
+    "spec/feature/daily-engagement.md",
+    "spec/data/glab-daily-engagement.md"
+  ],
+  "rationale": "日次選択は dashboard と Discord Bot の双方が使うため、表示・配送から独立した共有ドメインとして定義した。"
+}

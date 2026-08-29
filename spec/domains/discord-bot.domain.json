@@ -1,6 +1,6 @@
 {
   "name": "discord-bot",
-  "description": "discord.js Gateway 常時接続の日常運用ランタイム。/event list・/job add|list|close・/chat のコマンド、#event / #job への通知スケジューラ、LlmClient 抽象 (claude-cli / anthropic / mock) を持つ。Web hub とはイベントを GLAB PostgreSQL と共有 SQLite 経由でだけやり取りし、token 類は暗号化 config に置く。",
+  "description": "discord.js Gateway 常時接続の日常運用ランタイム。/event list・/job add|list|close・/chat のコマンド、イベント・求人・日次エンゲージメントの通知スケジューラ、LlmClient 抽象 (claude-cli / anthropic / mock) を持つ。Web hub とは GLAB PostgreSQL と共有 SQLite 経由でだけやり取りし、token 類は暗号化 config に置く。",
   "presetRules": [],
   "templateRules": [],
   "membership": [
@@ -14,7 +14,7 @@
       "pathPattern": "(^|/)tests/(?:bot|notify)[a-z0-9-]*\\.test\\.ts$"
     }
   ],
-  "cardTemplate": "Summarise the \"discord-bot\" domain: discord.js Gateway 常時接続の日常運用ランタイム。/event list・/job add|list|close・/chat のコマンド、#event / #job への通知スケジューラ、LlmClient 抽象 (claude-cli / anthropic / mock) を持つ。Web hub とはイベントを GLAB PostgreSQL と共有 SQLite 経由でだけやり取りし、token 類は暗号化 config に置く。",
+  "cardTemplate": "Summarise the \"discord-bot\" domain: Discord commands, event/job/daily notification scheduling, LLM backends, and encrypted runtime configuration.",
   "mechanics": [
     "slash-commands",
     "notification-scheduler",
@@ -24,7 +24,8 @@
   "specRefs": [
     "DESIGN 5. Discord Bot（bot/）",
     "DESIGN 6. 設定（暗号化 config）",
-    "spec/interface/discord-commands.md"
+    "spec/interface/discord-commands.md",
+    "spec/feature/daily-engagement.md"
   ],
   "rationale": "GLAB DESIGN.md 2〜7 章と plugins/pack.json のモジュール構成から、責務境界ごとに手で定義した。"
 }

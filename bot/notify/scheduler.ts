@@ -23,6 +23,7 @@ import { formatEventCard, formatJobCard, formatReviewCard } from '../format.ts';
 import { postToChannel } from '../channels.ts';
 import { createConsultThread, ensureConsultForum, resolveConsultThread } from '../forum.ts';
 import { glabConfigured, glabExternal } from '../glab-api.ts';
+import { postDailyEngagementIfDue } from './daily-engagement.ts';
 
 /** 1 tick で流す感想リレーの最大件数。 */
 const REVIEW_RELAY_BATCH = 10;
@@ -31,8 +32,10 @@ const REVIEW_RELAY_BATCH = 10;
 const DISCORD_MESSAGE_MAX = 2_000;
 
 export function startScheduler(client: Client, db: SqlDb, cfg: BotConfig): () => void {
-  const tick = async (): Promise<void> => {
+  const runTick = async (): Promise<void> => {
     try {
+      // 日次通知は内部で失敗を隔離するため、他の通知源より先に独立して試行できる。
+      await postDailyEngagementIfDue(client, db, cfg);
       const events = getEventStore();
       for (const ev of await events.dueForReminder(cfg.reminder.eventWindowMs)) {
         const msgId = await postToChannel(
@@ -73,12 +76,25 @@ export function startScheduler(client: Client, db: SqlDb, cfg: BotConfig): () =>
     }
   };
 
+  // Discord/API が遅い場合も interval tick を重ねず、未通知行の二重投稿窓を広げない。
+  let tickInFlight: Promise<void> | null = null;
+  const tick = (): Promise<void> => {
+    if (tickInFlight) return tickInFlight;
+    tickInFlight = runTick().finally(() => {
+      tickInFlight = null;
+    });
+    return tickInFlight;
+  };
+
   void tick();
   const timer = setInterval(() => void tick(), cfg.reminder.intervalMs);
   timer.unref?.();
   console.log(`[glab-bot] scheduler started (interval ${cfg.reminder.intervalMs}ms)`);
   if (!cfg.channels.review) {
     console.warn('[glab-bot] GLAB_REVIEW_CHANNEL_ID 未設定 — 感想リレーはキューに滞留します');
+  }
+  if (!cfg.channels.daily) {
+    console.warn('[glab-bot] GLAB_DAILY_CHANNEL_ID / GLAB_EVENT_CHANNEL_ID 未設定 — 日次通知は無効です');
   }
   return () => clearInterval(timer);
 }

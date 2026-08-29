@@ -53,6 +53,8 @@ const EXPECTED_TABLES = [
   'glab_project',
   'glab_project_member',
   'glab_project_release',
+  'glab_daily_content',
+  'glab_daily_quest_completion',
   'glab_tech_link',
   'glab_tech_link_tag',
   'glab_tech_link_comment',

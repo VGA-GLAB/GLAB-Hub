@@ -31,6 +31,7 @@ plugins/pack.json のモジュール構成と DESIGN.md 2〜7 章から一括で
 | `game-feedback` | `plugins/volputas/` | 設問 = Volputas、回答 = Cernere が正本。GLAB は表示と投稿の面だけ |
 | `discussion` | `plugins/di/` | Discutere 連携の議論・学習ビュー |
 | `project-showcase` | `plugins/projects/` | GitHub Release 表示/DL/更新通知、Omnipotens 解析レポートの保存と要約 |
+| `daily-engagement` | `plugins/daily-engagement/` | 全員共通の5分クエスト・公平なスポットライト選択・個人別達成・日次通知ガード |
 | `progress-tracking` | `plugins/progress/` | Calliope 進捗の表示面。エンジンは Calliope、自前 DB へキャッシュしない |
 | `community-space` | `plugins/forum/`, `consult/`, `tech-links/` | フォーラム・在席 (おれひま)・技術リンク共有 |
 | `discord-bot` | `bot/` | discord.js Gateway 常時接続の運用ランタイム。hub とは DB 経由でだけ結合 |

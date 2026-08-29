@@ -24,6 +24,8 @@ const HINTS: Record<string, string> = {
   GLAB_REVIEW_CHANNEL_ID: '感想リレー通知チャンネル ID',
   GLAB_FORUM_CHANNEL_ID: '全員向けフォーラム通知チャンネル ID',
   GLAB_CONSULT_FORUM_CHANNEL_ID: '相談フォーラムチャンネル ID',
+  GLAB_DAILY_CHANNEL_ID: '日次クエスト通知チャンネル ID (未設定時はイベント通知先)',
+  GLAB_DAILY_NOTIFY_AT: '日次通知時刻 (Asia/Tokyo の HH:MM、既定 09:00)',
   GLAB_BASE_URL: 'GLAB Hub のルート URL (例 https://glab.example — /api/x/... は付けない)',
   GLAB_PROJECTS_SERVICE_TOKEN: 'GLAB 外部 API 用 service token',
   GLAB_ADMIN_USER_IDS: 'admin ユーザ ID (カンマ区切り)',

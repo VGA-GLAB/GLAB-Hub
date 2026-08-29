@@ -238,6 +238,7 @@ export interface ReviewRelayRow {
 /** スキーマ初期化 (冪等)。 plugins は ctx.db で、 bot は自前接続で 1 度呼ぶ。 */
 export function ensureSchema(db: SqlDb): void {
   db.exec(GLAB_SCHEMA);
+  ensureDailyEngagementSchema(db);
   ensureAttendanceSourceValues(db);
   ensureAttendanceEventColumns(db);
   ensureProjectGitHubColumns(db);
@@ -249,6 +250,28 @@ export function ensureSchema(db: SqlDb): void {
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS glab_project_release_project ON glab_project_release(project_id, published_at DESC)');
   ensureCommunitySchema(db);
+}
+
+/** Hub と Bot が共有する日次コンテンツの最小永続状態。 */
+function ensureDailyEngagementSchema(db: SqlDb): void {
+  db.exec(`CREATE TABLE IF NOT EXISTS glab_daily_content (
+    date_key TEXT PRIMARY KEY,
+    quest_key TEXT NOT NULL,
+    spotlight_project_id TEXT NULL REFERENCES glab_project(id),
+    created_at INTEGER NOT NULL,
+    discord_notified_at INTEGER NULL,
+    discord_message_id TEXT NULL
+  )`);
+  db.exec(`CREATE INDEX IF NOT EXISTS glab_daily_content_spotlight
+    ON glab_daily_content(spotlight_project_id, date_key)`);
+  db.exec(`CREATE TABLE IF NOT EXISTS glab_daily_quest_completion (
+    date_key TEXT NOT NULL REFERENCES glab_daily_content(date_key),
+    user_id TEXT NOT NULL,
+    completed_at INTEGER NOT NULL,
+    PRIMARY KEY (date_key, user_id)
+  )`);
+  db.exec(`CREATE INDEX IF NOT EXISTS glab_daily_quest_completion_user
+    ON glab_daily_quest_completion(user_id, completed_at)`);
 }
 
 function ensureCommunitySchema(db: SqlDb): void {

@@ -11,6 +11,7 @@ GLAB 特化のプラグインパックと Discord Bot を載せた派生 hub。
 | 集会出席管理 | 進行中イベント + Os passkey検証後に、イベント名で出席表示 |
 | 施設予約 | 独立した施設予約パネルからAedilisの施設・予約を操作 |
 | イベント通知 | Web hubで施設名/ID・時間をGLABへ登録し、Discord Bot `/event list` + 定期リマインド（GLAB PostgreSQL共有） |
+| 毎日のHub | 全員共通の5分クエスト + 今日のプロジェクト・スポットライトを表示し、Discordへ1日1回通知 |
 | 就活情報の投稿 | Discord Bot `/job` + 締切リマインド（自前 DB、Web hub `jobs` と共有） |
 | 志望・内定企業 | Web hub `tirocinium` → Trの企業マスタを検索し、Cernere IDごとの志望企業・内定情報を登録 |
 | レビュー | Web hub `volputas` → Volputasの設問を「ゲームレビュー」「ゲームアンケート」「ほかの人への質問」の3タブでCorpus表示 |
@@ -28,7 +29,7 @@ GLAB 特化のプラグインパックと Discord Bot を載せた派生 hub。
 
 施設予約は **Aedilis**、イベントは **GLAB PostgreSQL** が真実の源で、両機能は独立する。
 Web hubとDiscord Botは同じイベントストアを利用する。Cernere `user_id`参照はGLAB
-SQLiteに保持し、出席の正本は`glab_attendance`（GLAB SQLite）、Botの求人投稿も
+SQLiteに保持し、出席の正本は`glab_attendance`（GLAB SQLite）、Botの求人投稿と日次コンテンツも
 GLAB SQLiteに保持する。在校生/OBの就活データとアンケート回答は
 **Cernere共有schema**、企業マスタと設問はそれぞれTr / Volputasを正本とする。
 

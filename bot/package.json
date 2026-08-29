@@ -2,7 +2,7 @@
   "name": "glab-bot",
   "version": "0.1.0",
   "private": true,
-  "description": "GLAB Discord Bot — イベント通知 / 就活情報 / LLM やりとり。 GLAB hub と同じ corpus.db を共有",
+  "description": "GLAB Discord Bot — 日次・イベント・就活通知 / LLM やりとり。 GLAB hub と同じ corpus.db を共有",
   "type": "module",
   "scripts": {
     "start": "tsx --env-file-if-exists=.env index.ts",

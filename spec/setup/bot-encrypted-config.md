@@ -23,8 +23,8 @@ npm run start               # Gateway 接続 + slash command 登録 + リマイ�
 | 項目 | 値 |
 |---|---|
 | 保存先 | `bot/glab-bot.config.json`（cwd 直下、**gitignore 済**）。env `GLAB_BOT_CONFIG_PATH` で上書き |
-| 暗号化キー（`GLAB_BOT_SECRET_KEYS`） | `DISCORD_TOKEN`, `ANTHROPIC_API_KEY`（それ以外は平文保存） |
-| 全キー（`GLAB_BOT_CONFIG_KEYS`） | `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`, `GLAB_EVENT_CHANNEL_ID`, `GLAB_JOB_CHANNEL_ID`, `GLAB_ADMIN_USER_IDS`, `GLAB_LLM_BACKEND`, `GLAB_LLM_MODEL`, `ANTHROPIC_API_KEY` |
+| 暗号化キー（`GLAB_BOT_SECRET_KEYS`） | `DISCORD_TOKEN`, `ANTHROPIC_API_KEY`, `GLAB_DATABASE_URL`, `GLAB_PROJECTS_SERVICE_TOKEN` |
+| 全キー（`GLAB_BOT_CONFIG_KEYS`） | `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`, `GLAB_DATABASE_URL`, `GLAB_EVENT_CHANNEL_ID`, `GLAB_JOB_CHANNEL_ID`, `GLAB_REVIEW_CHANNEL_ID`, `GLAB_FORUM_CHANNEL_ID`, `GLAB_CONSULT_FORUM_CHANNEL_ID`, `GLAB_DAILY_CHANNEL_ID`, `GLAB_DAILY_NOTIFY_AT`, `GLAB_BASE_URL`, `GLAB_PROJECTS_SERVICE_TOKEN`, `GLAB_ADMIN_USER_IDS`, `GLAB_LLM_BACKEND`, `GLAB_LLM_MODEL`, `ANTHROPIC_API_KEY` |
 | master 鍵 | env `GLAB_BOT_MASTER_KEY` → 無ければマシン束縛値 `glab-bot:<hostname>:<user>`（`masterSecretPrefix: 'glab-bot'`） |
 
 **マシンごとに `npm run config-setup` を実行する**（束縛鍵はマシン固有のため、config を別マシンへコピー

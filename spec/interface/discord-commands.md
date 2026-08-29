@@ -1,6 +1,6 @@
 # interface/ — Discord slash command contract
 
-GLAB Discord Bot（`bot/`）が外部に公開する境界は **Discord slash command** のみ。
+GLAB Discord Bot（`bot/`）の境界は **Discord slash command** と通知チャンネルへの投稿。
 discord.js Gateway（常時接続）で受け、公開 URL / Interactions Endpoint は持たない。
 
 ## Transport / 認証
@@ -32,6 +32,8 @@ discord.js Gateway（常時接続）で受け、公開 URL / Interactions Endpoi
 ## 出力（チャンネル投稿）
 
 - イベント通知 → `GLAB_EVENT_CHANNEL_ID`、就活通知 → `GLAB_JOB_CHANNEL_ID`。
+- 5分クエスト / スポットライト → `GLAB_DAILY_CHANNEL_ID`。未設定時は
+  `GLAB_EVENT_CHANNEL_ID` を使い、どちらも無ければ日次通知を無効にする。
 - 投稿は `bot/channels.ts` の `postToChannel`（text-based チャンネルへ `send`、メッセージ ID 返却）。
   未設定 / 失敗時は `null`（best-effort、握りつぶす）。
 - カード整形は `bot/format.ts`（`formatEventCard` / `formatJobCard`）。日時パースは `parseDateInput`
@@ -43,7 +45,11 @@ discord.js Gateway（常時接続）で受け、公開 URL / Interactions Endpoi
 `jobsDueForReminder` をポーリングし `#event` / `#job` へリマインド投稿。Web 登録分も拾う。
 二重投稿は `notified_at` / `deadline_notified_at` で防止。
 
+日次通知は `GLAB_DAILY_NOTIFY_AT`（既定 `09:00`、Asia/Tokyo）以降に当日の共有レコードを読み、
+メッセージ ID を得た後だけ `discord_notified_at` を記録する。失敗時は次 tick で再試行し、
+他の通知処理は継続する。本文の Discord メンションは解決しない。
+
 ## 関連
 
-- 機能: [`feature/discord-event.md`](../feature/discord-event.md) / [`discord-job.md`](../feature/discord-job.md) / [`discord-chat.md`](../feature/discord-chat.md)
+- 機能: [`feature/discord-event.md`](../feature/discord-event.md) / [`discord-job.md`](../feature/discord-job.md) / [`discord-chat.md`](../feature/discord-chat.md) / [`daily-engagement.md`](../feature/daily-engagement.md)
 - 設定: [`setup/environment.md`](../setup/environment.md)
