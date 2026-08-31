@@ -12,6 +12,7 @@ GLAB 特化のプラグインパックと Discord Bot を載せた派生 hub。
 | 施設予約 | 独立した施設予約パネルからAedilisの施設・予約を操作 |
 | イベント通知 | Web hubで施設名/ID・時間をGLABへ登録し、Discord Bot `/event list` + 定期リマインド（GLAB PostgreSQL共有） |
 | 毎日のHub | 全員共通の5分クエスト + 今日のプロジェクト・スポットライトを表示し、Discordへ1日1回通知 |
+| 部員名簿 | Web hub `members` → 管理者限定で部員を一覧表示し、CernereプロフィールとGLAB内の参照情報を結合 |
 | 就活情報の投稿 | Discord Bot `/job` + 締切リマインド（自前 DB、Web hub `jobs` と共有） |
 | 志望・内定企業 | Web hub `tirocinium` → Trの企業マスタを検索し、Cernere IDごとの志望企業・内定情報を登録 |
 | レビュー | Web hub `volputas` → Volputasの設問を「ゲームレビュー」「ゲームアンケート」「ほかの人への質問」の3タブでCorpus表示 |
@@ -41,7 +42,7 @@ GLAB/
 ├── public/        # GLab 自前の frontend (index.html / シェル / ブランド)
 │   └── src/branding.ts  # 画面に出る GLab の名前はここ
 ├── plugins/       # Web hub モジュールパック。モジュール一覧は plugins/pack.json の
-│   │              # modules を参照（15件）。共有クライアント置き場の plugins/cernere/ は
+│   │              # modules を参照（17件）。共有クライアント置き場の plugins/cernere/ は
 │   │              # モジュールではない
 │   └── data.ts    # 出席・Bot求人等のSQLiteスキーマ
 ├── bot/           # Discord Bot (別プロセス、 独自 package)

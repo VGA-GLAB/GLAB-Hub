@@ -49,10 +49,12 @@ Web hub (Corpus)   Discord Bot
 | id | 種別 | 内容 |
 |---|---|---|
 | Corpus内蔵ステータス | コネクタ集約 | 各実モジュールが登録するCr / Os / Ae / Vo / Di / Trのhealth・versionを集約 |
+| `dashboard` | 自前データ | 全員共通の5分クエスト、今日のプロジェクト・スポットライト、各機能への導線を集約したホーム画面 |
 | `attendance` | 自前データ | 進行中イベント + Os passkey attestationを自前でEd25519検証（Os公開鍵は`glab_gateway`にキャッシュ）し、出席台帳`glab_attendance`へ記録 |
 | `facility` | コネクタ | Aedilis `/api/facilities`・`/api/reservations` をproject token付きで中継 |
 | `events` | 自前データ | GLAB PostgreSQLだけでイベントを登録/削除。施設名/IDと利用時間を保持 |
 | `jobs` | 自前データ + コネクタ | 求人情報の投稿/検索/クローズ (`glab_job`、Bot `/job` と共有)。本人の就活データは `/career` で Cernere `tirocinium_student_career` へ中継 |
+| `members` | 自前データ + Cernere連携 | 管理者限定の部員名簿。Cernereプロフィールを優先し、名簿リンク成立前の表示名だけを一時保持 |
 | `tirocinium` | コネクタ | Trの企業マスタを検索し、Cernere IDに紐づく志望企業、内定企業・職種・内定日を登録 |
 | `volputas` | コネクタ | 唯一の「レビュー」パネル。Volputas設問とCernere回答をCorpus内の3タブで表示 |
 | `di` | コネクタ | Discutere連携の「議論」「学習ビュー」を公開。議論開始時にCernere IDを監査用に関連付け |
