@@ -13,7 +13,7 @@ GLAB は Node test runner による自動テストと、ブラウザ/Discord の
 | 自動テスト | hub データ・Cernere client・入力検証 | `npm test` | 実 SQLite、project WS 契約、権限 fail-closed、回答方式 |
 | 横断契約 | GLAB が保持する Cernere 参照データ | `node ../Foedus/dist/cli.js contract-check --root .. --repos GLAB --skip-external-schema --json` | `plugins/data.ts` の `user_id` は owner-ref、PII/OAuth token の自前保持は C-DATA-01/02 で検出 |
 | 手動（hub） | 各タブの表示・操作 | `npm run dev` → ブラウザ → Cernere 認証 → 各タブ確認 | UI と API の疎通。Aedilis / Volputas 未稼働なら degraded 表示で OK |
-| 手動（Bot） | slash command | `config-setup` 後 `npm run start` → Discord で `/event` `/job` `/chat` | コマンド登録 / 通知 / LLM 応答 |
+| 手動（Bot） | 入力停止 / 通知 | 空の command 同期後に登録 0 件を確認。同期前の残存 command は停止案内だけ、通知は対象チャンネルで確認 | Discord 入力が GLAB 処理へ進まないこと / 通知配信 |
 
 ## degraded モードの確認
 
@@ -42,7 +42,7 @@ CLAUDE.md / DESIGN §4 の方針に沿い、優先度順に：
    Cernere user ID で読むことと、欠落・型不正を権限なしにすることを検証する。
 3. 入力 Zod スキーマは設問型、回答範囲、複数回答設定の既定を検証する。
 4. Volputas API URL は絶対 HTTP(S) URL だけを許可する。
-5. Discord コマンドとブラウザ描画は手動 smoke test を併用する。
+5. Discord の command 登録が空であること、残存 Interaction が停止案内だけを返すこと、通知配信、ブラウザ描画は手動 smoke test を併用する。
 
 Foedus の `--skip-external-schema` は Cernere schema-export に到達できないローカル環境で
 だけ明示する degraded モードであり、GLAB の `plugins/data.ts` に対するローカル保持

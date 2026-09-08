@@ -1,7 +1,7 @@
 # data/ — `glab_event` テーブル
 
 GLAB所有のイベントを保持するPostgreSQLテーブル。スキーマとクエリの正本は
-[`plugins/events/store.ts`](../../plugins/events/store.ts)。Web hubとDiscord Botが
+[`plugins/events/store.ts`](../../plugins/events/store.ts)。Web hubとDiscord通知Botが
 `GLAB_DATABASE_URL`で同じストアへ接続する。
 
 ## 境界
@@ -44,7 +44,7 @@ GLAB所有のイベントを保持するPostgreSQLテーブル。スキーマと
 
 - Web登録は開始・終了を必須とし、施設指定は任意とする。
 - 施設指定時の作成はAedilis予約成功後、削除はAedilis予約取消後にGLABへ反映する。施設なしイベントはAedilisを呼ばない。
-- Discord `/event` はGLAB PostgreSQLの一覧だけを提供する。
+- Discord `/event` は廃止済み。イベントの操作は Web、Bot は通知だけを行う。
 - 出席は `starts_at <= now < ends_at` のイベントがある時だけ有効になる。
 
 ## `glab_facility`

@@ -9,6 +9,8 @@ verified_revision: "34c80b2d9470d8ecb5f6c5331cf82a077cd579c0"
 source_refs:
   - "README.md"
   - "DESIGN.md"
+  - "bot/index.ts"
+  - "bot/commands/registry.ts"
   - "public/src/shell.ts"
   - "plugins/pack.json"
 ---
@@ -24,6 +26,8 @@ VANTAN GLab は、出席、施設予約、制作プロジェクト、相談や�
 案内された Cernere アカウントを用意してください。初めて使うときは、名前・役職・学科の登録が必要です。本人確認が済んでいることと、GLAB の部員として扱われることは同じではありません。利用できる範囲が分からない場合は運営者に確認してください。
 
 出席や施設予約では、会場のネットワークや連携サービスなど追加の準備が必要です。各章の「始める前に」を確認してから操作してください。
+
+GLAB の操作は GLAB の画面から行います。Discord はお知らせを受け取る場所で、Discord のコマンドからは操作できません。デスクトップアプリへの移行は準備中です。
 
 <a id="use-glab"></a>
 ## 操作する

@@ -1,6 +1,6 @@
 # setup/ — Discord Bot と暗号化 config
 
-Discord Bot（`bot/`）は hub とは**別プロセス・別 package**。token / API キー / チャンネル ID は
+Discord 通知 Bot（`bot/`）は hub とは**別プロセス・別 package**。token / API キー / チャンネル ID は
 **暗号化 config**（`@ludiars/encrypted-config`、AES-256-GCM + scrypt）に保存し、平文 JSON を置かない
 （DESIGN §6）。
 
@@ -11,7 +11,7 @@ cd bot
 npm install                 # @ludiars/encrypted-config は GitHub Packages 認証が要る
                             # （NODE_AUTH_TOKEN = read:packages 付き PAT）
 npm run config-setup        # 対話で各キーを暗号化保存 → glab-bot.config.json
-npm run start               # Gateway 接続 + slash command 登録 + リマインダ開始
+npm run start               # Gateway 接続 + slash command 削除同期 + 通知開始
 ```
 
 - `bot/.npmrc`: `@ludiars:registry=https://npm.pkg.github.com` +
@@ -41,8 +41,12 @@ npm run start               # Gateway 接続 + slash command 登録 + リマイ�
 | `start` | `tsx ... index.ts`（Gateway 接続 + 登録 + スケジューラ） |
 | `dev` | `tsx watch ... index.ts` |
 | `config-setup` | 暗号化 config 対話登録 |
-| `register` | slash command のみ登録（Bot 起動なし） |
+| `register` | 空の slash command 一覧を同期（Bot 起動なし）。global は常に、設定済み guild も削除対象 |
 | `typecheck` | `tsc --noEmit` |
+
+`GLAB_ADMIN_USER_IDS` と LLM 関連キーは旧 command 用の互換設定として残るが、現行の通知 runtime は
+利用しない。過去に複数 guild へ command を登録した場合の削除手順は
+[`interface/discord-commands.md`](../interface/discord-commands.md)を参照する。
 
 ## 関連
 

@@ -1,7 +1,7 @@
-# interface/ — corpus.db WAL 共有（hub ↔ Bot）
+# interface/ — corpus.db WAL 共有（hub → 通知 Bot）
 
-Web hub（Corpus + `plugins/`）と Discord Bot（`bot/`）の **2 ランタイム**が、同じ SQLite ファイル
-`data/corpus.db`（WAL）を共有することで、Web で登録したイベント / 就活を Bot が通知し、Bot で投稿した
+Web hub（Corpus + `plugins/`）と Discord 通知 Bot（`bot/`）の **2 ランタイム**が、同じ SQLite ファイル
+`data/corpus.db`（WAL）を共有することで、Web で登録したイベント / 就活を Bot が通知し、過去に Bot で投稿した
 ものを Web で閲覧できる（DESIGN §4）。これはプロセス間の暗黙の「接点」であり、ここで contract を固定する。
 
 ## 共有の取り決め

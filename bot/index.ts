@@ -1,17 +1,16 @@
 // GLAB Discord Bot エントリポイント。
 //
-// discord.js Gateway (常時接続) で起動し、 /event /job /chat を処理する。
-// 起動時に slash command 登録 + 通知スケジューラを開始。 設定は暗号化 config から
+// discord.js Gateway (常時接続) で起動し、GLAB から Discord への通知を配信する。
+// 起動時に slash command を空の登録へ同期 + 通知スケジューラを開始。設定は暗号化 config から
 // 読む (npm run config-setup)。イベントはGLAB PostgreSQL、Bot求人等はSQLiteを使う。
 
-import { Client, Events, GatewayIntentBits, MessageFlags } from 'discord.js';
+import { Client, Events, GatewayIntentBits } from 'discord.js';
 import { loadConfig } from './config.ts';
 import { openSharedDb } from './db.ts';
-import { createLlmClient } from './llm/client.ts';
-import { ALL_COMMANDS, registerCommands } from './commands/registry.ts';
+import { registerCommands } from './commands/registry.ts';
+import { replyToDisabledCommand } from './commands/disabled-interaction.ts';
 import { startScheduler } from './notify/scheduler.ts';
 import { startMemberResolver } from './member-resolver.ts';
-import type { CommandDeps } from './commands/types.ts';
 import {
   closeEventStore,
   initializeEventStore,
@@ -27,15 +26,13 @@ async function main(): Promise<void> {
   const db = openSharedDb(cfg.dbPath);
   await initializeEventStore(cfg.databaseUrl);
   console.log('[glab-bot] PostgreSQL event store ready');
-  const llm = createLlmClient(cfg);
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-  const deps: CommandDeps = { db, cfg, llm, client };
 
   let stopScheduler: (() => void) | null = null;
   let stopMemberResolver: (() => Promise<void>) | null = null;
   let shutdownPromise: Promise<void> | null = null;
   client.once(Events.ClientReady, async (c) => {
-    console.log(`[glab-bot] logged in as ${c.user.tag} (LLM backend=${llm.backend})`);
+    console.log(`[glab-bot] logged in as ${c.user.tag} (notification-only)`);
     try {
       await registerCommands(cfg);
     } catch (e) {
@@ -48,18 +45,10 @@ async function main(): Promise<void> {
 
   client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
-    const cmd = ALL_COMMANDS.find((c) => c.name === interaction.commandName);
-    if (!cmd) return;
     try {
-      await cmd.handle(interaction, deps);
+      await replyToDisabledCommand(interaction);
     } catch (e) {
-      console.error(`[glab-bot] command "${interaction.commandName}" error:`, e);
-      const msg = 'エラーが発生しました。';
-      if (interaction.deferred || interaction.replied) {
-        await interaction.editReply(msg).catch(() => {});
-      } else {
-        await interaction.reply({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
-      }
+      console.error(`[glab-bot] disabled command notice failed for "${interaction.commandName}":`, e);
     }
   });
 

@@ -3,7 +3,7 @@
 ## 目的・ユーザーストーリー
 
 GLAB メンバーが**就活情報（企業 / 募集 / 締切 / URL）を Web hub で投稿・検索・クローズ**する。
-投稿は Discord Bot の `/job` からも行え、締切が近い求人は Bot が `#job` へリマインドする
+投稿・検索・募集終了は GLAB の画面から行い、締切が近い求人は Bot が `#job` へリマインドする
 （同一 DB 共有、DESIGN §4）。GLAB **自前データ**機能。
 
 ## 振る舞い（入力 → 処理 → 出力）
@@ -29,4 +29,4 @@ GLAB メンバーが**就活情報（企業 / 募集 / 締切 / URL）を Web hu
 
 - データ: [`data/glab-job.md`](../data/glab-job.md)
 - 接点: [`interface/corpus-db-shared.md`](../interface/corpus-db-shared.md)
-- 対の Bot 機能: [`feature/discord-job.md`](./discord-job.md)
+- 廃止した Discord 入力: [`feature/discord-job.md`](./discord-job.md)

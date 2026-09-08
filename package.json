@@ -2,7 +2,7 @@
   "name": "glab",
   "version": "0.1.0",
   "private": true,
-  "description": "GLAB — 学校組織 GLAB 運営 hub (Corpus 派生)。 出席 / 施設予約 / イベント / 就活情報 + Discord Bot",
+  "description": "GLAB — 学校組織 GLAB 運営 hub (Corpus 派生)。出席 / 施設予約 / イベント / 就活情報 + Discord 通知",
   "type": "module",
   "engines": {
     "node": ">=22.5.0"

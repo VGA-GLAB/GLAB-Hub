@@ -45,24 +45,16 @@ GLABはCernere frontendを起動依存に持たない。Corpusがproject credent
 | 変数 | 既定 | 暗号化 | 意味 |
 |---|---|---|---|
 | `DISCORD_TOKEN` | — | ○ | Bot トークン（必須、未設定で起動中止） |
-| `DISCORD_CLIENT_ID` | — | | アプリ（client）ID（command 登録に必要） |
-| `DISCORD_GUILD_ID` | — | | 登録先ギルド。無いと global 登録（反映最大 1h） |
+| `DISCORD_CLIENT_ID` | — | | アプリ（client）ID（既存 command の空同期に必要） |
+| `DISCORD_GUILD_ID` | — | | 空同期する guild。global は常に空同期し、設定時はこの guild も空にする |
 | `GLAB_DB_PATH` | `bot/../data/corpus.db` | | 出席・Bot求人等の共有SQLite |
 | `GLAB_DATABASE_URL` | — | ○ | Web hubと共通のGLABイベントPostgreSQL。`npm run config-setup`で暗号化configに保存（env指定も可） |
 | `GLAB_EVENT_CHANNEL_ID` | — | | イベント通知先 |
 | `GLAB_JOB_CHANNEL_ID` | — | | 就活通知先 |
 | `GLAB_DAILY_CHANNEL_ID` | `GLAB_EVENT_CHANNEL_ID` | | 5分クエストとスポットライトの日次通知先 |
 | `GLAB_DAILY_NOTIFY_AT` | `09:00` | | 日次通知時刻（Asia/Tokyo の `HH:MM`） |
-| `GLAB_ADMIN_USER_IDS` | — | | admin の Discord ユーザ ID（カンマ区切り） |
-| `GLAB_LLM_BACKEND` | `claude-cli` | | `claude-cli` / `anthropic` / `mock` |
-| `GLAB_LLM_MODEL` | `claude-opus-4-8` | | LLM モデル |
-| `ANTHROPIC_API_KEY` | — | ○ | backend=anthropic 時 |
-| `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | | API ベース URL |
-| `GLAB_CLAUDE_CLI_PATH` | `claude` | | claude CLI パス |
-| `GLAB_CLAUDE_CLI_TIMEOUT_MS` | `120000` | | CLI タイムアウト |
-| `CLAUDE_CODE_GIT_BASH_PATH` | `C:\Program Files\Git\bin\bash.exe` | | claude CLI spawn に必須（Windows） |
-| `GLAB_LLM_SYSTEM_PROMPT` | （既定文） | | system プロンプト |
-| `GLAB_LLM_MAX_TOKENS` | `1024` | | 応答上限トークン |
+| `GLAB_ADMIN_USER_IDS` | — | | 旧 command の互換設定。現行通知 runtime は未使用 |
+| `GLAB_LLM_*`, `ANTHROPIC_*`, `CLAUDE_CODE_GIT_BASH_PATH` | — | | 旧 `/chat` 部品の互換設定。現行通知 runtime は LLM を初期化しない |
 | `GLAB_REMINDER_INTERVAL_MS` | `300000` | | スケジューラ周期 |
 | `GLAB_EVENT_WINDOW_MS` | `86400000`（24h） | | イベントリマインド窓 |
 | `GLAB_JOB_WINDOW_MS` | `259200000`（3 日） | | 就活締切リマインド窓 |

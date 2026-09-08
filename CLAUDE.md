@@ -4,7 +4,7 @@
 
 学校組織 GLAB（Vantan Game Academy のゲーム制作ラボ）の運営 hub。
 [Corpus](https://github.com/LUDIARS/Corpus)（汎用 hub フレームワーク）を submodule で取り込み、
-GLAB 特化のプラグインパック（`plugins/`）と Discord Bot（`bot/`）を載せた派生 hub。
+GLAB 特化のプラグインパック（`plugins/`）と Discord 通知 Bot（`bot/`）を載せた派生 hub。
 リポジトリは VGA-GLAB org に置く。
 
 ## 触ってよい / よくない
@@ -46,11 +46,10 @@ GLAB 特化のプラグインパック（`plugins/`）と Discord Bot（`bot/`�
 3. `package.json` の `build:panels` に panel.ts を追加
 4. `npm run typecheck` + `npm run build`
 
-## Discord コマンド追加の流れ
+## Discord 入力境界
 
-1. `bot/commands/<name>.ts` に `BotCommand`（`data` = SlashCommandBuilder().toJSON()、`handle`）を作る
-2. `bot/commands/registry.ts` の `ALL_COMMANDS` に追加
-3. `npm --prefix bot run typecheck`、起動時 or `npm --prefix bot run register` で反映
+Discord は通知専用で、GLAB の利用者操作 command を追加しない。`bot/commands/registry.ts` は空配列を
+global と設定済み guild へ同期する。同期前の残存 command は停止案内だけを返す。
 
 ## やらないこと
 
@@ -62,11 +61,11 @@ GLAB 特化のプラグインパック（`plugins/`）と Discord Bot（`bot/`�
 ## テスト方針
 
 - v0.1 は手動：hub は `npm run dev` → ブラウザ → 認証 → 初回プロフィール登録 → 各タブ（施設は Aedilis 未稼働なら degraded 表示で OK）。
-  Bot は `config-setup` 後 `npm run start` → Discord で `/event` `/job` `/chat`
+  Bot は空の command 登録、残存 Interaction の停止案内、通知配送を確認する
 - 後で vitest で `plugins/data.ts` のクエリ最小ケースを書く
 
 ## 関連
 
 - 雛形：VantanHub（同じ Corpus プラグインパック方式）
 - 流用元：Aedilis（施設 API）、
-  Discutere（LLM backend 抽象）、@ludiars/encrypted-config（暗号化 config）
+  Discutere、@ludiars/encrypted-config（暗号化 config）

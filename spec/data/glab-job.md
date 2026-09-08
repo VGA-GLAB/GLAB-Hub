@@ -2,7 +2,7 @@
 
 GLAB メンバーが共有する就活情報（企業 / 募集 / 締切 / URL）を保持するテーブル。
 スキーマ正本は [`plugins/data.ts`](../../plugins/data.ts) の `GLAB_SCHEMA`。Web hub
-プラグイン（`plugins/jobs`）と Discord Bot（`bot/`）が同じ `data/corpus.db`（SQLite, WAL）を
+プラグイン（`plugins/jobs`）と Discord 通知 Bot（`bot/`）が同じ `data/corpus.db`（SQLite, WAL）を
 共有する（[DESIGN.md](../../DESIGN.md) §4）。
 
 ## 種別・保存先
@@ -18,7 +18,7 @@ GLAB メンバーが共有する就活情報（企業 / 募集 / 締切 / URL）
 
 | カラム | 型 | 制約 / 既定 | 意味 |
 |---|---|---|---|
-| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | 主キー（`/job close` の引数） |
+| `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | 主キー |
 | `company` | TEXT | NOT NULL | 企業名 |
 | `position` | TEXT | NULL 可 | 募集 / 職種 |
 | `category` | TEXT | NULL 可 | 業種（例: ゲーム） |
@@ -26,7 +26,7 @@ GLAB メンバーが共有する就活情報（企業 / 募集 / 締切 / URL）
 | `body` | TEXT | NULL 可 | 詳細本文 |
 | `deadline_at` | INTEGER | NULL 可 | 締切日時（epoch ms）。NULL = 締切なし |
 | `status` | TEXT | NOT NULL DEFAULT `'open'` | `open` / `closed` |
-| `posted_by` | TEXT | NOT NULL | 投稿者表示名。hub は Cernere `userId`、Bot は `"<username> (discord)"` |
+| `posted_by` | TEXT | NOT NULL | 投稿者。現行 Web は Cernere `userId`。旧 Bot 投稿には `"<username> (discord)"` が残る |
 | `created_at` | INTEGER | NOT NULL | 投稿時刻（epoch ms） |
 | `deadline_notified_at` | INTEGER | NULL 可 | 締切リマインド済み時刻。NULL = 未通知 |
 
@@ -56,5 +56,5 @@ CREATE INDEX IF NOT EXISTS glab_job_status ON glab_job(status, deadline_at);
 
 ## 関連
 
-- 機能: [`feature/jobs.md`](../feature/jobs.md)（Web）/ [`feature/discord-job.md`](../feature/discord-job.md)（Bot）
+- 機能: [`feature/jobs.md`](../feature/jobs.md)（Web）/ [`feature/discord-job.md`](../feature/discord-job.md)（廃止入力と移行）
 - 接点: [`interface/corpus-db-shared.md`](../interface/corpus-db-shared.md)

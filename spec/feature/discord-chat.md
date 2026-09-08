@@ -1,41 +1,14 @@
-# feature/ — Discord `/chat` コマンド（LLM 対話）
+# feature/ — Discord `/chat` command (retired)
 
-## 目的・ユーザーストーリー
+Discord の `/chat` は 2026-09-08 に GLAB の利用者操作入口から廃止した。
+registry への登録と dispatch はなく、Bot 起動時に LLM client を初期化しない。
+Discord 側に古い command が残っている間も、GLAB の画面を使う案内だけを返して LLM は呼ばない。
 
-GLAB メンバーが Discord 上で**アシスタント（LLM）と会話**する。就活・制作・スケジュール・技術の
-質問に簡潔な日本語で答える。実装: `bot/commands/chat.ts`。
+旧 `bot/llm/` と `bot/commands/chat.ts` は到達不能な移行用ソースとして残る。
+このため Claude CLI の出力上限問題は Discord の運用経路から解消するが、旧 CLI 部品自体の上限処理を
+根治したものではない。
 
-## サブコマンド・オプション
+## Related
 
-`/chat`（サブコマンドなし）：
-
-| オプション | 必須 | 意味 |
-|---|---|---|
-| `message` | ○ | LLM に送るメッセージ |
-| `reset`（boolean） | | 会話履歴をリセットしてから送る |
-
-## 振る舞い（入力 → 処理 → 出力）
-
-- 履歴キーは `"<channelId>:<userId>"`。プロセス内メモリ保持（再起動で消える）。最大 `MAX_TURNS=8`
-  ターン（user+assistant）まで保持。
-- `interaction.deferReply()` → `LlmClient.invoke({ system, messages, model, maxTokens })` → `editReply`。
-- 応答が Discord の 2000 文字制限を超える場合は 1900 文字で切って `…` を付す。
-- 失敗時は `LLM 呼び出しに失敗しました: ...` を返す。
-
-## LLM backend（`bot/llm/`）
-
-`LlmClient` 抽象（`bot/llm/client.ts`）で backend を切替（`GLAB_LLM_BACKEND`）：
-
-| backend | 実装 | 概要 |
-|---|---|---|
-| `claude-cli`（既定） | `claude-cli.ts` | `claude -p --output-format json --model <model>` を spawn、プロンプトは stdin。サブスク CLI で API キー不要。`CLAUDE_CODE_GIT_BASH_PATH` 必須（Windows） |
-| `anthropic` | `anthropic.ts` | `POST {baseUrl}/v1/messages`（`x-api-key`, `anthropic-version: 2023-06-01`）。従量課金、`ANTHROPIC_API_KEY` 必須 |
-| `mock` | `mock.ts` | テスト用 |
-
-既定モデルは `claude-opus-4-8`、`maxTokens` 既定 1024（[`setup/environment.md`](../setup/environment.md)）。
-`local`（OpenAI 互換）は follow-up（DESIGN §8）。
-
-## 関連
-
-- 接点: [`interface/discord-commands.md`](../interface/discord-commands.md)
-- 設定: [`setup/environment.md`](../setup/environment.md)
+- Discord boundary: [`../interface/discord-commands.md`](../interface/discord-commands.md)
+- Migration log: [`../plan/problem_logs/2026-09-08-discord-input-retirement.md`](../plan/problem_logs/2026-09-08-discord-input-retirement.md)
