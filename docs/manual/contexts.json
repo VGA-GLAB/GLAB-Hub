@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "overview": "overview",
+  "contexts": [
+    { "key": "shell.overview", "chapter": "overview", "anchor": "use-glab" },
+    { "key": "auth.login", "chapter": "first-use", "anchor": "sign-in-and-register" },
+    { "key": "profile.registration", "chapter": "first-use", "anchor": "sign-in-and-register" },
+    { "key": "dashboard.daily-quest", "chapter": "daily-hub", "anchor": "complete-daily-quest" },
+    { "key": "attendance.check-in", "chapter": "attendance", "anchor": "check-in" },
+    { "key": "facility.reservation", "chapter": "facility-reservation", "anchor": "create-reservation" }
+  ]
+}
