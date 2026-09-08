@@ -1,4 +1,4 @@
-import type { CernereProjectClient } from '../cernere/project-client.ts';
+import type { CernereProjectApi as CernereProjectClient } from '../cernere/shared-owner.ts';
 
 /**
  * おれひまが使う user_data 列を Cernere へ宣言する。

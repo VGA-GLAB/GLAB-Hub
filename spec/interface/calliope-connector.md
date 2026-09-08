@@ -22,8 +22,9 @@ Corpus 組み込みの `HttpServiceConnector` は**使わない**。理由:
   合成するため、5 秒で切ると PJ 数に比例して失敗しやすい。
 - health に接続先のバージョンを出せる（`healthVersion()`）。
 
-固定ヘッダ対応（`headers` オプション）はこの用途のために追加した。呼び出し側が同名ヘッダを
-渡した場合は呼び出し側が勝つので、`proxy()` のダウンストリームトークンを潰さない。
+Calliope 専用の `progress/service-connector.ts` で固定 credential を適用する。
+data request では呼び出し側 Authorization を固定 token で置換し、公開 health には送らない。
+他コネクタの共通ヘッダ優先順位は変えない。
 
 タイムアウトは無制限ではなく、`relay.ts` が呼び出し側の `signal` として 30 秒を渡す
 （コネクタは data 取得に独自のタイムアウトを課さず、呼び出し側の `signal` を尊重する）。
@@ -51,19 +52,16 @@ Calliope はその方式に乗らない。Calliope の `/api/*` は固定の `CA
 - `CALLIOPE_BASE_URL` — Calliope のベース URL。未設定・空白のみなら「意図的に未設定」と
   みなし、コネクタが `503 { error: 'connector_unconfigured' }` を返す
   → パネルが「未接続（degraded）」を表示する。health も `degraded`（`down` ではない）。
-- `CALLIOPE_SERVICE_TOKEN` — Calliope 側 `CALLIOPE_SERVICE_TOKEN` と同じ値。未設定時は
-  Authorization ヘッダを付けずに送る（Calliope 側で `serviceToken` が未設定の場合のみ通る。
-  本番では両方設定必須）。
+- `CALLIOPE_SERVICE_TOKEN` — Calliope 側 `CALLIOPE_SERVICE_TOKEN` と同じ値。未設定・空・空白のみは
+  HTTP 送信前に `503 service_token_unavailable` と `Cache-Control: no-store` を返す。
+  token がない場合は base URL の有無よりこのエラーを優先する。
 
 ## health
 
 `healthPath: '/health'`。Calliope の `/health` は `/api/*` 認可の対象外
-（`Calliope/src/routes/health.ts`）なので token 無しでも到達する。ただし
-`VersionedHttpServiceConnector` は固定ヘッダを probe にも付ける（接続先が health まで
-固定 Bearer で守る構成でも probe が 401 → 常時 degraded にならないようにするため）。
-つまり Calliope へは不要な Authorization も送るが、宛先は `CALLIOPE_BASE_URL` に
-限られる。この env を GLAB 外のホストへ向けると service token がそこへ渡るので、
-向き先は Ex topology / Infisical 管理下の値だけにする。
+（`Calliope/src/routes/health.ts`）なので token 無しでも到達する。
+専用コネクタは health/probe に Authorization を送らない。health 成功は data 認証成功を意味しない。
+data の向き先は Ex topology / Infisical 管理下の値だけにする。
 `registerConnector()` により、この health は組み込み「🟢 ステータス」タブの
 接続サービス一覧（`/api/hub/overview`）に他サービスと並んで出る。GLAB 側に status
 プラグインは作らない（`tests/navigation-contract.test.ts` が単一 Status 面を固定している）。
@@ -86,8 +84,9 @@ Calliope の `/health` は `{ ok: true, service, port, upstreams, connectorState
 | 状況 | GLAB が返すもの |
 |---|---|
 | `CALLIOPE_BASE_URL` 未設定 | `503 { error: 'connector_unconfigured', connector: 'calliope' }` |
-| Calliope 未稼働（ECONNREFUSED 等で fetch が throw） | `502 { error: 'connector_error', connector: 'calliope', detail }` |
-| Calliope 無応答（30 秒でタイムアウト） | 同上（`detail` が `TimeoutError`） |
+| 固定 token 未設定・空白 | `503 { error: 'service_token_unavailable', connector: 'calliope' }`、送信なし |
+| Calliope 未稼働（ECONNREFUSED 等で fetch が throw） | `502 { error: 'connector_error', connector: 'calliope' }`（生の例外を公開しない） |
+| Calliope 無応答（30 秒でタイムアウト） | 同上 |
 | Calliope の上流（glab / actio）未設定 | Calliope の `503 <svc>_unconfigured` / `400 glab_progress_prerequisites_missing` を透過 |
 | Calliope の上流失敗 | Calliope の `502` を透過 |
 

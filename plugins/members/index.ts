@@ -8,7 +8,7 @@
 import { Hono, getIdentity, requireAdmin } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusContext, CorpusModule } from '../../corpus/server/hub/sdk.ts';
 import { z } from 'zod';
-import { CernereProjectClient } from '../cernere/project-client.ts';
+import { createCernereProjectClient } from '../cernere/create-client.ts';
 import {
   MEMBER_STATUSES,
   createMember,
@@ -68,7 +68,7 @@ const membersModule: CorpusModule = {
       const clientSecret = ctx.env('CERNERE_PROJECT_CLIENT_SECRET')?.trim();
       const cernereBaseUrl = ctx.env('CERNERE_BASE_URL')?.trim();
       const cernere = clientId && clientSecret && cernereBaseUrl
-        ? new CernereProjectClient({ cernereBaseUrl, clientId, clientSecret })
+        ? createCernereProjectClient(ctx)
         : null;
       if (!cernere) {
         ctx.logger.warn('members: Cernere project credential 未設定 — 登録済み部員の氏名解決は無効');

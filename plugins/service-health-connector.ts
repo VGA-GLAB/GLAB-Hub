@@ -14,9 +14,13 @@ export interface VersionedConnectorOptions {
   healthPath: string;
   /**
    * 全リクエスト (probe / fetch) に付与する固定ヘッダ。
-   * ユーザ単位トークンを発行できず、サービス間の固定 Bearer でのみ認可する接続先
-   * (Calliope) 向け。 呼び出し側が同名ヘッダを渡した場合は呼び出し側を優先する
+   * 呼び出し側が同名ヘッダを渡した場合は呼び出し側を優先する
    * (`proxy()` のダウンストリームトークンを固定ヘッダで上書きしない)。
+   *
+   * Calliope はこの既定を使わない。固定 machine credential 経路なので
+   * `progress/service-connector.ts` の `CalliopeServiceConnector` が
+   * data request の Authorization を無条件に上書きし、公開 health probe には付けない。
+   * 同種の接続先を足すときは、どちらの優先順位が要るか明示して選ぶこと。
    */
   headers?: Record<string, string>;
 }

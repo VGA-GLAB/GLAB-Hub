@@ -1,4 +1,4 @@
-import type { CernereProjectClient } from '../cernere/project-client.ts';
+import type { CernereProjectApi as CernereProjectClient } from '../cernere/shared-owner.ts';
 import { declarePresenceSchema } from './presence-schema.ts';
 
 export interface AvailableMember { userId: string; displayName: string; discordId: string | null; }

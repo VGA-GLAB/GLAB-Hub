@@ -9,6 +9,7 @@ import {
   type VersionedConnectorOptions,
 } from '../service-health-connector.ts';
 import type { EnvReader } from '../shared.ts';
+import { CalliopeServiceConnector } from './service-connector.ts';
 
 export const CALLIOPE_CONNECTOR_ID = 'calliope';
 
@@ -38,5 +39,5 @@ export function calliopeConnectorOptions(env: EnvReader): VersionedConnectorOpti
 }
 
 export function makeCalliopeConnector(env: EnvReader): VersionedHttpServiceConnector {
-  return new VersionedHttpServiceConnector(calliopeConnectorOptions(env));
+  return new CalliopeServiceConnector(calliopeConnectorOptions(env));
 }

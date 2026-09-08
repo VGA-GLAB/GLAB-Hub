@@ -15,7 +15,7 @@ export interface WsLike {
   close(code?: number, reason?: string): void;
 }
 
-interface CernereProjectClientConfig {
+export interface CernereProjectClientConfig {
   cernereBaseUrl: string;
   clientId: string;
   clientSecret: string;
@@ -52,6 +52,9 @@ export class CernereProjectClient {
   private connectPromise: Promise<void> | null = null;
   private requestSequence = 0;
   private readonly pending = new Map<string, PendingRequest>();
+  private closed = false;
+  private readonly lifetime = new AbortController();
+  private cancelHandshake: (() => void) | null = null;
 
   constructor(config: CernereProjectClientConfig) {
     if (!config.cernereBaseUrl.trim()) throw new Error('cernereBaseUrl is required');
@@ -100,10 +103,20 @@ export class CernereProjectClient {
   }
 
   close(): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.lifetime.abort();
+    this.cancelHandshake?.();
+    this.cancelHandshake = null;
     this.rejectPending(new Error('Cernere project client closed'));
     this.ws?.close();
     this.ws = null;
     this.connectPromise = null;
+  }
+
+  /** credential rotation はこの認証完了を確認してから旧接続を閉じる。 */
+  async ready(): Promise<void> {
+    await this.ensureConnected();
   }
 
   private async request(
@@ -142,6 +155,8 @@ export class CernereProjectClient {
   }
 
   private async ensureConnected(): Promise<void> {
+    if (this.closed) throw new Error('Cernere project client closed');
+    if (this.connectPromise) { await this.connectPromise; return; }
     if (this.ws?.readyState === WS_OPEN) return;
     if (!this.connectPromise) {
       this.connectPromise = this.connect().finally(() => {
@@ -153,25 +168,34 @@ export class CernereProjectClient {
 
   private async connect(): Promise<void> {
     const token = await this.fetchProjectToken();
+    if (this.closed) throw new Error('Cernere project client closed');
     await new Promise<void>((resolve, reject) => {
       const ws = this.createWebSocket(toProjectWsUrl(this.cernereBaseUrl), ['bearer', token]);
       let settled = false;
       const handshakeTimer = setTimeout(() => {
         if (settled) return;
         settled = true;
-        this.ws = null;
+        if (this.ws === ws) { this.ws = null; this.cancelHandshake = null; }
         ws.close();
         reject(new Error('Cernere project WebSocket authentication timed out'));
       }, this.requestTimeoutMs);
       handshakeTimer.unref?.();
       this.ws = ws;
+      this.cancelHandshake = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(handshakeTimer);
+        reject(new Error('Cernere project client closed'));
+      };
 
       ws.onmessage = (event) => {
+        if (this.closed || this.ws !== ws) return;
         const message = parseMessage(event.data);
         if (!message) return;
         if (message.type === 'connected' && !settled) {
           settled = true;
           clearTimeout(handshakeTimer);
+          this.cancelHandshake = null;
           resolve();
           return;
         }
@@ -182,15 +206,20 @@ export class CernereProjectClient {
         this.handleResponse(message);
       };
       ws.onerror = (event) => {
-        if (settled) return;
+        if (settled) { ws.close(); return; }
         settled = true;
         clearTimeout(handshakeTimer);
         this.ws = null;
+        this.cancelHandshake = null;
+        ws.close();
         reject(new Error(`Cernere project WebSocket error: ${describeError(event)}`));
       };
       ws.onclose = (event) => {
-        this.ws = null;
-        this.rejectPending(new Error(`Cernere project WebSocket closed (${event.code})`));
+        if (this.ws === ws) {
+          this.ws = null;
+          this.cancelHandshake = null;
+          this.rejectPending(new Error(`Cernere project WebSocket closed (${event.code})`));
+        }
         if (!settled) {
           settled = true;
           clearTimeout(handshakeTimer);
@@ -202,6 +231,7 @@ export class CernereProjectClient {
 
   private async fetchProjectToken(): Promise<string> {
     const response = await this.fetchImpl(`${this.cernereBaseUrl}/api/auth/login`, {
+      signal: AbortSignal.any([this.lifetime.signal, AbortSignal.timeout(this.requestTimeoutMs)]),
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({

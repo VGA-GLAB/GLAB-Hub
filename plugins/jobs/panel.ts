@@ -8,6 +8,7 @@ import {
   requireVantanUserRegistration,
   type PanelContext,
 } from '../panel-kit.ts';
+import { ownerEditor } from './owner-panel.ts';
 
 interface StudentCareer {
   desiredRole: string;
@@ -25,6 +26,8 @@ interface JobView {
   body: string | null;
   deadlineAt: number | null;
   status: string;
+  ownerUserId: string | null;
+  ownerRevision: number;
 }
 
 const DAY = 86_400_000;
@@ -216,11 +219,16 @@ function jobRow(job: JobView, ctx: PanelContext, rerender: () => Promise<void>):
   }
   if (job.body) li.appendChild(el('div', 'gl-muted', job.body));
 
-  if (job.status === 'open') {
+  if (job.ownerUserId === null) {
+    li.appendChild(el('p', 'gl-muted', '所有者が未確認です。募集終了は管理者へ依頼してください。'));
+  }
+  if (ctx.identity.isAdmin) li.appendChild(ownerEditor(job, ctx, rerender));
+  if (job.status === 'open' && (ctx.identity.isAdmin || job.ownerUserId === ctx.identity.userId)) {
     const close = el('button', 'gl-btn ghost', '募集終了にする');
     close.onclick = async () => {
       const d = await ctx.api(`/${job.id}/close`, { method: 'POST' });
       if (d.ok) await rerender();
+      else li.appendChild(el('p', 'gl-notice', '募集終了に失敗しました。一覧を更新して所有者を確認してください。'));
     };
     li.appendChild(close);
   }

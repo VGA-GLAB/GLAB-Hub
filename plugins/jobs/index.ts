@@ -12,13 +12,13 @@ import {
   createJob,
   listJobs,
   getJob,
-  closeJob,
   type JobRow,
   type JobQuery,
 } from '../data.ts';
 import { createCernereProjectClient } from '../cernere/create-client.ts';
 import { getStudentCareer, setStudentCareer } from './student-career-client.ts';
 import { studentCareerPatchSchema } from './student-career-schema.ts';
+import { registerOwnerRoutes } from './owner-routes.ts';
 
 function jobView(row: JobRow): Record<string, unknown> {
   return {
@@ -31,6 +31,8 @@ function jobView(row: JobRow): Record<string, unknown> {
     deadlineAt: row.deadline_at,
     status: row.status,
     postedBy: row.posted_by,
+    ownerUserId: row.owner_user_id,
+    ownerRevision: row.owner_revision,
     createdAt: row.created_at,
   };
 }
@@ -76,6 +78,7 @@ function makeJobRoutes(r: Hono, db: CorpusDb): void {
       body: (body.body ?? '').trim() || null,
       deadlineAt,
       postedBy: id.userId,
+      ownerUserId: id.userId,
     });
     if (id.displayName) cacheDisplayName(db, id.userId, id.displayName);
     const created = getJob(db, jobId);
@@ -88,10 +91,14 @@ function makeJobRoutes(r: Hono, db: CorpusDb): void {
     const jobId = Number(c.req.param('id'));
     const job = getJob(db, jobId);
     if (!job) return c.json({ error: 'not_found' }, 404);
-    if (job.posted_by !== id.userId && !id.isAdmin) {
-      return c.json({ error: 'forbidden' }, 403);
+    if (job.owner_user_id !== id.userId && !id.isAdmin) {
+      return c.json({ error: job.owner_user_id ? 'forbidden' : 'owner_unresolved', message: '所有者の確認を管理者へ依頼してください。' }, 403);
     }
-    closeJob(db, jobId);
+    // 認可判定後に owner が更新された場合も、古い所有権で募集終了できない。
+    const updated = db.prepare(`UPDATE glab_job SET status = 'closed'
+      WHERE id = ? AND owner_revision = ? AND (owner_user_id = ? OR ? = 1)`)
+      .run(jobId, job.owner_revision, id.userId, id.isAdmin ? 1 : 0);
+    if (Number(updated.changes) !== 1) return c.json({ error: 'owner_conflict' }, 409);
     return c.json({ ok: true });
   });
 }
@@ -128,6 +135,7 @@ const jobsModule: CorpusModule = {
   setup(ctx: CorpusContext) {
     ensureSchema(ctx.db);
     const routes = new Hono();
+    registerOwnerRoutes(routes, ctx.db);
     makeCareerRoutes(routes, ctx);
     makeJobRoutes(routes, ctx.db);
     ctx.registerRoute(routes);

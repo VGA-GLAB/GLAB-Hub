@@ -14,6 +14,8 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { closeEventStore, initializeEventStore } from './plugins/events/store.ts';
+import { cernereClientOwner } from './plugins/cernere/shared-owner.ts';
+import { createShutdown } from './plugins/cernere/shutdown.ts';
 import {
   closeFacilityStore,
   initializeFacilityStore,
@@ -57,12 +59,33 @@ process.env.CORPUS_SERVICE_VERSION ??= process.env.npm_package_version ?? '0.1.0
 console.log('[glab] starting Corpus with GLAB plugin pack');
 console.log(`[glab] plugins: ${process.env.CORPUS_PLUGIN_DIR}`);
 
-await initializeEventStore(process.env.GLAB_DATABASE_URL);
-await initializeFacilityStore(process.env.GLAB_DATABASE_URL);
-const shutdown = async (): Promise<void> => {
-  await Promise.all([closeEventStore(), closeFacilityStore()]);
+let stopping = false;
+const initialization = (async (): Promise<void> => {
+  await initializeEventStore(process.env.GLAB_DATABASE_URL);
+  if (!stopping) await initializeFacilityStore(process.env.GLAB_DATABASE_URL);
+})();
+const afterInitialization = (close: () => Promise<void>) => async (): Promise<void> => {
+  // 初期化失敗そのものは下の catch で報告する。cleanup は途中確保した store にも行う。
+  await initialization.catch(() => undefined);
+  await close();
 };
-process.once('SIGINT', () => void shutdown().finally(() => process.exit(0)));
-process.once('SIGTERM', () => void shutdown().finally(() => process.exit(0)));
+const shutdown = createShutdown(() => cernereClientOwner.closeAll(), [
+  afterInitialization(closeEventStore), afterInitialization(closeFacilityStore),
+]);
+const onSignal = (): void => {
+  if (stopping) return;
+  stopping = true;
+  void shutdown().then(() => process.exit(0), () => process.exit(1));
+};
+process.on('SIGINT', onSignal);
+process.on('SIGTERM', onSignal);
 
-await import('./corpus/server/bootstrap.ts');
+try {
+  await initialization;
+  if (!stopping) await import('./corpus/server/bootstrap.ts');
+} catch (error) {
+  try { await shutdown(); }
+  catch (cleanupError) { throw new AggregateError([error, cleanupError], 'GLAB initialization and cleanup failed'); }
+  throw error;
+}
+// Corpus 内部の直接 process.exit(1) / SIGKILL は捕捉不能。外部 cleanup 契約の提供待ち。

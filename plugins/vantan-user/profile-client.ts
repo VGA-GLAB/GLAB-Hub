@@ -1,4 +1,4 @@
-import type { CernereProjectClient } from '../cernere/project-client.ts';
+import type { CernereProjectApi as CernereProjectClient } from '../cernere/shared-owner.ts';
 import type { VantanUserInput, VantanUserProfile } from './profile-schema.ts';
 import { translateVantanProfile } from './profile-schema.ts';
 

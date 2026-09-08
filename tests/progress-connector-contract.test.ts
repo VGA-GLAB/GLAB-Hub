@@ -79,8 +79,8 @@ describe('Calliope connector configuration', () => {
     assert.equal(seen[0]?.authorization, 'Bearer service-token');
   });
 
-  it('lets a caller-supplied header win over the fixed connector header', async () => {
-    // proxy() 系コネクタが乗せるユーザ単位トークンを固定ヘッダで潰さない契約。
+  it('keeps Calliope on its fixed service credential even if a caller supplies another token', async () => {
+    // Calliope は user-token proxy とは異なる機械 credential 経路。
     const seen: Array<Record<string, string>> = [];
     globalThis.fetch = async (_url, init) => {
       seen.push(Object.fromEntries(new Headers(init?.headers).entries()));
@@ -95,7 +95,7 @@ describe('Calliope connector configuration', () => {
       headers: { Authorization: 'Bearer downstream-token' },
     });
 
-    assert.equal(seen[0]?.authorization, 'Bearer downstream-token');
+    assert.equal(seen[0]?.authorization, 'Bearer service-token');
   });
 });
 

@@ -39,9 +39,9 @@ export async function readProgress(
         'content-type': upstream.headers.get('content-type') ?? 'application/json',
       },
     });
-  } catch (error) {
+  } catch {
     return Response.json(
-      { error: 'connector_error', connector: connector.id, detail: String(error) },
+      { error: 'connector_error', connector: connector.id },
       { status: 502, headers: { 'cache-control': PRIVATE_NO_STORE } },
     );
   }

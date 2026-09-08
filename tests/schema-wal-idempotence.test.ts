@@ -50,6 +50,7 @@ const EXPECTED_TABLES = [
   'glab_gateway',
   'glab_attendance_nonce',
   'glab_job',
+  'glab_job_owner_migration',
   'glab_project',
   'glab_project_member',
   'glab_project_release',
@@ -207,7 +208,7 @@ describe('plugins/data.ts — 実 SQLite (WAL) を hub / bot の 2 接続で共�
     const withMembers = getProjectWithMembers(hub, project.id);
     assert.ok(withMembers);
     assert.equal(withMembers.members.length, 1);
-    assert.equal(withMembers.members[0].role, 'producer');
+    assert.equal(withMembers.members[0]?.role, 'producer');
 
     assert.equal(removeProjectMember(bot, project.id, 'user-1'), true);
     assert.equal(removeProjectMember(bot, project.id, 'user-1'), false);

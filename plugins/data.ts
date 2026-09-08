@@ -9,12 +9,13 @@
 // Corpus の CorpusDb も better-sqlite3 の Database もこれを満たす。
 
 import { randomUUID } from 'node:crypto';
+import { ensureJobOwnerSchema } from './jobs/owner-schema.ts';
 
 /** prepared statement の最小形。 */
 export interface SqlStatement {
   get(...params: unknown[]): unknown;
   all(...params: unknown[]): unknown[];
-  run(...params: unknown[]): { lastInsertRowid: number | bigint; changes: number };
+  run(...params: unknown[]): { lastInsertRowid: number | bigint; changes: number | bigint };
 }
 
 /** better-sqlite3 / CorpusDb が満たす最小 DB インターフェース。 */
@@ -217,6 +218,8 @@ export interface JobRow {
   deadline_at: number | null;
   status: string;
   posted_by: string;
+  owner_user_id: string | null;
+  owner_revision: number;
   created_at: number;
   deadline_notified_at: number | null;
 }
@@ -238,6 +241,7 @@ export interface ReviewRelayRow {
 /** スキーマ初期化 (冪等)。 plugins は ctx.db で、 bot は自前接続で 1 度呼ぶ。 */
 export function ensureSchema(db: SqlDb): void {
   db.exec(GLAB_SCHEMA);
+  ensureJobOwnerSchema(db);
   ensureDailyEngagementSchema(db);
   ensureAttendanceSourceValues(db);
   ensureAttendanceEventColumns(db);
@@ -641,13 +645,14 @@ interface NewJob {
   body?: string | null;
   deadlineAt?: number | null;
   postedBy: string;
+  ownerUserId?: string;
 }
 
 export function createJob(db: SqlDb, j: NewJob): number {
   const res = db
     .prepare(
-      `INSERT INTO glab_job (company, position, category, url, body, deadline_at, status, posted_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?)`,
+      `INSERT INTO glab_job (company, position, category, url, body, deadline_at, status, posted_by, created_at, owner_user_id)
+       VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)`,
     )
     .run(
       j.company,
@@ -658,6 +663,7 @@ export function createJob(db: SqlDb, j: NewJob): number {
       j.deadlineAt ?? null,
       j.postedBy,
       Date.now(),
+      j.ownerUserId ?? null,
     );
   return Number(res.lastInsertRowid);
 }
@@ -1016,7 +1022,7 @@ export function updateMember(db: SqlDb, id: string, patch: MemberPatch, updatedB
   const result = db.prepare(
     `UPDATE glab_member SET ${assignments.join(', ')} WHERE id = ?`,
   ).run(...params);
-  if (result.changes === 0) return null;
+  if (result.changes <= 0) return null;
   return getMember(db, id);
 }
 
@@ -1032,7 +1038,7 @@ export function linkMemberToUser(db: SqlDb, id: string, userId: string, updatedB
        AND EXISTS (SELECT 1 FROM glab_user WHERE user_id = ?)
        AND NOT EXISTS (SELECT 1 FROM glab_member WHERE user_id = ?)`,
   ).run(userId, Date.now(), updatedBy, id, userId, userId);
-  if (result.changes === 0) return null;
+  if (result.changes <= 0) return null;
   return getMember(db, id);
 }
 
