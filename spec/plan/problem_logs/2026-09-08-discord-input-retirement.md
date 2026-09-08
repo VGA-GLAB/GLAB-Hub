@@ -38,11 +38,14 @@ Discord ID または Discord アカウント名を行為主体とする操作と
 | Bot `/chat` の Claude CLI 出力上限未適用 | closed in working tree / deployment pending | `/chat` を登録・dispatch しないため運用経路から解消する。旧 CLI 実装は到達不能なソースとして残り、上限処理自体の根治はしていない |
 | Cernere 本人確認と GLAB 部員資格の分離不足 | open | Web にも関係する認可課題であり、Discord 入力廃止では解決しない |
 | 下流 token 発行失敗後の匿名中継 | open | Web のコネクタにも関係するため継続調査する。認証要件は緩和しない |
+| Calliope 固定 token 不在時の匿名中継 | open / design recorded, implementation pending | `plugins/progress/connector.ts` が token 不在時に空 headers を作り、relay がそのまま `connector.fetch` する。`CALLIOPE_SERVICE_TOKEN` 不在時は 503 かつ fetch 0 回とする設計を記録したが、実装修正前である |
 | 接続 / 下流 token 発行の重複 | open | 6 client は WS 接続の重複。別に `corpus/server/hub/tokens.ts` は同じ key の並行発行 Promise を共有せず、期限切れ Map の掃除もない。異なる仕組みの課題で、どちらもこの変更では触らない |
 | 相談通知の `glabExternal` 401 | open | scheduler の GLAB→Discord 通知経路に残る。全通知が正常になるとは保証できない |
 | 既存 Discord 求人の所有者 ID 不一致 | open / newly exposed migration gap | `${interaction.user.username} (discord)` と Cernere user ID は一致しないため、旧投稿者が Web で close できない可能性がある。当面は管理者対応とし、正当な Cernere 連携に基づく所有者移行を別途設計する。アカウント名や名簿 Discord ID だけで自動書換えしない |
 | Desktop 主経路への移行 | open / migration gap | desktop 実装は未完成。現時点の操作先は GLAB の Web 画面であり、desktop が利用可能とは案内しない |
 | Discord 側に残る Slash command / 稼働中の旧 Bot | open / deployment pending | working tree の変更だけでは消えない。下記の同期と新コード反映が必要 |
+
+各 open 課題の採択設計と依存順は [2026-09-08 残課題設計 index](../2026-09-08-residual-design-index.md) を参照する。
 
 ## Fix Requirements
 
