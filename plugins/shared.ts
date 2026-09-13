@@ -4,7 +4,6 @@
 // 走査) からはモジュールとして拾われない。 connector 系モジュール（施設）が
 // 共有する。
 
-import { getUserToken } from '../corpus/server/hub/sdk.ts';
 import type {
   Context,
   ServiceConnector,
@@ -15,7 +14,8 @@ import {
   type VersionedConnectorOptions,
 } from './service-health-connector.ts';
 
-export const PRIVATE_NO_STORE = 'private, no-store';
+import { authorizedConnectorFetch, PRIVATE_NO_STORE } from './connector-authorization.ts';
+export { authorizedConnectorFetch, PRIVATE_NO_STORE } from './connector-authorization.ts';
 
 /** `CorpusContext.env` と同じ形。 env → 設定の写像だけを取る関数に渡す。 */
 export type EnvReader = (key: string) => string | undefined;
@@ -136,10 +136,7 @@ export async function proxy(
       init,
     );
   } catch (e) {
-    // token 取得の失敗はここには来ない。 Corpus の TokenProvider は
-    // `Promise<string | null>` の宣言どおり null を返す実装に揃えられ
-    // (Corpus 62e35f6)、 トークン無しのまま参照先へ進んで参照先自身に
-    // 401/503 を返させる。 ここへ来るのは fetch 自体の失敗だけ。
+    // 認証失敗は送信前に503として返す。ここでは接続失敗の詳細を外へ出さない。
     return Response.json(
       { error: 'connector_error', connector: conn.id },
       { status: 502, headers: { 'cache-control': PRIVATE_NO_STORE } },
@@ -188,10 +185,7 @@ export async function proxyStream(
   try {
     res = await authorizedConnectorFetch(c, conn, path + search, tokenProvider, projectKey, init);
   } catch (e) {
-    // token 取得の失敗はここには来ない。 Corpus の TokenProvider は
-    // `Promise<string | null>` の宣言どおり null を返す実装に揃えられ
-    // (Corpus 62e35f6)、 トークン無しのまま参照先へ進んで参照先自身に
-    // 401/503 を返させる。 ここへ来るのは fetch 自体の失敗だけ。
+    // 認証失敗は送信前に503として返す。ここでは接続失敗の詳細を外へ出さない。
     return Response.json(
       { error: 'connector_error', connector: conn.id },
       { status: 502, headers: { 'cache-control': PRIVATE_NO_STORE } },
@@ -207,22 +201,4 @@ export async function proxyStream(
   const acceptRanges = res.headers.get('accept-ranges');
   if (acceptRanges) responseHeaders.set('accept-ranges', acceptRanges);
   return new Response(res.body, { status: res.status, headers: responseHeaders });
-}
-
-export async function authorizedConnectorFetch(
-  c: Context,
-  connector: ServiceConnector,
-  path: string,
-  tokenProvider: TokenProvider,
-  projectKey = connector.id,
-  init: RequestInit = {},
-): Promise<Response> {
-  const token = await tokenProvider.getDownstreamToken(getUserToken(c), {
-    service: connector.id,
-    projectKey,
-    baseUrl: connector.baseUrl,
-  });
-  const headers = new Headers(init.headers);
-  if (token) headers.set('authorization', `Bearer ${token}`);
-  return connector.fetch(path, { ...init, headers });
 }

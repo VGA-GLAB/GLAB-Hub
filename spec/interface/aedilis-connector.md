@@ -13,7 +13,9 @@ Aedilis はこのコネクタを含め出席検証に関与しない。
 - メソッド / クエリ文字列 / ボディを転送する。`Authorization` はログイン中ユーザの
   Cernere access token から Aedilis 用 project token を発行して付与する。
 - レスポンスの status / `content-type` を透過して返す。
-- connector が例外（接続失敗等）を投げた場合は `502 { error: 'connector_error', connector, detail }`。
+- token発行失敗（例外/null/空文字/空白）は送信前に `503 downstream_token_unavailable`。
+  詳細は [下流認証契約](downstream-authorization.md)。応答は `private, no-store`。
+- connector が例外（接続失敗等）を投げた場合は `502 { error: 'connector_error', connector }`。
 - `baseUrl` 空（`AEDILIS_BASE_URL` 未設定）のとき `HttpServiceConnector` が `503` を返し、
   パネルが「未接続（degraded）」を表示する。
 
