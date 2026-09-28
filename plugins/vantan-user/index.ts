@@ -1,12 +1,13 @@
 import { Hono, getIdentity } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusContext, CorpusModule } from '../../corpus/server/hub/sdk.ts';
 import { createCernereProjectClient } from '../cernere/create-client.ts';
-import { getVantanUserProfile, setVantanUserProfile } from './profile-client.ts';
+import { getVantanUserProfile } from './profile-client.ts';
 import {
   isCompleteVantanUserProfile,
-  vantanUserInputSchema,
 } from './profile-schema.ts';
 import { ensureGlabUser, ensureSchema } from '../data.ts';
+import { registerSteamProfileRoutes } from './steam-profile-routes.ts';
+import { registrationInputSchema, saveRegistration } from './registration.ts';
 import { registerFacePhotoRoutes } from './face-photo-routes.ts';
 import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
 
@@ -25,6 +26,10 @@ const vantanUserModule: CorpusModule = {
     }));
     const client = createCernereProjectClient(ctx);
     const router = new Hono();
+    router.use('/profile', async (c, next) => {
+      c.header('cache-control', 'private, no-store');
+      await next();
+    });
 
     router.get('/profile', async (c) => {
       const identity = getIdentity(c);
@@ -43,7 +48,7 @@ const vantanUserModule: CorpusModule = {
 
     router.put('/profile', async (c) => {
       const body = await c.req.json().catch(() => null);
-      const parsed = vantanUserInputSchema.safeParse(body);
+      const parsed = registrationInputSchema.safeParse(body);
       if (!parsed.success) {
         return c.json({
           error: 'invalid_profile',
@@ -54,15 +59,17 @@ const vantanUserModule: CorpusModule = {
       try {
         const identity = getIdentity(c);
         ensureGlabUser(ctx.db, identity.userId);
-        await setVantanUserProfile(client, identity.userId, parsed.data);
-        return c.json({ ok: true, profile: parsed.data });
+        await saveRegistration(client, identity.userId, parsed.data);
+        const { steamProfile: _steamProfile, ...profile } = parsed.data;
+        return c.json({ ok: true, profile });
       } catch (error) {
-        ctx.logger.error(`vantan_user write failed: ${errorMessage(error)}`);
+        ctx.logger.error('vantan_user registration write failed');
         return c.json({ error: 'cernere_unavailable' }, 503);
       }
     });
 
     registerFacePhotoRoutes(router, ctx);
+    registerSteamProfileRoutes(router, ctx, client);
 
     ctx.registerRoute(router);
     ctx.registerPanel({ title: 'プロフィール', icon: '👤' });

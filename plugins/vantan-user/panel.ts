@@ -1,3 +1,4 @@
+import { steamProfileSection } from './steam-profile-panel.ts';
 import { facePhotoSection } from './face-photo-panel.ts';
 import {
   el,
@@ -19,5 +20,6 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
     '名前・役職・学科は登録済みです。プロフィールの単一情報源は Cernere です。',
   ));
   container.appendChild(box);
+  container.appendChild(steamProfileSection(ctx));
   container.appendChild(facePhotoSection(ctx));
 }

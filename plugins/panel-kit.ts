@@ -1,3 +1,4 @@
+import { steamProfileFields } from './vantan-user/steam-profile-form.ts';
 // プラグインパネル共有 frontend ヘルパ。
 //
 // 各モジュールの panel.ts はこれを import する。 esbuild が panel ごとに
@@ -138,7 +139,8 @@ export async function requireVantanUserRegistration(
     const name = profileField('名前', profileResponse.profile.name || ctx.identity.displayName || '');
     const roleTitle = profileField('役職', profileResponse.profile.roleTitle);
     const departmentName = profileField('学科', profileResponse.profile.departmentName);
-    form.append(name.label, roleTitle.label, departmentName.label);
+    const steam = steamProfileFields(ctx);
+    form.append(name.label, roleTitle.label, departmentName.label, steam.element);
 
     const message = el('p', 'gl-muted');
     const submit = el('button', 'gl-btn', '登録して GLAB を開く');
@@ -155,12 +157,13 @@ export async function requireVantanUserRegistration(
           name: name.input.value,
           roleTitle: roleTitle.input.value,
           departmentName: departmentName.input.value,
+          steamProfile: steam.read(),
         }),
       }).then(async (result) => {
         if (!result.ok) {
           const body = await result.json().catch(() => null) as { error?: string } | null;
           message.textContent = body?.error === 'invalid_profile'
-            ? '名前・役職・学科をすべて入力してください。'
+            ? '名前・役職・学科とSteam IDの形式（任意・17桁の数字）を確認してください。'
             : 'Cernere への登録に失敗しました。時間をおいて再試行してください。';
           submit.disabled = false;
           return;
