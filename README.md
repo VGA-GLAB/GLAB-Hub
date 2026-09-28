@@ -103,3 +103,9 @@ npm --prefix bot run typecheck
 ```
 
 詳細は [DESIGN.md](./DESIGN.md) / [CLAUDE.md](./CLAUDE.md) を参照。
+
+### 非対話のHub導入
+
+`node scripts/site/setup.mjs` は固定済みCorpus submoduleを準備し、CorpusとGLABで `npm ci`、Hubの `npm run build` を順に実行する。既存Corpusの差分やgitlink不一致は上書きせず停止する。DB・秘密設定・Botには変更せず、起動はExcubitorに任せる。データexport/importは未対応のため明示的に失敗する。
+
+AWS配置前提とExのclone対象制限は [導入仕様](spec/feature/service-bootstrap.md) を参照。GLABのcheckout名は `GLAB` とし、Mac上のPostgreSQL・Cernere接続と公開URLを配置先に設定する。
