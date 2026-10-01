@@ -254,6 +254,7 @@ export function ensureSchema(db: SqlDb): void {
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS glab_project_release_project ON glab_project_release(project_id, published_at DESC)');
   ensureCommunitySchema(db);
+  ensureCocoiruSchema(db);
 }
 
 /** Hub と Bot が共有する日次コンテンツの最小永続状態。 */
@@ -314,6 +315,36 @@ function ensureCommunitySchema(db: SqlDb): void {
     db.prepare(`INSERT INTO glab_role_def (key, label, sort) VALUES (?, ?, ?)
       ON CONFLICT(key) DO NOTHING`).run(role.key, role.label, role.sort);
   }
+}
+
+/**
+ * Cocoiru 常駐アプリのバックエンド (plugins/cocoiru)。 在席 lease・呼び出し・
+ * Discord ロビー secret だけを持ち、 名前などの個人情報は保存しない。
+ */
+function ensureCocoiruSchema(db: SqlDb): void {
+  db.exec(`CREATE TABLE IF NOT EXISTS glab_cocoiru_availability (
+    user_id TEXT PRIMARY KEY,
+    available INTEGER NOT NULL CHECK(available IN (0, 1)),
+    expires_at INTEGER NOT NULL
+  )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS glab_cocoiru_call (
+    id TEXT PRIMARY KEY,
+    sender_id TEXT NOT NULL,
+    recipient_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK(kind IN ('call', 'tasukete')),
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
+  )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS glab_cocoiru_lobby (
+    id INTEGER PRIMARY KEY CHECK(id = 1),
+    secret TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS glab_cocoiru_availability_expires ON glab_cocoiru_availability(expires_at)');
+  db.exec('CREATE INDEX IF NOT EXISTS glab_cocoiru_call_recipient ON glab_cocoiru_call(recipient_id, expires_at)');
+  db.exec('CREATE INDEX IF NOT EXISTS glab_cocoiru_call_sender ON glab_cocoiru_call(sender_id, kind, created_at)');
 }
 
 const DEFAULT_ROLE_DEFS = [

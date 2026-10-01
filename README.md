@@ -27,6 +27,7 @@ GLAB を操作しない。デスクトップでは Cocoiru の常駐アプリ (L
 | ロール | Web hub `roles` → ロール定義とメンバー割当 |
 | フォーラム | Web hub `forum` → GLAB内で完結するスレッド・コメント |
 | 在席共有 | Web hub `consult` → 「おれひま」在席共有 |
+| Cocoiru バックエンド | Web hub `cocoiru` → デスクトップ常駐アプリ Cocoiru の在席 lease・呼び出し・タスケテ・Discord ロビー secret（画面なし、[spec](spec/feature/cocoiru-backend.md)） |
 | 技術リンク | Web hub `tech-links` → 技術リンクの共有・タグ・コメント |
 | Cernere設定 | Web hub `cernere-admin` → project credential等のCernere設定動線 |
 | ユーザ管理 | Web hub `vantan-user` + Cernere（Corpus が認証、初回アクセス時に名前・役職・学科を登録） |
