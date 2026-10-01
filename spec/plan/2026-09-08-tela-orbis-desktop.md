@@ -1,5 +1,8 @@
 # Tela–Orbis を利用する GLAB 常駐操作 UI
 
+> **2026-10-01 移管済み**: この設計で作った `desktop/` (`GLAB::Desktop`) は neco 判断で LUDIARS/Cocoiru の常駐アプリへ移し、
+> GLAB からは撤去した。接続は Orbis ではなく Cocoiru の Memoria プラグインが中継する (Cocoiru `spec/GLAB-SCREENS.md`)。
+
 ## 採用と分担
 
 neco の「操作画面もTela」「TelaにOrbisと連携できる仕組みを用意します」を採用する。

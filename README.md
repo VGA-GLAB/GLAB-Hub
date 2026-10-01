@@ -5,7 +5,8 @@
 GLAB 特化のプラグインパックと、Discord 通知 Bot を載せた派生 hub。
 
 利用者の操作は GLAB の画面から行う。Discord は通知の受け取り専用で、Slash command から
-GLAB を操作しない。今後は desktop を主経路にする計画だが、desktop 版は準備中である。
+GLAB を操作しない。デスクトップでは Cocoiru の常駐アプリ (LUDIARS/Cocoiru) が GLab の画面
+（ホーム・プロフィール・求人・予定・相談・出席）とおれひま・出席を受け持つ。
 
 ## 機能
 
