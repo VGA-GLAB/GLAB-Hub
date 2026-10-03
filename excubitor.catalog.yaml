@@ -18,11 +18,14 @@ services:
     cwd: ${ARS_ROOT}/GLAB
     # npm 経由 (shell) で起動すると Excubitor の breakaway launcher が返す pid は cmd.exe になり、
     # launcher 終了と同時にその cmd.exe だけが消えて「即死」と判定される (実体は生き残り孤児化)。
-    # node --run は node 本体が常駐するので pid が実体を指す。--run は predev を走らせないため
+    # node --run は node 本体が常駐するので pid が実体を指す。--run は prestart を走らせないため
     # ビルドは build_command で起動前に行う。
-    command: node --run dev
+    # 本番用の start (tsx の watch なし) で起動する。dev の tsx watch は監視の子プロセスを抱えて
+    # メモリを余分に食い、AWS 拠点 (1.8GB・スワップ無し) で余裕を削っていた (2026-10-04 neco)。
+    # コード変更の反映は Excubitor からの再起動 (build_command → start) で行う。
+    command: node --run start
     build_command: npm run build
-    allow_hot_reload: true
+    allow_hot_reload: false
     # GLAB は Corpus (submodule) を in-process 起動する派生 hub。
     # Corpus プラグインが接続する実依存を起動順へ反映する。
     depends_on: [cernere, cernere-frontend, aedilis, tirocinium, discutere, volputas, ostiarius]
