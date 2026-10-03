@@ -28,6 +28,15 @@
 
 ## 配信・確認
 
+### SPEC-GLAB-SHELL-010: 更新時のキャッシュ切替
+
+- `npm run build` の最後に `scripts/package-web.mjs` が `public/build/` を作成し、Corpus はこの成果物を配信する。
+- HTML 内の GLab JS・CSS・アイコンは内容ハッシュを含む `/vendor/` URL を参照する。同じ package version でも内容が変われば別 URL になる。
+- ビルド済みパネルも含むハッシュを HTML の `glab-build` メタデータに持たせ、遅延ロードする GLab パネルの URL に付ける。
+- HTML は Corpus の既存 `no-cache` 配信で再検証する。ページ再読込時に新しい HTML と資産へ切り替わる。Cookie・認証情報・テーマ設定は削除しない。
+- 資産を書き終えてから HTML を置換し、旧ハッシュの資産は保持する。ソースの HTML/CSS と古い生成 JS を混在させない。
+- 開いたままのフォームを自動再読込しない。更新の確認はページ再読込で行う。
+
 - Corpus submodule は変更しない。`theme.css` / `shell.css` は build 時に `public/vendor/` へコピーし、既存の配信経路で読む。
 - 変更反映には GLab の web/panel build が必要。dashboard API の追加はマージ後に本体で Excubitor による再起動が必要。
 - 確認項目: PC と狭いスマホ、ライト／ダーク／OS連動、メニューのキーボード操作、所属全状態、通信失敗、現在地保存失敗、ログアウト後の更新停止。

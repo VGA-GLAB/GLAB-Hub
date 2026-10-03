@@ -26,6 +26,7 @@ import {
 } from '../../corpus/public/src/render/ui-cache.ts';
 import { apiFetchForPanel, el } from './dom.ts';
 import { trackDeclarativePanel } from './hmr.ts';
+import { versionedPanelUrl } from './asset-version.ts';
 
 /** @implements SPEC-GLAB-SHELL-003 */
 export async function renderModulePanel(
@@ -51,7 +52,7 @@ export async function renderModulePanel(
     hubApi: (path, init) => apiFetchForPanel(path, init),
   };
   try {
-    const url = `/plugins/${mod.id}/${mod.panel.entry}`;
+    const url = versionedPanelUrl(`/plugins/${mod.id}/${mod.panel.entry}`);
     const panel = (await import(/* @vite-ignore */ url)) as PanelModule;
     if (typeof panel.mount !== 'function') {
       throw new Error('panel.js が mount() を export していません');
