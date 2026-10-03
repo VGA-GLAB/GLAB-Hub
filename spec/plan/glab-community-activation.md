@@ -360,11 +360,11 @@ consult は v0.2 forum と**別物として設計**するが、**実装開始は
 
   | 置き場所 | キー | 中身 |
   |---|---|---|
-  | GLab bot 暗号化 config (`npm run config-setup`) | `DISCORD_TOKEN` / `DISCORD_CLIENT_ID` / `DISCORD_GUILD_ID` / `GLAB_EVENT_CHANNEL_ID` / `GLAB_JOB_CHANNEL_ID` | bot のログインと投稿先。**Infisical ではない** |
+  | GLab bot 暗号化 config (`npm run config-setup`) | `DISCORD_TOKEN` / `DISCORD_CLIENT_ID` / `DISCORD_GUILD_ID` / `GLAB_EVENT_CHANNEL_ID` / `GLAB_JOB_CHANNEL_ID` | bot のログインと投稿先。**Excubitor Vault ではない** |
   | 同上 | `GLAB_REVIEW_CHANNEL_ID` (`channels.review`) | 感想リレーの投稿先。未設定ならキューに滞留し、設定後に古い順から配信される |
-  | Infisical (Cernere) | `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` / `DISCORD_REDIRECT_URI` | OAuth 連携。bot と**同じ Discord アプリ**から取れる |
-  | Infisical (GLAB) | `GLAB_GITHUB_TOKEN` | public read のみ。未設定でも動く (60req/h に縮退) |
-  | Infisical (GLAB) | `GLAB_PROJECTS_SERVICE_TOKEN` | 外部受け口 (projects read / consult / tech-links) 共通のトークン。**未設定だと受け口が 503**。感想リレーには不要 |
+  | Excubitor Vault (Cernere) | `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` / `DISCORD_REDIRECT_URI` | OAuth 連携。bot と**同じ Discord アプリ**から取れる |
+  | Excubitor Vault (GLAB) | `GLAB_GITHUB_TOKEN` | public read のみ。未設定でも動く (60req/h に縮退) |
+  | Excubitor Vault (GLAB) | `GLAB_PROJECTS_SERVICE_TOKEN` | 外部受け口 (projects read / consult / tech-links) 共通のトークン。**未設定だと受け口が 503**。感想リレーには不要 |
 
   Discord Developer Portal で**アプリを 1 つ**作れば、bot token (Bot タブ) と
   OAuth client id/secret (OAuth2 タブ) の両方がそこから取れる。

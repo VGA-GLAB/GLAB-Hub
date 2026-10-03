@@ -152,7 +152,7 @@ passkey 記録との一致率がレポートできる。誤束縛 (別人への�
 - **検証**: 各フェーズの完了条件は手動 E2E + vitest の双方。dev server の再起動を伴う検証は
   Excubitor 経由 + Concordia claim (cc-test 運用) に従う。
 - **設定**: 新規 env は `spec/setup/environment.md` の表に追記。シークレットは暗号化 config
-  または Infisical (平文 .env へ置かない)。
+  または Excubitor Vault (平文 .env へ置かない)。
 - **他リポへの波及まとめ**:
   - Ostiarius: 原則変更なし (必要になれば warning 抑止オプションのみ)
   - Cocoiru: Phase 2 で agent の送信先設定化 (フォーク先は着手時に neco へ確認)

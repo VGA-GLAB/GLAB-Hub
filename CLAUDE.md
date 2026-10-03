@@ -69,3 +69,9 @@ global と設定済み guild へ同期する。同期前の残存 command は停
 - 雛形：VantanHub（同じ Corpus プラグインパック方式）
 - 流用元：Aedilis（施設 API）、
   Discutere、@ludiars/encrypted-config（暗号化 config）
+
+## Hub の起動設定
+
+開発時も Excubitor の Vault-only 注入を使う。非 secret は catalog `env:`、secret は Ex Vault。
+GLAB は `.env` / env-cli を使わず、必須 env を検証して Corpus `index.ts` を直接読み込む。
+Corpus standalone bootstrap の secret 取得や CLI env 上書きは通さない。

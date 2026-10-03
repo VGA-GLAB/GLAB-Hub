@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "contractsDir": "contracts",
+  "importFrom": "@ludiars/log-weaver",
+  "contracts": [
+    {
+      "id": "C-1",
+      "criterion": "C-1 requireInjectedEnvironment(env): 必須の Ex 注入値が空なら値を含まないエラーで起動を拒否する",
+      "symbol": "requireInjectedEnvironment",
+      "file": "startup/environment.ts",
+      "module": "./contracts/injected-environment.contract.ts",
+      "mode": "observe",
+      "sample": 1
+    }
+  ]
+}

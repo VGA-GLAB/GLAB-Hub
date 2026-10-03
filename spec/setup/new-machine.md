@@ -3,11 +3,10 @@
 既に動いているマシンから **別の環境へ移す / 二台目を立てる** ときの手順。
 GLab 単体の env は [`environment.md`](./environment.md)、Bot の暗号化 config は
 [`bot-encrypted-config.md`](./bot-encrypted-config.md)、Web hub の起動は
-[`hub.md`](./hub.md) が正本。ここは **それらの外側** — Infisical に入らない設定、
+[`hub.md`](./hub.md) が正本。ここは **それらの外側** — catalog の非 secret 設定、
 マシンに束縛された暗号化ストア、Excubitor 側の前提 — を扱う。
 
-> 2026-08-04 に GLab が起動しなかった実例から起こした。原因は「Infisical の設定漏れ」
-> ではなく、**§2 の環境変数 2 本**と **§3 の machine identity** だった。
+> 2026-10-04: Vault-only 運用へ更新。§2 の catalog 信頼設定と §3 の Vault 紐付けを確認する。
 
 ---
 
@@ -46,7 +45,7 @@ EXCUBITOR_TRUSTED_FRAGMENT_REPOS=GLAB
 
 理由 (Excubitor `src/catalog/loader.ts`):
 
-- 断片 (`<repo>/excubitor.catalog.yaml`) が `infisical` / `requires_secret` /
+- 断片 (`<repo>/excubitor.catalog.yaml`) が `requires_secret` /
   `cernere_launch_credentials` のいずれかを持つ場合、**信頼されていない断片は
   そのサービス定義ごと破棄される**。
 - 走査ルートが信頼境界になるのは `EXCUBITOR_ARS_ROOT` を**明示設定したときだけ**。
@@ -87,24 +86,12 @@ master 鍵が変われば既存の暗号化データは復号できなくなる�
   同じ値に明示設定し、config ファイルをコピーする
 - **B. 入れ直す** — 新マシンで Excubitor WebUI / bot の config-setup から再入力する
 
-**Excubitor の config.enc が持っているもの** (Infisical **ではない**):
+**Vault-only の確認**:
 
-- Infisical machine identity (client id / secret / siteUrl / environment)
-- サービス別 Infisical マッピング (`project_id` など)
-- `domain_root`
-- Discord 通知設定
-
-**症状**: 復号できないと `config decrypt failed (master key changed?)` になり、
-identity が空のまま `service glab requires Infisical inject but Excubitor has no
-machine identity` で spawn 前に落ちる。
-
-**確認**:
-
-```bash
-curl -s http://127.0.0.1:17332/api/v1/config/infisical      # identity.configured が true か
-curl -s -X POST http://127.0.0.1:17332/api/v1/config/infisical/test -d '{}' \
-  -H 'content-type: application/json'                        # 「接続成功 (login OK)」
-```
+- Ex の管理画面で GLAB の Vault secret 紐付けと必須キーの充足を確認する。値をログへ出さない。
+- 非 secret の設定はサービス所有 catalog の `env:`、secret は Vault で管理する。
+- Cernere 起動 credential は Ex が spawn ごとに発行する。GLAB が secret を取得する設定は不要。
+- Vault の移設・復旧は Ex の現行手順に従う。旧 machine identity / env-cli の復旧手順は使わない。
 
 ---
 
@@ -130,7 +117,7 @@ supervisor 自体を更新するときは Scheduled Task を stop → start す�
 
 ---
 
-## 5. Cernere (Infisical に入らない設定)
+## 5. Cernere (catalog / Vault 注入設定)
 
 | キー | 既定 | 備考 |
 |---|---|---|
@@ -143,7 +130,7 @@ supervisor 自体を更新するときは Scheduled Task を stop → start す�
 | `CERNERE_SECRET_KEY` | — | AES-256-GCM の復号鍵。OIDC 署名鍵を DB に持つ場合も必須 |
 | `CERNERE_OIDC_MODE` | `auto` | **GLab 用途なら `off`**。GLab は Cernere 認証だけで完結し OIDC Provider を使わない |
 
-PASETO 鍵 (`CERNERE_PASETO_SECRET_KEY` / `_PUBLIC_KEY` / `_KID`) は Infisical 側。
+PASETO 鍵 (`CERNERE_PASETO_SECRET_KEY` / `_PUBLIC_KEY` / `_KID`) は Excubitor Vault 側。
 **未設定だと `/api/auth/project-token` が 500 になり、GLab のログインが通らない。**
 `GET /.well-known/cernere-public-key` が 1 件以上返れば有効。
 
@@ -189,7 +176,7 @@ ostiarius) が止まっていても **GLab 自体は起動し、該当パネル�
 | 症状 | 原因 |
 |---|---|
 | `hot reload is disabled for service glab` | §2 の環境変数 2 本が未設定で断片が破棄されている |
-| `has no machine identity` | §3 の config.enc が別マシンの master 鍵で復号できていない |
+| 必須 env 不足で起動拒否 | §3 の Vault 紐付け・復号と catalog 設定を確認する |
 | `'tsx' は、内部コマンドまたは外部コマンド...として認識されていません` で無言死 | シェルの `NODE_ENV=production` により devDependencies が入っていない。**`NODE_ENV=development npm install --include=dev`** で入れ直す |
 | `/api/auth/project-token` が 500 | Cernere の PASETO 鍵が未登録 (§5) |
 | `attendance gateway key refresh failed` | Ostiarius 未起動。GLab の障害ではない |

@@ -61,7 +61,7 @@ Calliope はその方式に乗らない。Calliope の `/api/*` は固定の `CA
 `healthPath: '/health'`。Calliope の `/health` は `/api/*` 認可の対象外
 （`Calliope/src/routes/health.ts`）なので token 無しでも到達する。
 専用コネクタは health/probe に Authorization を送らない。health 成功は data 認証成功を意味しない。
-data の向き先は Ex topology / Infisical 管理下の値だけにする。
+data の向き先は Ex topology / Excubitor Vault 管理下の値だけにする。
 `registerConnector()` により、この health は組み込み「🟢 ステータス」タブの
 接続サービス一覧（`/api/hub/overview`）に他サービスと並んで出る。GLAB 側に status
 プラグインは作らない（`tests/navigation-contract.test.ts` が単一 Status 面を固定している）。

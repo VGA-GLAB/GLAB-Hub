@@ -60,22 +60,22 @@ GLAB/
 
 ### Web hub
 
-通常運用では **Excubitor (Ex) から起動する**。ExはGLABをspawnするたびに新しい
+Web hub は開発時も **Excubitor (Ex) から起動する**。ExはGLABをspawnするたびに新しい
 `CERNERE_PROJECT_CLIENT_SECRET`を生成し、Cernereへ登録してから子プロセスenvへ直接渡す。
-GLAB用secretをInfisicalや`.env`へ固定保存しない。
+secret は Ex Vault で管理し、GLAB は注入済み env のみを読む。起動 credential は固定保存しない。
 
 1. ExのLaunch画面で`glab`を選択する（`cernere` / `corpus` / `volputas`は依存として先に起動）。
 2. ExのpreflightでCernere接続とExcubitor issuer credentialを確認する。
 3. Startを実行する。GLABは `http://localhost:5187` で起動する。
 
-単独開発時だけ従来の`.env` / env-cli経路を利用できる。
+依存を準備してから Ex の Launch 画面で起動する。設定の正本は [環境変数一覧](spec/setup/environment.md)。
 
 ```bash
 git clone --recurse-submodules <this-repo>
 npm install
 npm --prefix corpus install
-cp .env.example .env
-npm run dev
+# 起動設定は Ex Vault / catalog env で管理する
+# 起動は Ex: node --run dev（事前ビルドは build_command）
 ```
 
 ### Discord 通知 Bot

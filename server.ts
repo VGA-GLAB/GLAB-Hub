@@ -6,13 +6,15 @@
 //
 //   tsx server.ts
 //     → 環境変数で plugins / data / public / port を Corpus に伝える
-//     → corpus/server/bootstrap.ts を起動 (Infisical bootstrap → index.ts)
+//     → Ex 注入値を検証し corpus/server/index.ts を起動 (Vault-only)
 //
 // Discord Bot は別プロセス (`bot/`)。イベントはGLAB PostgreSQLをWeb hubと共有し、
 // 出席・Bot求人等のローカル運用データはSQLiteを利用する (DESIGN.md §4)。
 
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { installLogging } from './corpus/server/lib/logging.ts';
+import { requireInjectedEnvironment } from './startup/environment.ts';
 import { closeEventStore, initializeEventStore } from './plugins/events/store.ts';
 import { cernereClientOwner } from './plugins/cernere/shared-owner.ts';
 import { createShutdown } from './plugins/cernere/shutdown.ts';
@@ -22,6 +24,9 @@ import {
 } from './plugins/events/facility-store.ts';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
+
+installLogging();
+requireInjectedEnvironment(process.env);
 
 // GLAB プラグインパック / データ / frontend の所在を Corpus に伝える
 process.env.CORPUS_PLUGIN_DIR ??= resolve(ROOT, 'plugins');
@@ -82,7 +87,9 @@ process.on('SIGTERM', onSignal);
 
 try {
   await initialization;
-  if (!stopping) await import('./corpus/server/bootstrap.ts');
+  // Corpus の standalone bootstrap は secret を再取得するため通さない。
+  // GLAB の設定は Ex が注入する。Corpus CLI の env 上書きも適用しない。
+  if (!stopping) await import('./corpus/server/index.ts');
 } catch (error) {
   try { await shutdown(); }
   catch (cleanupError) { throw new AggregateError([error, cleanupError], 'GLAB initialization and cleanup failed'); }

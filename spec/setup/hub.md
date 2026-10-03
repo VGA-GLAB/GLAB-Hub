@@ -15,8 +15,8 @@ GLAB Web hub は Corpus（submodule `corpus/`）の汎用 hub フレームワー
 git clone --recurse-submodules <this-repo>
 npm install
 npm --prefix corpus install
-cp .env.example .env        # CERNERE_BASE_URL / AEDILIS_BASE_URL / VOLPUTAS_URL 等を埋める
-npm run dev                 # http://localhost:5187
+# Ex の Vault / catalog env を設定する
+# Ex の Launch 画面で glab を起動する
 ```
 
 ## npm スクリプト（`package.json`）
@@ -27,11 +27,10 @@ npm run dev                 # http://localhost:5187
 | `build:web` | `public/src/app.ts` を `public/app.js` へ bundle（React は Corpus 側の 1 copy に固定） |
 | `build:panels` | `package.json` に列挙した `plugins/*/panel.ts` → `panel.js`（ESM, es2020） |
 | `build` | GLAB frontend + panels |
-| `dev` | `tsx watch ... server.ts`（`predev` で build）。port 5187 |
-| `start` | `tsx ... server.ts`（`prestart` で build） |
+| `dev` | `tsx watch server.ts`（`predev` で build）。port 5187 |
+| `start` | `tsx server.ts`（`prestart` で build） |
 | `typecheck` | `tsc --noEmit -p tsconfig.json && -p tsconfig.frontend.json` |
 | `bot` | `npm --prefix bot run start`（Bot 起動の委譲） |
-| `env:*` | Cernere env-cli（Infisical）連携（`env:setup/gen/list/set/get/test/initialize`） |
 
 `server.ts` は環境変数で Corpus に所在を伝える：`CORPUS_PLUGIN_DIR=plugins`,
 `CORPUS_DATA=<root>/data`, `CORPUS_PUBLIC_DIR=public`, `CORPUS_PORT=5187`,
@@ -52,3 +51,7 @@ npm run dev                 # http://localhost:5187
 - 環境変数: [`setup/environment.md`](./environment.md)
 - Bot 設定: [`setup/bot-encrypted-config.md`](./bot-encrypted-config.md)
 - 別マシンでの立ち上げ: [`setup/new-machine.md`](./new-machine.md)
+
+Ex catalog は `node --run dev` を実行し、ビルドは `build_command` が担当する。
+GLAB は Ex 注入値を検証し、Corpus のログ初期化後に `corpus/server/index.ts` を直接読み込む。
+Corpus の standalone bootstrap / env-cli / services スクリプトは GLAB の起動経路に含まない。

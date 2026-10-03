@@ -1,6 +1,6 @@
 # setup/ — 環境変数・シークレット一覧
 
-GLAB は 2 系統の設定を持つ：**hub** は通常Excubitor spawn env（単独開発のみenv-cli / `.env`）、**Bot** は暗号化 config
+GLAB は 2 系統の設定を持つ：**hub** は開発時も Excubitor の Vault-only spawn env、**Bot** は暗号化 config
 （[`bot-encrypted-config.md`](./bot-encrypted-config.md)）。token / API キーは平文 JSON に置かない。
 
 ## Web hub（Excubitor spawn env）
@@ -19,7 +19,7 @@ GLAB は 2 系統の設定を持つ：**hub** は通常Excubitor spawn env（単
 | `CORPUS_SERVICE_ID` | `EducationLab` | | サービス識別（マニフェスト / Cernere project key）。`excubitor.catalog.yaml` の `cernere_launch_credentials.target_project` と一致させる |
 | `CORPUS_DISPLAY_NAME` | `GLab-Hub` | | サービス表示名（マニフェスト / 自己コネクタ） |
 | `CORPUS_SERVICE_VERSION` | GLAB package version | | GLAB `/api/health` と概況へ出すバージョン |
-| `GLAB_DATABASE_URL` | `postgresql://glab_user:glab@localhost:5432/glab` | ○ | GLAB所有イベント・施設マスタをWeb/Botで共有するPostgreSQL URL。既定はExcubitor catalog断片の`env:`が注入するlocalhost開発DB（LUDIARS/infraの`init-databases.sql`が作る）。ローカル以外へ置く場合はInfisical注入で上書きする |
+| `GLAB_DATABASE_URL` | `postgresql://glab_user:glab@localhost:5432/glab` | ○ | GLAB所有イベント・施設マスタをWeb/Botで共有するPostgreSQL URL。既定はExcubitor catalog断片の`env:`が注入するlocalhost開発DB（LUDIARS/infraの`init-databases.sql`が作る）。ローカル以外へ置く場合はExcubitor Vault 注入で上書きする |
 | `AEDILIS_BASE_URL` | （空 = degraded） | | 施設予約の集約先 Aedilis |
 | `OSTIARIUS_URL` | （空 = 出席無効） | | GLabサーバーからOsへ到達する内部URL。OsはTunnelへ公開しない。ブラウザ向けURLはOs healthの `lanUrl` のみを使い、会場Wi-Fiから直接healthへ到達できた場合だけ出席を表示 |
 | `VOLPUTAS_URL` | （空 = degraded） | | Volputas API / health の base URL（Ex topology は `http://localhost:8892` を注入） |
@@ -27,7 +27,7 @@ GLAB は 2 系統の設定を持つ：**hub** は通常Excubitor spawn env（単
 | `DISCUTERE_WEB_URL` | `DISCUTERE_URL` | | Di Web UI が API と別 origin の場合の public base URL |
 | `TIROCINIUM_URL` | （空 = degraded） | | Tr API の内部 base URL（Ex topology は `http://localhost:8084` を注入） |
 | `CALLIOPE_BASE_URL` | （空 = degraded） | | PM進捗の集約先 Calliope。`GET /api/glab/progress` を read するだけ（[`interface/calliope-connector.md`](../interface/calliope-connector.md)） |
-| `CALLIOPE_SERVICE_TOKEN` | （空 = 無認証で送信） | ○ | Calliope `/api/*` の固定 Bearer。ユーザ単位トークンを発行できないためサービス間トークンを使う。平文保存せずInfisical / Ex spawn envから注入 |
+| `CALLIOPE_SERVICE_TOKEN` | （空 = 無認証で送信） | ○ | Calliope `/api/*` の固定 Bearer。ユーザ単位トークンを発行できないためサービス間トークンを使う。平文保存せずExcubitor Vault / spawn envから注入 |
 | `GLAB_GITHUB_TOKEN` | （空 = 未認証アクセス） | | GitHub public API の rate-limit 緩和にだけ使う read 用 token。接続先は `https://api.github.com` 固定で、未設定でも同期は動く |
 | `GLAB_OMNIPOTENS_REVIEW_ROOT` | （空 = 解析閲覧無効） | | Omnipotentsの`Review`フォルダ。`Review/<project name>/report`を登録済みリポジトリ名からだけ参照し、任意パス、worktree、シンボリックリンクは受け付けない |
 
@@ -38,7 +38,12 @@ secretはCernereで暗号化永続化され、GLAB子プロセスenvへだけ渡
 GLABはCernere frontendを起動依存に持たない。Corpusがproject credentialでCernere backendへ
 直接接続し、ユーザーセッションはGLAB originのHttpOnly access/refresh Cookieで継続する。
 
-単独開発時のみ、`.env.secrets`のInfisical machine identityまたは`.env`へ同じキーを設定できる。
+Hub は `.env` / `.env.secrets` を読み込まない。非 secret のパス・フラグ・ID は catalog の `env:`、secret は Ex Vault へ登録してサービスへ紐付ける。
+注入の優先順位は topology < catalog env < 暗号化 runtime config < Vault。
+`server.ts` は DB 初期化より前に `CERNERE_BASE_URL`、`CERNERE_PROJECT_CLIENT_ID`、
+`CERNERE_PROJECT_CLIENT_SECRET`、`CORPUS_PUBLIC_URL`、`CORPUS_TOKEN_MODE`、`GLAB_DATABASE_URL` を検証する。
+不足時はキー名だけを示して停止し、secret の再取得や旧設定へのフォールバックは行わない。
+Corpus standalone bootstrap の CLI 引数による env 上書きは GLAB では適用しない。
 
 ## Discord Bot（暗号化 config or env、`bot/config.ts`）
 

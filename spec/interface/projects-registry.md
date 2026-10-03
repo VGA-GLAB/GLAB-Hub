@@ -70,7 +70,7 @@ GLabの「レビュー」パネルではプロジェクト名を選択し、Omni
   以下のいずれかの header で service token を提示する:
   - `X-Glab-Service-Token: <token>`
   - `Authorization: Bearer <token>`（Cernere 検証を経ないその他クライアント向け）
-- token は env `GLAB_PROJECTS_SERVICE_TOKEN` で設定する（Excubitor spawn env / Infisical）。
+- token は env `GLAB_PROJECTS_SERVICE_TOKEN` で設定する（Excubitor spawn env / Excubitor Vault）。
   **未設定時は `503 { error: 'service_token_unconfigured' }`**（無言で全許可・全拒否のどちらにも
   倒さない、§7.1）。token 不一致 / 未提示は `401 { error: 'invalid_service_token' }`。
   比較は `crypto.timingSafeEqual`（平文比較しない）。
