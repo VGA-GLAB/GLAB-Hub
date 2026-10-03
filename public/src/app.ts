@@ -16,16 +16,25 @@ import type {
 import { el } from './dom.ts';
 import { mountGlabLogin } from './login.tsx';
 import { renderShell } from './shell.ts';
+import { initTheme, themeControl } from './theme.ts';
+
+initTheme();
 
 const app = document.getElementById('app') as HTMLElement;
 
 let unmountLogin: (() => void) | null = null;
+let unmountShell: (() => void) | null = null;
 
 /** @implements SPEC-GLAB-SHELL-002 */
 function showLogin(message: string): void {
+  unmountShell?.();
+  unmountShell = null;
   unmountLogin?.();
   unmountLogin = null;
   app.innerHTML = '';
+  const theme = themeControl();
+  theme.classList.add('login-theme');
+  app.appendChild(theme);
   const box = el('div', 'login');
   const mount = el('div', 'login-ui');
   box.appendChild(mount);
@@ -42,7 +51,7 @@ async function boot(): Promise<void> {
     const { services } = await apiJson<{ services: ServiceInfo[] }>(
       '/api/hub/services',
     );
-    renderShell(app, identity, modules, services, () =>
+    unmountShell = renderShell(app, identity, modules, services, () =>
       showLogin('ログアウトしました。'),
     );
   } catch (e) {

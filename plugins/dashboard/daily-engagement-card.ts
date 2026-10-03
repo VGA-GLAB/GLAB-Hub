@@ -100,14 +100,14 @@ function ensureDailyEngagementStyles(): void {
     .gl-daily-card {
       display: grid; gap: 1rem;
       grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-      border-color: color-mix(in srgb, var(--gl-accent, #6c5ce7) 45%, transparent);
-      background: linear-gradient(135deg, color-mix(in srgb, var(--gl-accent, #6c5ce7) 10%, transparent), transparent);
+      border-color: var(--line);
+      background: var(--bg-2);
     }
     .gl-daily-quest, .gl-daily-spotlight { display: grid; align-content: start; gap: 0.55rem; }
-    .gl-daily-spotlight { border-left: 1px solid var(--gl-border, #444); padding-left: 1rem; }
+    .gl-daily-spotlight { border-left: 1px solid var(--line); padding-left: 1rem; }
     .gl-daily-title { display: block; font-size: 1.1rem; }
     @media (max-width: 40rem) {
-      .gl-daily-spotlight { border-left: 0; border-top: 1px solid var(--gl-border, #444); padding: 1rem 0 0; }
+      .gl-daily-spotlight { border-left: 0; border-top: 1px solid var(--line); padding: 1rem 0 0; }
     }
   `;
   document.head.appendChild(style);

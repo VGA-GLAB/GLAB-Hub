@@ -20,6 +20,10 @@ const assets = [
     resolve(vendorDir, 'apple-touch-icon.png'),
   ],
   [resolve(root, 'public/favicon.ico'), resolve(vendorDir, 'favicon.ico')],
+  // Corpus serves only its fixed shell paths and vendor/:file. Keep GLab styles
+  // separate without widening the framework's public-file allowlist.
+  [resolve(root, 'public/theme.css'), resolve(vendorDir, 'theme.css')],
+  [resolve(root, 'public/shell.css'), resolve(vendorDir, 'shell.css')],
 ];
 
 mkdirSync(vendorDir, { recursive: true });

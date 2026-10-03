@@ -1,0 +1,60 @@
+body { font-size: 14px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+button, select, input, textarea { font: inherit; }
+button { color: var(--fg); background: var(--bg-2); border-color: var(--line); }
+button.primary { color: var(--accent-fg); }
+button.ghost { border-color: var(--line); }
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+[hidden] { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.topbar { flex-wrap: wrap; gap: 12px 24px; padding: 18px 28px; background: var(--bg-2); border-color: var(--line); }
+.brand { font-family: Georgia, 'Times New Roman', serif; font-size: 23px; font-weight: 400; letter-spacing: -.5px; white-space: nowrap; }
+.header-account { margin-left: auto; display: flex; align-items: center; gap: 12px; min-width: 0; }
+.who { font-size: 12px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.header-account button { font-size: 12px; }
+.theme-control select { max-width: 140px; padding: 7px 8px; border: 1px solid var(--line); border-radius: var(--radius); color: var(--muted); background: var(--bg-2); }
+.header-status { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.status-item { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border: 1px solid var(--line); border-radius: var(--radius); font-size: 12px; }
+.status-label { color: var(--muted); font-size: 10px; }
+.status-item[data-active="true"] { color: var(--up); }
+.status-item select { min-width: 0; max-width: 130px; background: transparent; border: 0; color: inherit; padding: 0; }
+.status-refresh { font-size: 12px; padding: 5px 8px; background: transparent; }
+.status-error { color: var(--error); }
+.layout { position: relative; overflow: hidden; }
+.tabs { flex: 0 0 224px; width: 224px; padding: 24px 16px; gap: 4px; border-color: var(--line); background: var(--bg); }
+.nav-caption { padding: 0 12px 16px; font-size: 10px; letter-spacing: 2px; color: var(--muted); }
+.tab { font-size: 13px; border-radius: 4px; padding: 10px 12px; color: var(--muted); }
+.tab.active { color: var(--fg); background: var(--bg-3); box-shadow: inset 2px 0 var(--accent); font-weight: 600; }
+.panel { min-width: 0; padding: 32px clamp(20px, 4vw, 64px); scrollbar-gutter: stable; }
+.panel > h2 { margin: 0 0 28px; font-size: clamp(23px, 3vw, 32px); letter-spacing: -.6px; font-weight: 600; }
+.panel h3 { font-weight: 600; }
+.panel > * { max-width: 1200px; }
+.service-card, .corpus-modal, .corpus-section-title { border-color: var(--line); }
+.menu-toggle, .nav-close { display: none; }
+.nav-backdrop { position: absolute; inset: 0; z-index: 9; border: 0; border-radius: 0; background: rgb(0 0 0 / 35%); }
+.login { max-width: 480px; width: 100%; }
+.login-theme { position: absolute; top: 20px; right: 24px; }
+@media (max-width: 1000px) {
+  .header-status { order: 3; width: 100%; }
+  .topbar { gap: 12px; padding: 14px 20px; }
+}
+@media (max-width: 700px) {
+  .topbar { padding: 12px 16px; }
+  .brand { font-size: 20px; }
+  .header-account { gap: 8px; }
+  .who { display: none; }
+  .theme-control select { max-width: 110px; font-size: 11px; }
+  .header-account button { padding: 7px; font-size: 11px; }
+  .menu-toggle, .nav-close { display: block; min-height: 44px; min-width: 44px; padding: 8px; }
+  .nav-close { align-self: flex-end; }
+  .layout { flex-direction: row; }
+  .tabs { position: absolute; inset: 0 auto 0 0; width: min(280px, 85vw); flex-direction: column; z-index: 10; background: var(--bg-2); padding: 12px 16px 24px; border-right: 1px solid var(--line); border-bottom: 0; transform: translateX(-100%); visibility: hidden; }
+  .layout[data-menu-open="true"] .tabs { transform: translateX(0); visibility: visible; }
+  .tab { min-height: 44px; flex-shrink: 0; }
+  .panel { padding: 24px 16px; }
+  .header-status { gap: 6px; }
+  .status-item { padding: 4px 8px; gap: 5px; }
+}
+@media (max-width: 380px) {
+  .header-account { width: 100%; justify-content: flex-end; }
+}

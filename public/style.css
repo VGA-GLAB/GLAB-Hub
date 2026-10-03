@@ -14,9 +14,8 @@
 
   /* Cernere composite UI (CompositeLogin / CompositePasskeyPopup) との橋渡し。
      composite はインラインスタイルで下記の名前を参照し、 未定義だと
-     `var(--text, #000)` のような明色前提のフォールバックへ落ちる。 GLab の
-     シェルはダーク固定なので、 黒文字がダーク背景に乗って読めなくなっていた。
-     GLab 側のトークンへ写像して、 composite もダークで正しく表示させる。 */
+     `var(--text, #000)` のような明色前提のフォールバックへ落ちる。
+     GLab 側のトークンへ写像して、 theme.css のライト／ダークに追従させる。 */
   --text: var(--fg);
   --text-muted: var(--muted);
   --bg-surface: var(--bg-2);

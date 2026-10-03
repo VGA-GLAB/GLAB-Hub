@@ -50,7 +50,10 @@ test('launch configuration uses injected env and bypasses standalone secret boot
   assert.doesNotMatch(launcher, /import\('\.\/corpus\/server\/bootstrap\.ts'\)/);
   assert.ok(launcher.indexOf('requireInjectedEnvironment(process.env)') < launcher.indexOf('await initializeEventStore'));
   assert.match(launcher, /installLogging\(\)/);
-  assert.match(read('excubitor.catalog.yaml'), /command: node --run dev/);
+  const catalog = read('excubitor.catalog.yaml');
+  assert.match(catalog, /^\s+command: node --run start\s*$/m);
+  assert.match(catalog, /^\s+build_command: npm run build\s*$/m);
+  assert.match(catalog, /^\s+allow_hot_reload: false\s*$/m);
   for (const file of ['env-cli.config.ts', '.env.example']) {
     assert.equal(existsSync(new URL(`../${file}`, import.meta.url)), false);
   }

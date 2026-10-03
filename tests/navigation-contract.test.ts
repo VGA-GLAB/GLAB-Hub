@@ -12,7 +12,8 @@ describe('GLAB navigation contract', () => {
     ]);
     const pack = JSON.parse(packText) as { modules?: string[] };
     assert.equal(pack.modules?.includes('status'), false);
-    assert.match(glabShell, /label:\s*'🟢 ステータス'/);
+    assert.equal((glabShell.match(/id:\s*'__overview'/g) ?? []).length, 1);
+    assert.match(glabShell, /id:\s*'__overview',\s*label:\s*'サービス状況',\s*render:\s*\(\)\s*=>\s*void renderOverview\(main\)/);
     assert.doesNotMatch(glabShell, /label:\s*'[^']*概況'/);
   });
 

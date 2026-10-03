@@ -19,6 +19,7 @@ import { noStore } from '../shared.ts';
 import { getVantanUserProfile } from '../vantan-user/profile-client.ts';
 import { isCompleteVantanUserProfile } from '../vantan-user/profile-schema.ts';
 import { listMemberRoles, listRecentActivity, readActivityStats } from './activity.ts';
+import { registerHeaderRoutes } from './header-routes.ts';
 
 /** 一覧に出すアクティビティの件数。 画面 1 枚に収まる範囲。 */
 const ACTIVITY_LIMIT = 20;
@@ -33,6 +34,7 @@ const dashboardModule: CorpusModule = {
     ensureSchema(ctx.db);
     const client = createCernereProjectClient(ctx);
     const router = new Hono();
+    registerHeaderRoutes(router, ctx, client);
 
     router.get('/summary', async (c) => {
       noStore(c);

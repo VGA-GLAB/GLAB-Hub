@@ -517,22 +517,22 @@ function ensureSurveyStyles(): void {
   const style = document.createElement('style');
   style.textContent = `
     .gl-survey-tabs { display:flex; gap:.4rem; margin:1rem 0; flex-wrap:wrap; }
-    .gl-survey-tab { font:inherit; color:#8b90a0; background:#1c1f29; border:1px solid #2f3442; border-radius:999px; padding:.45rem .8rem; cursor:pointer; }
-    .gl-survey-tab.active { color:#fff; background:#426fd4; border-color:#5b8cff; }
+    .gl-survey-tab { font:inherit; color:var(--muted); background:var(--bg-2); border:1px solid var(--line); border-radius:999px; padding:.45rem .8rem; cursor:pointer; }
+    .gl-survey-tab.active { color:var(--accent-fg); background:var(--accent); border-color:var(--accent); }
     .gl-survey-workspace { display:grid; grid-template-columns:minmax(15rem, 1fr) minmax(18rem, 2fr); gap:1rem; }
     .gl-survey-list, .gl-survey-detail { min-width:0; }
-    .gl-survey-card { display:block; width:100%; text-align:left; color:inherit; background:#1c1f29; border:1px solid #2f3442; border-radius:10px; padding:.8rem; margin:0 0 .6rem; cursor:pointer; }
-    .gl-survey-card:hover { border-color:#5b8cff; }
+    .gl-survey-card { display:block; width:100%; text-align:left; color:inherit; background:var(--bg-2); border:1px solid var(--line); border-radius:10px; padding:.8rem; margin:0 0 .6rem; cursor:pointer; }
+    .gl-survey-card:hover { border-color:var(--accent); }
     .gl-survey-form { display:grid; gap:1rem; margin-top:1rem; }
     .gl-survey-field { display:grid; gap:.4rem; font-weight:600; }
     .gl-review-workspace { display:grid; grid-template-columns:minmax(18rem, 2fr) minmax(15rem, 1fr); gap:1rem; }
     .gl-review-feed, .gl-review-form-wrap { min-width:0; }
-    .gl-review-card { background:#1c1f29; border:1px solid #2f3442; border-radius:10px; padding:.8rem; margin:0 0 .6rem; }
+    .gl-review-card { background:var(--bg-2); border:1px solid var(--line); border-radius:10px; padding:.8rem; margin:0 0 .6rem; }
     .gl-review-card p { white-space:pre-wrap; overflow-wrap:anywhere; }
     .gl-review-form { display:grid; gap:.8rem; }
     .gl-review-suggestions { display:flex; gap:.4rem; flex-wrap:wrap; align-items:center; }
-    .gl-game-admin { background:#1c1f29; border:1px solid #2f3442; border-radius:10px; padding:.8rem; margin:1rem 0; }
-    .gl-game-row { border-bottom:1px solid #2f3442; padding:.4rem 0; }
+    .gl-game-admin { background:var(--bg-2); border:1px solid var(--line); border-radius:10px; padding:.8rem; margin:1rem 0; }
+    .gl-game-row { border-bottom:1px solid var(--line); padding:.4rem 0; }
     .gl-steam-url-form .gl-input { flex:1 1 18rem; }
     .gl-game-form { display:grid; gap:.6rem; margin-top:.8rem; max-width:32rem; }
     .gl-curve-workspace { display:grid; grid-template-columns:minmax(18rem, 3fr) minmax(15rem, 2fr); gap:1rem; }
@@ -540,15 +540,15 @@ function ensureSurveyStyles(): void {
     .gl-curve-video { width:100%; max-height:24rem; background:#000; border-radius:8px; }
     .gl-curve-stamps { display:flex; gap:.4rem; flex-wrap:wrap; }
     .gl-curve-entries { display:grid; gap:.3rem; max-height:14rem; overflow:auto; }
-    .gl-curve-entry { border-bottom:1px solid #2f3442; padding:.2rem 0; }
-    .gl-curve-card { background:#1c1f29; border:1px solid #2f3442; border-radius:10px; padding:.8rem; display:grid; gap:.5rem; }
+    .gl-curve-entry { border-bottom:1px solid var(--line); padding:.2rem 0; }
+    .gl-curve-card { background:var(--bg-2); border:1px solid var(--line); border-radius:10px; padding:.8rem; display:grid; gap:.5rem; }
     .gl-curve-strip { display:flex; gap:.2rem; flex-wrap:wrap; }
-    .gl-curve-dot { width:.7rem; height:.7rem; border-radius:50%; background:#4c5364; }
+    .gl-curve-dot { width:.7rem; height:.7rem; border-radius:50%; background:var(--muted); }
     .gl-curve-dot.hype { background:#f0a02c; }
     .gl-curve-dot.like { background:#4fb477; }
     .gl-curve-dot.dislike { background:#b4614f; }
     .gl-curve-dot.stress { background:#b44f8c; }
-    .gl-curve-evaluation { white-space:pre-wrap; overflow-wrap:anywhere; max-height:18rem; overflow:auto; background:#141720; border-radius:8px; padding:.6rem; }
+    .gl-curve-evaluation { white-space:pre-wrap; overflow-wrap:anywhere; max-height:18rem; overflow:auto; background:var(--bg); border-radius:8px; padding:.6rem; }
     @media (max-width: 760px) {
       .gl-review-workspace, .gl-survey-workspace, .gl-curve-workspace { grid-template-columns:1fr; }
     }
