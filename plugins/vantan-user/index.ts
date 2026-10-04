@@ -11,10 +11,11 @@ import { registrationInputSchema, saveRegistration } from './registration.ts';
 import { registerFacePhotoRoutes } from './face-photo-routes.ts';
 import { registerPublicNameRoutes } from './public-name-routes.ts';
 import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
+import { normalizeHttpBaseUrl } from '../shared.ts';
 
 const vantanUserModule: CorpusModule = {
   id: 'vantan-user',
-  title: 'Vantan プロフィール',
+  title: '個人データ',
   icon: '👤',
   setup(ctx: CorpusContext) {
     ensureSchema(ctx.db);
@@ -27,6 +28,10 @@ const vantanUserModule: CorpusModule = {
     }));
     const client = createCernereProjectClient(ctx);
     const router = new Hono();
+    const cernereWebUrl = normalizeHttpBaseUrl(ctx.env('CERNERE_WEB_URL'), 'CERNERE_WEB_URL');
+    router.get('/cernere-link', (c) => cernereWebUrl
+      ? c.json({ url: cernereWebUrl }, 200, { 'cache-control': 'private, no-store' })
+      : c.json({ error: 'link_unavailable' }, 503, { 'cache-control': 'private, no-store' }));
     router.use('/profile', async (c, next) => {
       c.header('cache-control', 'private, no-store');
       await next();
@@ -74,7 +79,7 @@ const vantanUserModule: CorpusModule = {
     registerSteamProfileRoutes(router, ctx, client);
 
     ctx.registerRoute(router);
-    ctx.registerPanel({ title: 'プロフィール', icon: '👤' });
+    ctx.registerPanel({ title: '個人データ', icon: '👤' });
     ctx.logger.info('vantan_user registration route enabled (Cernere project WS)');
   },
 };

@@ -1,6 +1,6 @@
 {
   "name": "glab-pack",
-  "description": "GLAB 運営プラグインパック — ダッシュボード / 初回プロフィール登録 + 出席 / 施設 / イベント / 就活 / 部員名簿 / 企業 / Volputasレビュー / Di / プロジェクト / Cernere設定動線",
+  "description": "GLAB 運営プラグインパック — ダッシュボード / 個人データ + 出席 / 施設 / イベント / 就活 / 部員名簿 / 企業 / Volputasレビュー / Di / プロジェクト",
   "modules": [
     "dashboard",
     "attendance",
@@ -18,7 +18,6 @@
     "tirocinium",
     "tech-links",
     "vantan-user",
-    "volputas",
-    "cernere-admin"
+    "volputas"
   ]
 }

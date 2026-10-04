@@ -62,8 +62,7 @@ Web hub (Corpus)   Discord Bot
 | `consult` | 自前データ | 在席共有（おれひま）。`glab_consult` |
 | `progress` | コネクタ | Calliope進捗の表示面。エンジンはCalliope、自前DBへキャッシュしない |
 | `tech-links` | 自前データ | 技術リンク共有（タグ・コメント） |
-| `vantan-user` | Cernere連携 | 初回アクセス時の`vantan_user`プロフィール登録動線 |
-| `cernere-admin` | Cernere連携 | Cernere設定動線（project credential等の管理面） |
+| `vantan-user` | Cernere連携 | 個人データの登録・編集。末尾にCernereページへのリンク |
 
 アンケート設問はVolputas、回答はCernereのTEXT/INTEGER正規化テーブルを正本とする。
 GLABはVolputasが本人向けにフィルタしたデータを中継し、Corpus内で表示・回答するだけとする。

@@ -29,8 +29,7 @@ GLAB を操作しない。デスクトップでは Cocoiru の常駐アプリ (L
 | 在席共有 | Web hub `consult` → 「おれひま」在席共有 |
 | Cocoiru バックエンド | Web hub `cocoiru` → デスクトップ常駐アプリ Cocoiru の在席 lease・呼び出し・タスケテ・Discord ロビー secret（画面なし、[spec](spec/feature/cocoiru-backend.md)） |
 | 技術リンク | Web hub `tech-links` → 技術リンクの共有・タグ・コメント |
-| Cernere設定 | Web hub `cernere-admin` → project credential等のCernere設定動線 |
-| ユーザ管理 | Web hub `vantan-user` + Cernere（Corpus が認証、初回アクセス時に名前・役職・学科を登録） |
+| 個人データ | Web hub `vantan-user` + Cernere（個人情報の登録・編集、末尾にCernereへのリンク） |
 
 施設予約は **Aedilis**、イベントは **GLAB PostgreSQL** が真実の源で、両機能は独立する。
 Web hubとDiscord通知Botは同じイベントストアを利用する。Cernere `user_id`参照はGLAB
