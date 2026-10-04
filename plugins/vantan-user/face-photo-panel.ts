@@ -42,7 +42,7 @@ async function render(ctx: PanelContext, status: HTMLElement, body: HTMLElement)
 
   status.textContent = describeState(state.templateState);
   if (state.photo) body.append(photoPreview(state.photo), deleteButton(ctx, status, body));
-  else body.append(consentAndUpload(ctx, state.policy, status, body));
+  body.append(consentAndUpload(ctx, state.policy, status, body, Boolean(state.photo)));
 }
 
 interface FacePhotoState {
@@ -129,10 +129,11 @@ function consentAndUpload(
   policy: PolicyEntry | null,
   status: HTMLElement,
   body: HTMLElement,
+  replacing: boolean,
 ): HTMLElement {
   const form = el('form', 'gl-col');
   if (!policy) {
-    form.append(el('p', 'gl-muted', '同意文面を取得できないため、写真は登録できません。'));
+    form.append(el('p', 'gl-muted', '同意文面を取得できませんでした。時間をおいて再読み込みしてください。'));
     return form;
   }
 
@@ -152,7 +153,9 @@ function consentAndUpload(
   file.accept = 'image/*';
   file.required = true;
 
-  const submit = el('button', 'gl-btn', '写真を登録');
+  const submit = el('button', 'gl-btn', replacing ? '写真を変更' : '写真を登録');
+  submit.type = 'submit';
+  if (replacing) form.append(el('p', 'gl-muted', '新しい写真を選んで変更できます。変更後は職員の確認が必要です。'));
   const message = el('p', 'gl-muted', '');
   form.append(agree, agreeLabel, facilityId, file, submit, message);
 

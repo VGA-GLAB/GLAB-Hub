@@ -92,6 +92,12 @@ export function renderShell(
   toggle.setAttribute('aria-label', 'メニュー');
   const status = el('div', 'header-status');
   app.appendChild(buildHeader(identity, onLogout, toggle, status));
+  const onPublicName = (event: Event): void => {
+    const value: unknown = (event as CustomEvent<unknown>).detail;
+    const who = app.querySelector('.who');
+    if (who && typeof value === 'string') who.textContent = value;
+  };
+  document.addEventListener('glab:public-name', onPublicName);
 
   const layout = el('div', 'layout');
   const nav = el('nav', 'tabs');
@@ -128,5 +134,8 @@ export function renderShell(
   // 構成でも画面が空にならないよう、 従来のステータスへ落とす。
   activate(tabs.some((t) => t.id === LANDING_TAB_ID) ? LANDING_TAB_ID : '__overview');
   initHmr();
-  return () => { navigation.dispose(); disposeStatus(); };
+  return () => {
+    document.removeEventListener('glab:public-name', onPublicName);
+    navigation.dispose(); disposeStatus();
+  };
 }

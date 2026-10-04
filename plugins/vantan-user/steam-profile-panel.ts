@@ -10,7 +10,7 @@ export function steamProfileSection(ctx: PanelContext): HTMLElement {
   const submit = document.createElement('button');
   submit.type = 'submit';
   submit.className = 'gl-btn';
-  submit.textContent = 'Steam設定を保存';
+  submit.textContent = 'Steam ID・公開設定を保存';
   form.append(fields.element, message, submit);
   form.onsubmit = (event) => {
     event.preventDefault();

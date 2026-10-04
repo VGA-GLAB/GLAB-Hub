@@ -1,5 +1,6 @@
 import { steamProfileSection } from './steam-profile-panel.ts';
 import { facePhotoSection } from './face-photo-panel.ts';
+import { publicNameSection } from './public-name-panel.ts';
 import {
   el,
   ensureStyles,
@@ -14,12 +15,8 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
   container.innerHTML = '';
   const box = el('section', 'gl-notice gl-profile-gate');
   box.appendChild(el('h2', undefined, '👤 Vantan プロフィール'));
-  box.appendChild(el(
-    'p',
-    'gl-muted',
-    '名前・役職・学科は登録済みです。プロフィールの単一情報源は Cernere です。',
-  ));
   container.appendChild(box);
+  container.appendChild(publicNameSection(ctx));
   container.appendChild(steamProfileSection(ctx));
   container.appendChild(facePhotoSection(ctx));
 }

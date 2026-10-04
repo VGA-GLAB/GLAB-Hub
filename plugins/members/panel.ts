@@ -102,11 +102,6 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
     }
     container.appendChild(roster.wrap);
 
-    container.appendChild(el(
-      'p',
-      'gl-muted',
-      '氏名の正本は Cernere (vantan_user)。GLab が氏名を保持するのは未登録部員の間だけで、リンク時に破棄されます。Discord 数値 ID は bot が自動解決します。',
-    ));
   }
 
   await render();
