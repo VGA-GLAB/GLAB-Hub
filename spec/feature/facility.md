@@ -35,3 +35,7 @@ Aedilis側で本人として認証・所有者を確定する。
 ## 関連
 
 - 接点: [`interface/aedilis-connector.md`](../interface/aedilis-connector.md)
+
+## 組織・チーム予約の拡張
+
+2026-10-04より予約単位の公開範囲と予定コピー、会議予約を追加する。最新の認可・本人所属・接続互換性の契約は [group-bookings.md](group-bookings.md) を参照。全ルートはログイン必須。予約／会議の読書きは署名付き所属情報をAedilisへ渡し、同サービスが公開範囲を判定する。

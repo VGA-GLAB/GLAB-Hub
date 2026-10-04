@@ -1,50 +1,58 @@
-// GLAB モジュール 2: 施設予約 (facility)。
-//
-// データを自前で持たず、 施設予約サービス Aedilis のバックエンドへ接続して集約表示する
-// (Corpus のコネクタ流儀)。 Aedilis 未稼働時は connector が 503 を返し、 パネルが
-// 「未接続」を表示する degraded モードで起動する。
-//
-//   Aedilis API (DESIGN.md §7):
-//     GET    /api/facilities             施設一覧
-//     GET    /api/reservations           予約一覧 (?facility=&from=&to=)
-//     GET    /api/reservations/mine      自分の予約
-//     POST   /api/reservations           新規予約 {facilityId,startAt,endAt,purpose?}
-//     DELETE /api/reservations/:id        予約キャンセル
+// Authenticated GLab facilities and meeting scheduling through Aedilis.
+// @implements SPEC-GLAB-BOOKING-001
 
-import { Hono } from '../../corpus/server/hub/sdk.ts';
-import type { CorpusModule, CorpusContext } from '../../corpus/server/hub/sdk.ts';
+import { Hono, getUserToken } from '../../corpus/server/hub/sdk.ts';
+import type { CorpusModule, CorpusContext, Context } from '../../corpus/server/hub/sdk.ts';
+import { ensureSchema } from '../data.ts';
+import { bookingGroups, bookingProxy } from './booking-proxy.ts';
 import { aedilisBaseUrl, makeAedilisConnector, proxy } from '../shared.ts';
+
+function segment(c: Context, name: string): string {
+  const value = c.req.param(name);
+  if (!value) throw new Error('Missing route parameter');
+  return encodeURIComponent(value);
+}
 
 const facilityModule: CorpusModule = {
   id: 'facility',
-  title: '施設',
+  title: '施設・会議',
   icon: '🏫',
   setup(ctx: CorpusContext) {
     const aedilis = makeAedilisConnector(ctx.env);
     ctx.registerConnector(aedilis);
 
+    ensureSchema(ctx.db);
     const r = new Hono();
+    r.use('*', async (c, next) => {
+      c.header('cache-control', 'private, no-store');
+      if (!getUserToken(c)) return c.json({ error: 'unauthorized' }, 401);
+      await next();
+    });
+    r.get('/groups', async c => {
+      try { return c.json({ items: await bookingGroups(c, ctx) }); }
+      catch { return c.json({ error: 'memberships_unavailable' }, 503); }
+    });
     r.get('/facilities', (c) => proxy(c, aedilis, '/api/facilities', ctx.tokenProvider));
     r.get('/facilities/:id', (c) => proxy(
       c,
       aedilis,
-      `/api/facilities/${encodeURIComponent(c.req.param('id'))}`,
+      `/api/facilities/${segment(c, 'id')}`,
       ctx.tokenProvider,
     ));
-    r.get('/reservations', (c) => proxy(c, aedilis, '/api/reservations', ctx.tokenProvider));
-    r.get('/reservations/mine', (c) => proxy(
-      c,
-      aedilis,
-      '/api/reservations/mine',
-      ctx.tokenProvider,
-    ));
-    r.post('/reservations', (c) => proxy(c, aedilis, '/api/reservations', ctx.tokenProvider));
-    r.delete('/reservations/:id', (c) =>
-      proxy(c, aedilis, `/api/reservations/${encodeURIComponent(c.req.param('id'))}`, ctx.tokenProvider),
-    );
+    for (const resource of ['reservations', 'meetings']) {
+      r.get('/' + resource, c => bookingProxy(c, ctx, aedilis, '/api/' + resource));
+      r.get('/' + resource + '/mine', c => bookingProxy(c, ctx, aedilis, '/api/' + resource + '/mine'));
+      r.post('/' + resource, c => bookingProxy(c, ctx, aedilis, '/api/' + resource));
+      r.get('/' + resource + '/:id', c => bookingProxy(c, ctx, aedilis, '/api/' + resource + '/' + segment(c, 'id')));
+      r.patch('/' + resource + '/:id', c => bookingProxy(c, ctx, aedilis, '/api/' + resource + '/' + segment(c, 'id')));
+      r.delete('/' + resource + '/:id', c => bookingProxy(c, ctx, aedilis, '/api/' + resource + '/' + segment(c, 'id')));
+    }
+    r.post('/meetings/:id/finalize', c => bookingProxy(c, ctx, aedilis, '/api/meetings/' + segment(c, 'id') + '/finalize'));
+    r.post('/meetings/:id/responses', c => bookingProxy(c, ctx, aedilis, '/api/meetings/' + segment(c, 'id') + '/responses'));
+    r.patch('/meetings/:id/responses/:responseId', c => bookingProxy(c, ctx, aedilis, '/api/meetings/' + segment(c, 'id') + '/responses/' + segment(c, 'responseId')));
     ctx.registerRoute(r);
 
-    ctx.registerPanel({ title: '施設', icon: '🏫' });
+    ctx.registerPanel({ title: '施設・会議', icon: '🏫' });
     ctx.logger.info(
       `facility → Aedilis (${aedilisBaseUrl(ctx.env) || '未設定 = degraded'})`,
     );
