@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS glab_attendance (
   facility_id   TEXT NOT NULL,
   checked_in_at INTEGER NOT NULL,
   source        TEXT NOT NULL CHECK (source IN
-                  ('passkey', 'manual', 'face', 'face_passive', 'staff_override', 'session', 'password')),
+                  ('passkey', 'manual', 'face', 'face_passive', 'staff_override', 'session', 'password', 'gps')),
   assurance     TEXT,
   event_id      INTEGER,
   detail        TEXT,
@@ -67,6 +67,21 @@ CREATE TABLE IF NOT EXISTS glab_attendance_nonce (
   used_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS glab_attendance_nonce_used_at ON glab_attendance_nonce(used_at);
+
+-- GPS チェックインの写真 (spec/feature/gps-photo-checkin.md)。 Aedilis が 200 を返した
+-- 写真だけを保存する。 本体は CORPUS_DATA/gps-photos/<sha256> のファイルで、 ここは
+-- attendanceId (Aedilis) への紐付けと利用者・撮影時刻・SHA-256 だけを持つ。
+CREATE TABLE IF NOT EXISTS glab_gps_photo (
+  attendance_id TEXT PRIMARY KEY,
+  ledger_id     TEXT,
+  user_id       TEXT NOT NULL,
+  captured_at   INTEGER NOT NULL,
+  sha256        TEXT NOT NULL,
+  content_type  TEXT NOT NULL,
+  byte_size     INTEGER NOT NULL,
+  stored_at     INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS glab_gps_photo_ledger ON glab_gps_photo(ledger_id);
 
 CREATE TABLE IF NOT EXISTS glab_job (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -187,7 +202,7 @@ export interface GlabUserRow {
  * 'manual' は職員の手入力、 'passkey' は method を持たない旧 attestation の既定。
  */
 export type AttendanceSource =
-  | 'passkey' | 'manual' | 'face' | 'face_passive' | 'staff_override' | 'session' | 'password';
+  | 'passkey' | 'manual' | 'face' | 'face_passive' | 'staff_override' | 'session' | 'password' | 'gps';
 
 export interface AttendanceRow {
   id: string;
@@ -504,6 +519,7 @@ function ensureColumns(
  * 既存 DB は CHECK (source IN ('passkey','manual')) で作られており、 顔で通った
  * 出席を書けない。 SQLite は CHECK を後から変更できないので、 制約だけを差し替えた
  * テーブルへ全行を移し替える。 既存行の source は書き換えない (遡って face にしない)。
+ * GPS チェックイン ('gps') の追加で、 'face' 世代の台帳も同じ手順でもう一度広げる。
  */
 function ensureAttendanceSourceValues(db: SqlDb): void {
   const attendanceTableSql = (): string => {
@@ -513,7 +529,7 @@ function ensureAttendanceSourceValues(db: SqlDb): void {
     return typeof row?.sql === 'string' ? row.sql : '';
   };
   const sql = attendanceTableSql();
-  if (!sql || sql.includes("'face'")) return; // 既に広い制約 (新規作成分を含む)
+  if (!sql || sql.includes("'gps'")) return; // 既に広い制約 (新規作成分を含む)
 
   const foreignKeysEnabled = Number((db.prepare('PRAGMA foreign_keys').get() as {
     foreign_keys?: unknown;
@@ -524,11 +540,15 @@ function ensureAttendanceSourceValues(db: SqlDb): void {
     // Hub / Bot の別接続が同時に起動しても、取得後の再判定で二重移行しない。
     db.exec('BEGIN IMMEDIATE');
     transactionStarted = true;
-    if (attendanceTableSql().includes("'face'")) {
+    if (attendanceTableSql().includes("'gps'")) {
       db.exec('COMMIT');
       transactionStarted = false;
       return;
     }
+    // 'face' 世代の台帳は assurance を持つので引き継ぐ。 それより古い台帳には列が無い。
+    const hasAssurance = db.prepare('PRAGMA table_info(glab_attendance)').all()
+      .some((column) => (column as { name?: unknown }).name === 'assurance');
+    const assuranceSource = hasAssurance ? 'assurance' : 'NULL';
     db.exec(`CREATE TABLE glab_attendance_migrated (
       id            TEXT PRIMARY KEY,
       user_id       TEXT NOT NULL,
@@ -536,7 +556,7 @@ function ensureAttendanceSourceValues(db: SqlDb): void {
       facility_id   TEXT NOT NULL,
       checked_in_at INTEGER NOT NULL,
       source        TEXT NOT NULL CHECK (source IN
-                      ('passkey', 'manual', 'face', 'face_passive', 'staff_override', 'session', 'password')),
+                      ('passkey', 'manual', 'face', 'face_passive', 'staff_override', 'session', 'password', 'gps')),
       assurance     TEXT,
       event_id      INTEGER,
       detail        TEXT,
@@ -544,7 +564,7 @@ function ensureAttendanceSourceValues(db: SqlDb): void {
     )`);
     db.exec(`INSERT INTO glab_attendance_migrated
       (id, user_id, date, facility_id, checked_in_at, source, assurance, event_id, detail)
-      SELECT id, user_id, date, facility_id, checked_in_at, source, NULL, event_id, detail
+      SELECT id, user_id, date, facility_id, checked_in_at, source, ${assuranceSource}, event_id, detail
       FROM glab_attendance`);
     db.exec('DROP TABLE glab_attendance');
     db.exec('ALTER TABLE glab_attendance_migrated RENAME TO glab_attendance');
@@ -685,6 +705,65 @@ export function attendanceSummary(db: SqlDb, from: string, to: string): Array<{
     GROUP BY date, facility_id ORDER BY date ASC, facility_id ASC`).all(from, to) as Array<{
     date: string; facilityId: string; count: number;
   }>;
+}
+
+/** 台帳の 1 行を (利用者, 日付, 施設) で引く。 GPS 写真をその日の出席行へ結ぶために使う。 */
+export function findAttendanceId(db: SqlDb, userId: string, date: string, facilityId: string): string | null {
+  const row = db.prepare(`SELECT id FROM glab_attendance
+    WHERE user_id = ? AND date = ? AND facility_id = ?`).get(userId, date, facilityId) as { id?: unknown } | undefined;
+  return typeof row?.id === 'string' ? row.id : null;
+}
+
+// ─── GPS チェックインの写真 ─────────────────────────────────
+
+export interface GpsPhotoRow {
+  attendance_id: string;
+  ledger_id: string | null;
+  user_id: string;
+  captured_at: number;
+  sha256: string;
+  content_type: string;
+  byte_size: number;
+  stored_at: number;
+}
+
+export interface NewGpsPhoto {
+  attendanceId: string;
+  ledgerId: string | null;
+  userId: string;
+  capturedAt: number;
+  sha256: string;
+  contentType: string;
+  byteSize: number;
+  storedAt: number;
+}
+
+/** Aedilis が採用した写真の紐付けを書く。 同じ attendanceId の二度目は書き換えず false。 */
+export function saveGpsPhoto(db: SqlDb, photo: NewGpsPhoto): boolean {
+  return db.prepare(`INSERT INTO glab_gps_photo
+    (attendance_id, ledger_id, user_id, captured_at, sha256, content_type, byte_size, stored_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(attendance_id) DO NOTHING`).run(
+    photo.attendanceId, photo.ledgerId, photo.userId, photo.capturedAt,
+    photo.sha256, photo.contentType, photo.byteSize, photo.storedAt,
+  ).changes > 0;
+}
+
+export function getGpsPhoto(db: SqlDb, attendanceId: string): GpsPhotoRow | null {
+  return (db.prepare(`SELECT attendance_id, ledger_id, user_id, captured_at, sha256, content_type, byte_size, stored_at
+    FROM glab_gps_photo WHERE attendance_id = ?`).get(attendanceId) as GpsPhotoRow | undefined) ?? null;
+}
+
+/** 台帳行 id → その行に結んだ写真の attendanceId。 一覧の行ごとに引かないための一括取得。 */
+export function gpsPhotoIdsForLedger(db: SqlDb, ledgerIds: string[]): Map<string, string> {
+  const ids = [...new Set(ledgerIds)];
+  const found = new Map<string, string>();
+  if (ids.length === 0) return found;
+  const rows = db.prepare(`SELECT ledger_id, attendance_id FROM glab_gps_photo
+    WHERE ledger_id IN (${ids.map(() => '?').join(', ')}) ORDER BY stored_at ASC`)
+    .all(...ids) as Array<{ ledger_id: string; attendance_id: string }>;
+  for (const row of rows) if (!found.has(row.ledger_id)) found.set(row.ledger_id, row.attendance_id);
+  return found;
 }
 
 // ─── 就活情報 ────────────────────────────────────────────────

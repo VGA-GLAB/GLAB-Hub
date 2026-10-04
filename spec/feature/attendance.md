@@ -15,6 +15,7 @@ GLAB メンバーは会場 Wi-Fi 内の Ostiarius（Os）から取得した pass
 - 台帳のイベント名は行ごとに引かず、重複を除いた `event_id` 単位で 1 回だけ取得する。イベント紐付けの無い台帳だけなら（`event_id` が全て NULL なら）イベントストアには触れない。
 - 出席の成立はイベントに依存しない。イベントストア（Postgres）が引けない場合は `event_id` を紐付けずに記録し、`POST /checkin` は成功を返す。記録後にイベントを引き直さない（台帳に書けたのに 500 を返さないため）。
 - admin は `POST /manual { userId, date, facilityId }` で `source='manual'` の出席を記録する。記録者は detail に保存する。
+- スマホの GPS + 写真チェックイン（`POST /checkin/gps`）は Aedilis が検証し、200 のときだけ `source='gps'`・`assurance='low'` で台帳へ記録する。詳細は `spec/feature/gps-photo-checkin.md`。
 
 ## 制約
 

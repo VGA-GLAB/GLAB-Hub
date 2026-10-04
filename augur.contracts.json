@@ -65,6 +65,42 @@
       "module": "./contracts/odeum-relay-client.contract.ts",
       "mode": "observe",
       "sample": 1
+    },
+    {
+      "id": "C-8",
+      "criterion": "C-8 readGpsCheckinForm(source): jpeg/heic で 10 MB 以下の写真と 4 つの数値欄だけを受理し、超過は 413 photo_invalid、型違いは photo_invalid、欠落は invalid_input",
+      "symbol": "readGpsCheckinForm",
+      "file": "plugins/attendance/gps-checkin-form.ts",
+      "module": "./contracts/gps-checkin-form.contract.ts",
+      "mode": "observe",
+      "sample": 1
+    },
+    {
+      "id": "C-9",
+      "criterion": "C-9 locationStatementFromHealth(payload): Ostiarius の health に locationStatement が無い・空・形式違いなら null を返す (中継は 503)",
+      "symbol": "locationStatementFromHealth",
+      "file": "plugins/attendance/location-statement.ts",
+      "module": "./contracts/location-statement.contract.ts",
+      "mode": "observe",
+      "sample": 1
+    },
+    {
+      "id": "C-10",
+      "criterion": "C-10 saveGpsPhoto(db, photo): Aedilis が採用した写真を attendanceId に一度だけ結び付け、利用者・撮影時刻・SHA-256 を持つ",
+      "symbol": "saveGpsPhoto",
+      "file": "plugins/data.ts",
+      "module": "./contracts/gps-photo-store.contract.ts",
+      "mode": "observe",
+      "sample": 1
+    },
+    {
+      "id": "C-11",
+      "criterion": "C-11 handleGpsCheckin(c, deps): 応答は成否を問わず private, no-store で、成功は 200・失敗は 4xx/5xx の error コードで返す",
+      "symbol": "handleGpsCheckin",
+      "file": "plugins/attendance/gps-checkin.ts",
+      "module": "./contracts/gps-checkin-relay.contract.ts",
+      "mode": "observe",
+      "sample": 1
     }
   ]
 }

@@ -8,6 +8,8 @@ import {
   type PanelContext,
 } from '../panel-kit.ts';
 import { canReachLocalOstiarius } from './local-ostiarius.ts';
+import { gpsCheckinSection } from './gps-checkin-panel.ts';
+import { appendGpsPhoto } from './gps-photo-view.ts';
 
 interface AttendanceRecord {
   id: string;
@@ -16,9 +18,10 @@ interface AttendanceRecord {
   date: string;
   facilityId: string;
   checkedInAt: number;
-  source: 'passkey' | 'manual' | 'face' | 'face_passive' | 'staff_override' | 'session' | 'password';
+  source: 'passkey' | 'manual' | 'face' | 'face_passive' | 'staff_override' | 'session' | 'password' | 'gps';
   assurance: string | null;
   eventTitle: string | null;
+  gpsPhotoId: string | null;
 }
 
 interface TodayAttendanceRecord {
@@ -36,6 +39,7 @@ const SOURCE_LABELS: Record<AttendanceRecord['source'], string> = {
   staff_override: '職員承認',
   session: 'セッション',
   password: 'パスワード',
+  gps: 'GPS',
 };
 
 interface ActiveEvent {
@@ -50,6 +54,7 @@ interface Availability {
   enabled: boolean;
   event: ActiveEvent | null;
   ostiarius: { status: 'up' | 'degraded' | 'down'; detail?: string; baseUrl: string | null };
+  gps?: { available: boolean };
 }
 
 export async function mount(container: HTMLElement, ctx: PanelContext): Promise<void> {
@@ -75,6 +80,7 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
         && await canReachLocalOstiarius(availability.ostiarius.baseUrl),
       );
       container.append(checkinSection(availability, localOstiariusReachable, ctx, render));
+      container.append(gpsCheckinSection(availability.gps?.available === true, ctx, render));
     }
 
     const todayResponse = await ctx.api('/today');
@@ -93,7 +99,7 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
       mine.body.append(errorNotice('出席履歴を取得できませんでした。'));
     } else {
       const body = await mineResponse.json() as { attendance?: AttendanceRecord[] };
-      appendAttendanceList(mine.body, body.attendance ?? [], ctx.identity.displayName);
+      appendAttendanceList(mine.body, body.attendance ?? [], ctx.identity.displayName, ctx);
     }
     container.append(mine.wrap);
 
@@ -150,7 +156,7 @@ async function adminSection(ctx: PanelContext, rerender: () => Promise<void>): P
   const date = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
   const response = await ctx.api(`/list?date=${encodeURIComponent(date)}`);
   if (!response.ok) admin.body.append(errorNotice('本日の台帳を取得できませんでした。'));
-  else appendAttendanceList(admin.body, (await response.json() as { attendance?: AttendanceRecord[] }).attendance ?? [], null, ctx);
+  else appendAttendanceList(admin.body, (await response.json() as { attendance?: AttendanceRecord[] }).attendance ?? [], null, ctx, true);
 
   const form = el('form', 'gl-row');
   const userId = el('input', 'gl-input');
@@ -233,7 +239,17 @@ function fmtTime(timestamp: number): string {
   });
 }
 
-function appendAttendanceList(container: HTMLElement, rows: AttendanceRecord[], ownName?: string | null, ctx?: PanelContext): void {
+/**
+ * 出席一覧。 GPS の行は写真を開ける (ログイン中の利用者なら誰でも、 spec/feature/gps-photo-checkin.md)。
+ * 顔写真の取得導線は職員一覧 (withFacePhoto) だけに付ける。
+ */
+function appendAttendanceList(
+  container: HTMLElement,
+  rows: AttendanceRecord[],
+  ownName: string | null,
+  ctx: PanelContext,
+  withFacePhoto = false,
+): void {
   if (!rows.length) {
     container.append(el('p', 'gl-muted', '出席記録はありません。'));
     return;
@@ -244,7 +260,8 @@ function appendAttendanceList(container: HTMLElement, rows: AttendanceRecord[], 
     item.append(el('strong', undefined, ownName || row.displayName || row.userId));
     item.append(el('span', 'gl-muted', ` ${row.date} / ${row.facilityId} / ${fmtDateTime(row.checkedInAt)}`));
     item.append(el('span', 'gl-tag', SOURCE_LABELS[row.source] ?? row.source));
-    if (ctx) appendFacePhoto(item, ctx, row.userId);
+    if (row.gpsPhotoId) appendGpsPhoto(item, ctx, row.gpsPhotoId);
+    if (withFacePhoto) appendFacePhoto(item, ctx, row.userId);
     list.append(item);
   }
   container.append(list);

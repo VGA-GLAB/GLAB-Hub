@@ -4,13 +4,14 @@ import {
   getIdentity,
   requireAdmin,
 } from '../../corpus/server/hub/sdk.ts';
-import type { CorpusContext, CorpusDb, CorpusModule } from '../../corpus/server/hub/sdk.ts';
+import type { CorpusContext, CorpusDb, CorpusModule, ServiceConnector } from '../../corpus/server/hub/sdk.ts';
 import { z } from 'zod';
 import {
   attendanceSummary,
   dateInJst,
   ensureSchema,
   findGateway,
+  gpsPhotoIdsForLedger,
   listAttendance,
   recordAttendance,
   reserveAttendanceNonce,
@@ -19,11 +20,16 @@ import {
 import { getEventStore, type EventRow } from '../events/store.ts';
 import type { EventOccurrence } from '../events/recurrence.ts';
 import { canSee, parseAudience, resolveRoles } from '../roles/audience.ts';
+import { join, resolve } from 'node:path';
 import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
-import { noStore } from '../shared.ts';
+import { makeAedilisConnector, noStore } from '../shared.ts';
 import { verifyAttestation } from './attestation-verify.ts';
 import { refreshGatewayPublicKey } from './gateway-register.ts';
 import { ostiariusBrowserBaseUrl } from './ostiarius-health.ts';
+import { handleGpsCheckin } from './gps-checkin.ts';
+import { locationStatementFromHealth } from './location-statement.ts';
+import { DirectoryGpsPhotoFiles, type GpsPhotoFileStore } from './gps-photo-files.ts';
+import { registerGpsPhotoRoutes } from './gps-photo-routes.ts';
 
 const CHECKIN_FRESHNESS_MS = 120_000;
 const RECENT_ATTENDANCE_DAYS = 30;
@@ -57,14 +63,21 @@ async function attendanceViews(
     const fetched = await Promise.all(eventIds.map((id) => store.get(id)));
     for (const event of fetched) if (event != null) events.set(event.id, event);
   }
+  const gpsPhotos = gpsPhotoIdsForLedger(db, rows.filter((row) => row.source === 'gps').map((row) => row.id));
   return rows.map((row) => attendanceView(
     db,
     row,
     row.event_id == null ? null : events.get(row.event_id) ?? null,
+    gpsPhotos.get(row.id) ?? null,
   ));
 }
 
-function attendanceView(db: CorpusDb, row: AttendanceRow, event: EventRow | null): Record<string, unknown> {
+function attendanceView(
+  db: CorpusDb,
+  row: AttendanceRow,
+  event: EventRow | null,
+  gpsPhotoId: string | null,
+): Record<string, unknown> {
   return {
     id: row.id,
     userId: row.user_id,
@@ -76,6 +89,7 @@ function attendanceView(db: CorpusDb, row: AttendanceRow, event: EventRow | null
     assurance: row.assurance,
     eventId: event?.id ?? null,
     eventTitle: event?.title ?? null,
+    gpsPhotoId,
   };
 }
 
@@ -125,7 +139,17 @@ async function activeEventView(
   return eventView(await visibleActiveEvent(db, viewer));
 }
 
-export function makeRoutes(ctx: CorpusContext, ostiarius: VersionedHttpServiceConnector): Hono {
+/** GPS チェックイン (契約 G2) の依存。 省略すると GPS のルートを載せない (テスト用)。 */
+export interface GpsCheckinWiring {
+  aedilis: ServiceConnector;
+  photos: GpsPhotoFileStore;
+}
+
+export function makeRoutes(
+  ctx: CorpusContext,
+  ostiarius: VersionedHttpServiceConnector,
+  gps?: GpsCheckinWiring,
+): Hono {
   const db = ctx.db;
   const router = new Hono();
 
@@ -140,6 +164,8 @@ export function makeRoutes(ctx: CorpusContext, ostiarius: VersionedHttpServiceCo
         detail: osProbe.health.detail,
         baseUrl: ostiariusBrowserBaseUrl(osProbe.payload),
       },
+      // GPS チェックインは Os の位置の宣言 (G1) が届いているときだけ使える。
+      gps: { available: gps != null && locationStatementFromHealth(osProbe.payload) != null },
     });
   });
 
@@ -188,6 +214,19 @@ export function makeRoutes(ctx: CorpusContext, ostiarius: VersionedHttpServiceCo
     // 記録後にイベントを引き直さない — ここで失敗すると台帳に書けたのに 500 を返す。
     return c.json({ ok: true, alreadyCheckedIn: false, event: eventView(event) });
   });
+
+  if (gps) {
+    router.post('/checkin/gps', (c) => handleGpsCheckin(c, {
+      db,
+      ostiarius,
+      aedilis: gps.aedilis,
+      tokenProvider: ctx.tokenProvider,
+      photos: gps.photos,
+      logger: ctx.logger,
+      activeEventId: async (identity) => (await visibleActiveEvent(db, identity))?.id ?? null,
+    }));
+    registerGpsPhotoRoutes(router, { db, photos: gps.photos, logger: ctx.logger });
+  }
 
   // 今日の出席簿。 認証済みメンバー全員が閲覧できる (admin 専用の /list とは別口)。
   // 台帳は checked_in_at 降順で返るので、 名簿としては到着順 (昇順) に並べ直す。
@@ -244,6 +283,11 @@ export function makeRoutes(ctx: CorpusContext, ostiarius: VersionedHttpServiceCo
   return router;
 }
 
+/** 写真本体の置き場。 server.ts が CORPUS_DATA を data/ に既定する。 */
+function gpsPhotoDir(ctx: CorpusContext): string {
+  return join(resolve(ctx.env('CORPUS_DATA') ?? 'data'), 'gps-photos');
+}
+
 const attendanceModule: CorpusModule = {
   id: 'attendance',
   title: '出席',
@@ -264,7 +308,11 @@ const attendanceModule: CorpusModule = {
     } catch (error) {
       ctx.logger.error(`attendance gateway key refresh failed; cached keys remain in use: ${error instanceof Error ? error.message : String(error)}`);
     }
-    ctx.registerRoute(makeRoutes(ctx, ostiarius));
+    // Aedilis コネクタの登録は facility の 1 箇所に留める (shared.ts の方針)。
+    ctx.registerRoute(makeRoutes(ctx, ostiarius, {
+      aedilis: makeAedilisConnector(ctx.env),
+      photos: new DirectoryGpsPhotoFiles(gpsPhotoDir(ctx)),
+    }));
     ctx.registerPanel({ title: '出席', icon: '✅' });
     ctx.logger.info('attendance ready (local Ed25519 attestation verification + ledger)');
   },
