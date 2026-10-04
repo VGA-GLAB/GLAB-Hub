@@ -13,6 +13,8 @@ import {
   renderDailyEngagement,
   type DailyEngagementView,
 } from './daily-engagement-card.ts';
+import { loadLiveSummary, renderLiveCards } from '../odeum/live-card.ts';
+import { mountViewer, type ViewerHandle } from '../odeum/viewer-ui.ts';
 
 type ActivityKind =
   | 'attendance'
@@ -74,8 +76,20 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
   const loading = el('p', 'gl-muted', '読み込み中…');
   container.appendChild(loading);
 
-  const summary = await loadSummary(ctx);
+  // 「いま発表中」 は live セッションがあるときだけ上部に出す。 取得失敗は黙って省く。
+  const [summary, live] = await Promise.all([loadSummary(ctx), loadLiveSummary(ctx)]);
   loading.remove();
+  if (live) {
+    const stage = el('div');
+    let viewer: ViewerHandle | null = null;
+    const cards = renderLiveCards(live, {
+      onWatch: (card) => {
+        viewer?.dispose();
+        viewer = mountViewer(stage, ctx, card.sessionId, () => { viewer = null; });
+      },
+    });
+    if (cards) container.append(cards, stage);
+  }
   if (!summary) {
     container.appendChild(el('p', 'gl-notice gl-notice-error', 'ダッシュボードを取得できませんでした。'));
     return;

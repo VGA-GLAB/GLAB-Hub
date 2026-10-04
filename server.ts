@@ -14,7 +14,7 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installLogging } from './corpus/server/lib/logging.ts';
-import { requireInjectedEnvironment } from './startup/environment.ts';
+import { inspectOdeumEnvironment, requireInjectedEnvironment } from './startup/environment.ts';
 import { closeEventStore, initializeEventStore } from './plugins/events/store.ts';
 import { cernereClientOwner } from './plugins/cernere/shared-owner.ts';
 import { createShutdown } from './plugins/cernere/shutdown.ts';
@@ -27,6 +27,12 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
 
 installLogging();
 requireInjectedEnvironment(process.env);
+// Odeum (ライブ発表) は任意機能。鍵や中継 URL が無ければ odeum だけを無効にし、
+// hub 全体の起動は止めない。値は出さずにキー名だけを報告する。
+const odeumEnvironment = inspectOdeumEnvironment(process.env);
+if (!odeumEnvironment.enabled) {
+  console.warn(`[glab] odeum disabled; missing Excubitor-injected environment: ${odeumEnvironment.missing.join(', ')}`);
+}
 
 // GLAB プラグインパック / データ / frontend の所在を Corpus に伝える
 process.env.CORPUS_PLUGIN_DIR ??= resolve(ROOT, 'plugins');

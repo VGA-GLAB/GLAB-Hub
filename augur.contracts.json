@@ -11,6 +11,60 @@
       "module": "./contracts/injected-environment.contract.ts",
       "mode": "observe",
       "sample": 1
+    },
+    {
+      "id": "C-2",
+      "criterion": "C-2 signOdeumTicket(signer, subject): EdDSA + kid の JWS で、claims (iss/aud/sub/name/role/sid/exp≤5分/jti) が設計どおりで公開鍵で検証できる",
+      "symbol": "signOdeumTicket",
+      "file": "plugins/odeum/ticket.ts",
+      "module": "./contracts/odeum-ticket.contract.ts",
+      "mode": "observe",
+      "sample": 1
+    },
+    {
+      "id": "C-3",
+      "criterion": "C-3 canStartPresentation(event, actor): 発表を開始できるのはイベント作成者か GLab 管理者だけ",
+      "symbol": "canStartPresentation",
+      "file": "plugins/odeum/permissions.ts",
+      "module": "./contracts/odeum-permissions.contract.ts",
+      "mode": "observe",
+      "sample": 1
+    },
+    {
+      "id": "C-4",
+      "criterion": "C-4 endOdeumSession(db, id): 台帳は live → ended の一方向で、ended/不在は状態を変えず false",
+      "symbol": "endOdeumSession",
+      "file": "plugins/odeum/session-store.ts",
+      "module": "./contracts/odeum-session-store.contract.ts",
+      "mode": "observe",
+      "sample": 1
+    },
+    {
+      "id": "C-5",
+      "criterion": "C-5 buildLiveCards(sessions, events, relay): 閲覧可能な live セッションだけをカードにし、中継不達でも台帳から unknown で出す",
+      "symbol": "buildLiveCards",
+      "file": "plugins/odeum/live-cards.ts",
+      "module": "./contracts/odeum-live-cards.contract.ts",
+      "mode": "observe",
+      "sample": 1
+    },
+    {
+      "id": "C-6",
+      "criterion": "C-6 takeGoodBatch(pending): グッドの連打を 200ms 窓ごとに 1〜50 件の 1 メッセージへまとめ、超過分は次の窓へ繰り越す",
+      "symbol": "takeGoodBatch",
+      "file": "plugins/odeum/good-batcher.ts",
+      "module": "./contracts/odeum-good-batcher.contract.ts",
+      "mode": "observe",
+      "sample": 1
+    },
+    {
+      "id": "C-7",
+      "criterion": "C-7 fetchRelaySessions(httpBase, ticket): 中継不達・異常応答は例外にせず null を返し縮退させる",
+      "symbol": "fetchRelaySessions",
+      "file": "plugins/odeum/relay-client.ts",
+      "module": "./contracts/odeum-relay-client.contract.ts",
+      "mode": "observe",
+      "sample": 1
     }
   ]
 }

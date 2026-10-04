@@ -1,5 +1,15 @@
 {
   "service": "glab",
-  "include": ["startup/**/*.ts"],
-  "rules": { "contract-wrap": true }
+  "include": [
+    "startup/**/*.ts",
+    "plugins/odeum/ticket.ts",
+    "plugins/odeum/permissions.ts",
+    "plugins/odeum/session-store.ts",
+    "plugins/odeum/live-cards.ts",
+    "plugins/odeum/good-batcher.ts",
+    "plugins/odeum/relay-client.ts"
+  ],
+  "rules": {
+    "contract-wrap": true
+  }
 }

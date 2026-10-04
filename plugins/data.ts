@@ -255,6 +255,7 @@ export function ensureSchema(db: SqlDb): void {
   db.exec('CREATE INDEX IF NOT EXISTS glab_project_release_project ON glab_project_release(project_id, published_at DESC)');
   ensureCommunitySchema(db);
   ensureCocoiruSchema(db);
+  ensureOdeumSchema(db);
 }
 
 /** Hub と Bot が共有する日次コンテンツの最小永続状態。 */
@@ -345,6 +346,26 @@ function ensureCocoiruSchema(db: SqlDb): void {
   db.exec('CREATE INDEX IF NOT EXISTS glab_cocoiru_availability_expires ON glab_cocoiru_availability(expires_at)');
   db.exec('CREATE INDEX IF NOT EXISTS glab_cocoiru_call_recipient ON glab_cocoiru_call(recipient_id, expires_at)');
   db.exec('CREATE INDEX IF NOT EXISTS glab_cocoiru_call_sender ON glab_cocoiru_call(sender_id, kind, created_at)');
+}
+
+/**
+ * Odeum ライブ発表のセッション台帳 (plugins/odeum)。 イベントの正本は GLAB
+ * PostgreSQL (plugins/events) なので event_id は参照だけを持つ。 発表者は Cernere
+ * user_id の参照のみで、 表示名などの個人属性は保存しない。
+ * 状態は live → ended の一方向。 1 イベントに live は同時に 1 件まで。
+ */
+function ensureOdeumSchema(db: SqlDb): void {
+  db.exec(`CREATE TABLE IF NOT EXISTS glab_odeum_sessions (
+    id TEXT PRIMARY KEY,
+    event_id INTEGER NOT NULL,
+    presenter_user_id TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('live', 'ended')),
+    started_at INTEGER NOT NULL,
+    ended_at INTEGER NULL
+  )`);
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS glab_odeum_sessions_live_event
+    ON glab_odeum_sessions(event_id) WHERE status = 'live'`);
+  db.exec('CREATE INDEX IF NOT EXISTS glab_odeum_sessions_status ON glab_odeum_sessions(status, started_at)');
 }
 
 const DEFAULT_ROLE_DEFS = [

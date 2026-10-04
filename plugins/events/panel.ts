@@ -6,6 +6,7 @@ import {
   requireVantanUserRegistration,
   type PanelContext,
 } from '../panel-kit.ts';
+import { loadLiveByEvent, presentControls } from '../odeum/present-controls.ts';
 
 interface EventView {
   id: number;
@@ -15,6 +16,7 @@ interface EventView {
   startsAt: number;
   endsAt: number | null;
   facilityId: string | null;
+  createdBy: string;
   notified: boolean;
   audienceRoles: string[];
   recurrence: 'none' | 'weekly';
@@ -88,8 +90,9 @@ async function weekSection(
     list.body.appendChild(el('p', 'gl-muted', '(予定されているイベントはありません)'));
     return list.wrap;
   }
+  const live = await loadLiveByEvent(ctx);
   const rows = el('ul', 'gl-list');
-  for (const event of events) rows.appendChild(eventRow(event, ctx, rerender));
+  for (const event of events) rows.appendChild(eventRow(event, ctx, rerender, live));
   list.body.appendChild(rows);
   return list.wrap;
 }
@@ -221,6 +224,7 @@ function eventRow(
   event: EventView,
   ctx: PanelContext,
   rerender: () => Promise<void>,
+  live: Awaited<ReturnType<typeof loadLiveByEvent>>,
 ): HTMLLIElement {
   const row = el('li');
   row.appendChild(el('strong', undefined, event.title));
@@ -235,6 +239,8 @@ function eventRow(
   if (event.recurrence === 'weekly') row.appendChild(el('span', 'gl-tag', '毎週'));
   if (event.notified) row.appendChild(el('span', 'gl-tag', '通知済'));
   if (event.body) row.appendChild(el('div', 'gl-muted', event.body));
+  const present = presentControls(ctx, event, live, rerender);
+  if (present) row.appendChild(present);
   const remove = el('button', 'gl-btn ghost', 'イベントを削除');
   remove.type = 'button';
   let force = false;

@@ -20,7 +20,8 @@ GLAB を操作しない。デスクトップでは Cocoiru の常駐アプリ (L
 | 就活情報の投稿 | Web hub `jobs` で投稿し、Discordへ締切リマインド（自前 DB） |
 | 志望・内定企業 | Web hub `tirocinium` → Trの企業マスタを検索し、Cernere IDごとの志望企業・内定情報を登録 |
 | レビュー | Web hub `volputas` → Volputasの設問を「ゲームレビュー」「ゲームアンケート」「ほかの人への質問」の3タブでCorpus表示 |
-| ステータス | 接続サービス（Cr / Ae / Vo / Di / Tr / Os）のhealthとバージョンを集約 |
+| ライブ発表 | Web hub `odeum` → Odeum中継（odeum-relay）で発表者の画面を視聴し、グッド・スタンプ・コメント・投票を返す。ログイン時はダッシュボード上部に「いま発表中」を表示（[spec](spec/feature/odeum-live-presentation.md)） |
+| ステータス | 接続サービス（Cr / Ae / Vo / Di / Tr / Os / Od）のhealthとバージョンを集約 |
 | Di | Web hub `di` → 「議論」「学習ビュー」のみを公開。議論開始時にCernere IDを監査用に関連付け |
 | プロジェクト | Web hub `projects` → GitHub Release表示/DL/更新通知、Omnipotens解析レポートの保存と要約 |
 | 進捗 | Web hub `progress` → Calliope進捗の表示面。自前DBへキャッシュしない |

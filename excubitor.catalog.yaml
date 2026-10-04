@@ -41,6 +41,10 @@ services:
       # public リポにあり、この資格情報は開発用として既に公開されている = 秘匿対象ではない。
       # ローカル以外へ配置する場合はこの既定を Excubitor Vault 注入で上書きすること。
       GLAB_DATABASE_URL: postgresql://glab_user:glab@localhost:5432/glab
+      # Odeum ライブ発表 (plugins/odeum) は任意機能。ODEUM_RELAY_URL は Odeum catalog の
+      # odeum-relay が topology で提供し、署名鍵 GLAB_ODEUM_TICKET_PRIVATE_KEY /
+      # GLAB_ODEUM_TICKET_KID は Ex Vault から注入する。欠けても hub は起動し odeum だけ無効になる
+      # (spec/feature/odeum-live-presentation.md)。required_env には入れない。
     required_env: [CERNERE_BASE_URL, CERNERE_FRONTEND_URL, CORPUS_PUBLIC_URL, CORPUS_TOKEN_MODE, GLAB_OMNIPOTENS_REVIEW_ROOT, GLAB_DATABASE_URL]
     requires_secret:
       - service: cernere
