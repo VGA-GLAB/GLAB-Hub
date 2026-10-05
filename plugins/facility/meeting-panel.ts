@@ -1,9 +1,10 @@
 import { el, section, fmtDateTime, type PanelContext } from '../panel-kit.ts';
+import { guestResponseLabel, meetingShareUrl } from './meeting-share.ts';
 import { audienceFields, audienceLabel, field, localDateTime, requireOk, type Audience, type Facility, type Group } from './audience-fields.ts';
 
 interface Slot { id: string; startAt: string; endAt: string; venue: string }
 interface Meeting extends Audience {
-  id: string; title: string; description: string; organizerName: string; onlineAllowed: boolean;
+  id: string; title: string; description: string; organizerName: string; onlineAllowed: boolean; guestResponses?: boolean;
   slots: Slot[]; state: string; revision: number; canManage: boolean; selectedSlot: string | null;
   responses: { id: string; name: string; canEdit: boolean; revision: number; comment: string; topic: string; answers: Record<string, string> }[];
 }
@@ -16,6 +17,7 @@ export async function renderMeetings(container: HTMLElement, ctx: PanelContext, 
   const organizer = el('input', 'gl-input') as HTMLInputElement; organizer.required = true; organizer.maxLength = 80;
   organizer.value = ctx.identity.displayName ?? '';
   const online = el('input') as HTMLInputElement; online.type = 'checkbox';
+  const guest = el('input') as HTMLInputElement; guest.type = 'checkbox';
   const audience = audienceFields(groups);
   const slotsArea = el('div', 'gl-col');
   const slots: { id: string; start: HTMLInputElement; end: HTMLInputElement; venue: HTMLSelectElement }[] = [];
@@ -44,9 +46,16 @@ export async function renderMeetings(container: HTMLElement, ctx: PanelContext, 
   };
   reset.onclick = () => { resetForm(); status.textContent = ''; };
   form.append(field('会議名', title), field('内容', description), field('主催者の表示名', organizer),
-    field('オンライン参加可', online), audience.element, slotsArea, add, save, reset, status);
+    field('オンライン参加可', online), audience.element,
+    field('ログインしていない人の回答も受け付ける（公開範囲 Public のとき。共有URLから回答できます）', guest), slotsArea, add, save, reset, status);
   formSection.body.append(form); container.append(formSection.wrap); addSlot();
   const listSection = section('閲覧できる会議'); container.append(listSection.wrap);
+  // Aedilis owns the canonical share page; without its public origin no link is shown.
+  let publicUrl: string | undefined;
+  try {
+    const config = await ctx.api('/meetings/config');
+    if (config.ok) publicUrl = (await config.json() as { publicUrl?: string }).publicUrl;
+  } catch { publicUrl = undefined; }
 
   async function action(path: string, method: string, body: unknown): Promise<void> {
     await requireOk(await ctx.api(path, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }));
@@ -65,10 +74,18 @@ export async function renderMeetings(container: HTMLElement, ctx: PanelContext, 
     for (const item of items) {
       const card = el('div', 'gl-col');
       card.append(el('h3', undefined, item.title), el('p', undefined, item.description),
-        el('span', 'gl-muted', `${audienceLabel(item)} · ${item.state === 'finalized' ? '日時確定' : item.state === 'cancelled' ? '中止' : '日程調整中'}`));
+        el('span', 'gl-muted', `${audienceLabel(item)} · ${guestResponseLabel(item)} · ${item.state === 'finalized' ? '日時確定' : item.state === 'cancelled' ? '中止' : '日程調整中'}`));
+      const shareUrl = meetingShareUrl(publicUrl, item);
+      if (shareUrl && item.state !== 'cancelled') {
+        const link = el('a', undefined, '共有URL（Aedilis）') as HTMLAnchorElement; link.href = shareUrl; link.target = '_blank'; link.rel = 'noopener noreferrer';
+        const copyLink = el('button', 'gl-btn ghost', 'URLをコピー') as HTMLButtonElement; copyLink.type = 'button';
+        copyLink.onclick = () => void navigator.clipboard.writeText(shareUrl).then(() => { status.textContent = '共有URLをコピーしました。'; }, () => { status.textContent = 'コピーできませんでした。'; });
+        const share = el('div', 'gl-row'); share.append(link, copyLink); card.append(share);
+      }
       const fill = (copy: boolean): void => {
         editing = copy ? null : item; title.value = item.title; description.value = item.description;
         organizer.value = copy ? ctx.identity.displayName ?? '' : item.organizerName; online.checked = item.onlineAllowed;
+        guest.checked = item.guestResponses ?? false;
         audience.write(item); slots.splice(0); slotsArea.replaceChildren(); item.slots.forEach(slot => addSlot(slot, copy));
         save.textContent = copy ? 'コピーを作成' : '変更を保存';
         status.textContent = copy ? '回答と確定状態はコピーしません。日時を確認して保存してください。' : '変更すると日程調整を再開します。';
@@ -119,7 +136,7 @@ export async function renderMeetings(container: HTMLElement, ctx: PanelContext, 
       });
       const usedVenues = new Set(values.map(slot => slot.venue));
       const body = { ...audience.read(), title: title.value, description: description.value, organizerName: organizer.value,
-        onlineAllowed: online.checked, slots: values, venues: facilities.filter(f => usedVenues.has(f.name)).map(f => ({ name: f.name, facilityId: f.id, busy: [] })),
+        onlineAllowed: online.checked, guestResponses: guest.checked, slots: values, venues: facilities.filter(f => usedVenues.has(f.name)).map(f => ({ name: f.name, facilityId: f.id, busy: [] })),
         ...(editing ? { revision: editing.revision } : {}),
       };
       await action(editing ? `/meetings/${encodeURIComponent(editing.id)}` : '/meetings', editing ? 'PATCH' : 'POST', body);

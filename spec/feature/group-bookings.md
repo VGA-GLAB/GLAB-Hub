@@ -23,3 +23,14 @@ GLabからAedilisへの本人トークンは既存TokenProviderで発行。所�
 GLabの型チェック・ビルド。Revisor用テスト：匿名拒否、旧APIへの書込拒否、署名の本人／リクエスト結合、所属取得失敗。Aedilis側では署名改ざん・期限・脱退・非公開・会議確定と施設予約の原子性を検証する。実アカウントによるブラウザ確認は未実施。
 
 Anatomiaのplanで既存facility-reservation／identity-accessを確認。whereはlandingなし。全体verifyは登録main索引への評価でありworktreeの実行確認ではない。typescript-language-serverは端末のコマンドとして見つからず、参照確認はソース検索を使用した。
+
+## 会議予定のログインなし回答 (2026-10-05)
+
+neco 指示「AeをGLabに接続。予定作成者はCr登録済みユーザである必要があるが、非ログインでも予定に回答できる設定を用意する」。
+
+- 作成は従来どおり GLab の認証済み利用者だけ (Aedilis も Cernere 未ログインの作成を 401 で拒否する)。
+- 会議フォームに「ログインしていない人の回答も受け付ける」を追加し、Aedilis の `guestResponses` へ渡す。
+  公開範囲 Public の会議だけ有効 (それ以外は Aedilis が 400)。編集時は保存済みの値を表示する。
+- 公開範囲 Public の会議には Aedilis の共有URL (`{publicUrl}/meeting/{id}`) とコピーボタンを表示する。
+  `publicUrl` は Aedilis `GET /api/meetings/config` から既存の認証付き中継で取得し、取れなければ表示しない。
+- 実装: `plugins/facility/meeting-share.ts` (URL 組み立てと表示ラベル)、`meeting-panel.ts`。
