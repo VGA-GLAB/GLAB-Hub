@@ -48,6 +48,10 @@ test('launch configuration uses injected env and bypasses standalone secret boot
   const launcher = read('server.ts');
   assert.match(launcher, /import\('\.\/corpus\/server\/index\.ts'\)/);
   assert.doesNotMatch(launcher, /import\('\.\/corpus\/server\/bootstrap\.ts'\)/);
+  // Corpus は import だけでは listen しない (Corpus spec/feature/host-cleanup.md)。起動口を呼んで cleanup を保持する。
+  assert.match(launcher, /const \{ startCorpus \} = await import\('\.\/corpus\/server\/index\.ts'\)/);
+  assert.match(launcher, /await startCorpus\(\)/);
+  assert.match(launcher, /await closeCorpus\(\);\s*await close\(\);/);
   assert.ok(launcher.indexOf('requireInjectedEnvironment(process.env)') < launcher.indexOf('await initializeEventStore'));
   assert.match(launcher, /installLogging\(\)/);
   const catalog = read('excubitor.catalog.yaml');

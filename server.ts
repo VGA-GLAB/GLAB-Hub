@@ -75,9 +75,16 @@ const initialization = (async (): Promise<void> => {
   await initializeEventStore(process.env.GLAB_DATABASE_URL);
   if (!stopping) await initializeFacilityStore(process.env.GLAB_DATABASE_URL);
 })();
+// Corpus は import だけでは起動しない (Corpus spec/feature/host-cleanup.md)。startCorpus() の
+// 戻り値が listen 中の server と内部資源の cleanup を持つ。request を止めてから store を閉じるため、
+// 各 store の cleanup は Corpus の close (1 回だけ実行) を待ってから行う。
+let corpusRuntime: { close: () => Promise<void> } | null = null;
+let corpusClosing: Promise<void> | undefined;
+const closeCorpus = (): Promise<void> => (corpusClosing ??= Promise.resolve().then(() => corpusRuntime?.close()));
 const afterInitialization = (close: () => Promise<void>) => async (): Promise<void> => {
   // 初期化失敗そのものは下の catch で報告する。cleanup は途中確保した store にも行う。
   await initialization.catch(() => undefined);
+  await closeCorpus();
   await close();
 };
 const shutdown = createShutdown(() => cernereClientOwner.closeAll(), [
@@ -95,10 +102,16 @@ try {
   await initialization;
   // Corpus の standalone bootstrap は secret を再取得するため通さない。
   // GLAB の設定は Ex が注入する。Corpus CLI の env 上書きも適用しない。
-  if (!stopping) await import('./corpus/server/index.ts');
+  if (!stopping) {
+    const { startCorpus } = await import('./corpus/server/index.ts');
+    const runtime = await startCorpus();
+    // 起動中に停止信号が来ていたら shutdown は済んでいるので、起動し終えた Corpus をここで閉じる。
+    if (stopping) await runtime.close();
+    else corpusRuntime = runtime;
+  }
 } catch (error) {
   try { await shutdown(); }
   catch (cleanupError) { throw new AggregateError([error, cleanupError], 'GLAB initialization and cleanup failed'); }
   throw error;
 }
-// Corpus 内部の直接 process.exit(1) / SIGKILL は捕捉不能。外部 cleanup 契約の提供待ち。
+// SIGKILL は捕捉不能。
