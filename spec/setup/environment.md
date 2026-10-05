@@ -27,10 +27,13 @@ GLAB は 2 系統の設定を持つ：**hub** は開発時も Excubitor の Vaul
 | `DISCUTERE_WEB_URL` | `DISCUTERE_URL` | | Di Web UI が API と別 origin の場合の public base URL |
 | `TIROCINIUM_URL` | （空 = degraded） | | Tr API の内部 base URL（Ex topology は `http://localhost:8084` を注入） |
 | `CALLIOPE_BASE_URL` | （空 = degraded） | | PM進捗の集約先 Calliope。`GET /api/glab/progress` を read するだけ（[`interface/calliope-connector.md`](../interface/calliope-connector.md)） |
-| `CALLIOPE_PROJECT_KEY` | （空 = service token を発行しない） | | Calliope の Cernere managed project key。GLAB の project credentials で scope `calliope-api:access` の Cernere service token を発行する宛先（認証集約 P4） |
+| `CALLIOPE_PROJECT_KEY` | （空 = service token を発行しない）。catalog は `calliope` | | Calliope の Cernere managed project key（Cernere migration 058 で登録）。GLAB の project credentials で scope `calliope-api:access` の Cernere service token を発行する宛先（認証集約 P4） |
 | `CALLIOPE_SERVICE_TOKEN` | （空） | | Calliope `/api/*` の従来の固定 Bearer。P4 の間は service token 発行失敗時だけ使う（P5 で撤去）。service token も固定トークンも無ければ data 取得は 503。平文保存せずExcubitor Vault / spawn envから注入 |
 | `GLAB_PROJECTS_SERVICE_TOKEN` | （空） | | `/external/*`（projects / consult / tech-links）の従来の固定トークン。P4 の間は Cernere service token（scope `glab-external:write`）と両受理。どちらも無ければ 503（P5 で撤去） |
 | `GLAB_SERVICE_TOKEN_AUDIENCE` | `educationlab` | | 受信する Cernere service token の `aud`（= Cernere 上の GLAB `EducationLab` の storage_slug）。Cernere の実値と異なる場合だけ catalog `env:` で上書きする |
+| `CORPUS_EXTERNAL_SERVICE_AUTH_MODULES` | （空 = 無効）。catalog は `consult,projects` | | Corpus requireAuth が Cernere service token を service 主体として通すモジュール。対象は `/api/x/<module>/external/*` だけ（Corpus #2460、認証集約 P4）。bot の相談通知巡回と Calliope の projects 参照がユーザ token 無しで plugin の認可に届く |
+| `CORPUS_EXTERNAL_SERVICE_TOKEN_HEADERS` | （Authorization のみ）。catalog は `x-glab-service-token,x-projecthub-service-token` | | 上記で service token を探すヘッダ名 |
+| `CORPUS_CERNERE_STORAGE_SLUG` | — | 上記を有効化したとき | Corpus が照合する service token の `aud`。`GLAB_SERVICE_TOKEN_AUDIENCE` と同じ値（`educationlab`） |
 | `GLAB_GITHUB_TOKEN` | （空 = 未認証アクセス） | | GitHub public API の rate-limit 緩和にだけ使う read 用 token。接続先は `https://api.github.com` 固定で、未設定でも同期は動く |
 | `GLAB_OMNIPOTENS_REVIEW_ROOT` | （空 = 解析閲覧無効） | | Omnipotentsの`Review`フォルダ。`Review/<project name>/report`を登録済みリポジトリ名からだけ参照し、任意パス、worktree、シンボリックリンクは受け付けない |
 
@@ -68,6 +71,7 @@ Corpus standalone bootstrap の CLI 引数による env 上書きは GLAB では
 | `GLAB_JOB_WINDOW_MS` | `259200000`（3 日） | | 就活締切リマインド窓 |
 | `GLAB_BOT_MASTER_KEY` | （マシン束縛値） | | 暗号化 config の master 鍵 |
 | `GLAB_BOT_CONFIG_PATH` | `bot/glab-bot.config.json` | | 暗号化 config の保存先 |
+| `CERNERE_BASE_URL` / `CERNERE_PROJECT_CLIENT_ID` / `CERNERE_PROJECT_CLIENT_SECRET` | — | | hub の external API へ送る Cernere service token（scope `glab-external:write`）の取得に使う。Excubitor の catalog `glab-bot` が bot 専用の Cernere project `glab-bot`（Cernere migration 059）の launch credential を起動ごとに注入する。hub（EducationLab）の credential は共有しない |
 
 ## gitignore（`.gitignore`）
 

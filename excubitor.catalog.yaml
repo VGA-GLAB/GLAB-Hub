@@ -48,9 +48,16 @@ services:
       # 認証集約 P4: /external/* が受理する Cernere service token の aud
       # (= Cernere 上の EducationLab の storage_slug)。Cernere の実値と異なるならここを直す。
       # 送り側 (progress → Calliope) は下の cernere_launch_credentials の client credentials を
-      # 再利用する。CALLIOPE_PROJECT_KEY は Calliope が Cernere に登録されたら追記する
-      # (未設定の間は CALLIOPE_SERVICE_TOKEN へフォールバック)。
+      # 再利用する。宛先の Calliope は Cernere migration 058 で key=calliope として登録済み。
       GLAB_SERVICE_TOKEN_AUDIENCE: educationlab
+      CALLIOPE_PROJECT_KEY: calliope
+      # Corpus requireAuth は /api/* にユーザ token を要求するため、ユーザ不在の service 呼び出し
+      # (bot の相談通知巡回 → consult、Calliope → projects) が plugin の service 認可に届く前に 401 になっていた。
+      # Corpus #2460 の外部経路 opt-in で、これらのモジュールの /api/x/<module>/external/* だけ
+      # Cernere service token (aud = CORPUS_CERNERE_STORAGE_SLUG) を service 主体として通す。scope は plugin が照合する。
+      CORPUS_EXTERNAL_SERVICE_AUTH_MODULES: consult,projects
+      CORPUS_EXTERNAL_SERVICE_TOKEN_HEADERS: x-glab-service-token,x-projecthub-service-token
+      CORPUS_CERNERE_STORAGE_SLUG: educationlab
     required_env: [CERNERE_BASE_URL, CERNERE_FRONTEND_URL, CORPUS_PUBLIC_URL, CORPUS_TOKEN_MODE, GLAB_OMNIPOTENS_REVIEW_ROOT, GLAB_DATABASE_URL]
     requires_secret:
       - service: cernere
@@ -64,3 +71,31 @@ services:
       interval_sec: 30
     provides:
       GLAB_URL: http://${host}:${port}
+
+  # GLAB の Discord 通知 bot (bot/)。通知専用で、利用者操作の command は持たない (CLAUDE.md「Discord 入力境界」)。
+  # 相談通知の巡回で hub の external API (/api/x/consult/external/*) を呼ぶため、Cernere service token
+  # (scope glab-external:write) を自分の client credentials で取得する。hub (EducationLab) と credential を
+  # 共有すると起動ごとの再発行で片方が失効するので、bot 専用の Cernere project glab-bot を使う
+  # (Cernere migration 059、認証集約 P4。neco 判断 2026-10-05)。
+  # Discord token などの secret は従来どおり bot の暗号化 config (@ludiars/encrypted-config) に置く。
+  - code: glab-bot
+    name: GLAB Discord 通知 bot
+    tier: saas
+    project_code: glab
+    component: worker
+    repo: VGA-GLAB/GLAB-Hub
+    runtime: node
+    cwd: ${ARS_ROOT}/GLAB/bot
+    # hub と同じ理由で npm 経由 (shell) にしない (breakaway launcher の pid が cmd.exe を指し即死判定になる)。
+    command: node --run start
+    allow_hot_reload: false
+    depends_on: [glab, cernere]
+    autostart: false
+    env:
+      # hub の external API の到達先 (hub catalog の CORPUS_PUBLIC_URL と同じ)。
+      GLAB_BASE_URL: http://localhost:5187
+      # hub と共有する GLAB 所有 DB (hub catalog の GLAB_DATABASE_URL と同じ開発用 localhost 値)。
+      GLAB_DATABASE_URL: postgresql://glab_user:glab@localhost:5432/glab
+    required_env: [CERNERE_BASE_URL, GLAB_BASE_URL]
+    cernere_launch_credentials:
+      target_project: glab-bot
