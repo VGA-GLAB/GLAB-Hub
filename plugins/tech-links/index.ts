@@ -2,8 +2,8 @@ import { Hono, getDisplayName, getIdentity } from '../../corpus/server/hub/sdk.t
 import type { CorpusContext, CorpusModule } from '../../corpus/server/hub/sdk.ts';
 import { z } from 'zod';
 import { ensureSchema } from '../data.ts';
-import { requireServiceToken } from '../projects/service-auth.ts';
-import { noStore, serviceToken } from '../shared.ts';
+import { requireExternalServiceAuth } from '../projects/service-auth.ts';
+import { noStore } from '../shared.ts';
 import {
   createLink,
   findLink,
@@ -127,7 +127,7 @@ const techLinksModule: CorpusModule = {
       return c.json({ tags: listTagCounts(ctx.db) });
     });
 
-    routes.post('/external/links', requireServiceToken(serviceToken(ctx.env)), async (c) => {
+    routes.post('/external/links', requireExternalServiceAuth(ctx.env), async (c) => {
       noStore(c);
       const parsed = externalLinkSchema.safeParse(await c.req.json().catch(() => null));
       if (!parsed.success) return c.json({ error: 'invalid_link' }, 400);
@@ -139,7 +139,7 @@ const techLinksModule: CorpusModule = {
       return c.json({ created: true, id: link.id }, 201);
     });
 
-    routes.delete('/external/links', requireServiceToken(serviceToken(ctx.env)), async (c) => {
+    routes.delete('/external/links', requireExternalServiceAuth(ctx.env), async (c) => {
       noStore(c);
       const parsed = unshareSchema.safeParse(await c.req.json().catch(() => null));
       if (!parsed.success) return c.json({ error: 'invalid_unshare' }, 400);

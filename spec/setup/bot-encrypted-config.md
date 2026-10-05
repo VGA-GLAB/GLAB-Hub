@@ -34,6 +34,21 @@ npm run start               # Gateway 接続 + slash command 削除同期 + 通�
 
 **env > 暗号化 config > コード既定** の優先で解決する（`pick()` / `pickNum()`）。CI / 一時上書きは env で。
 
+## GLAB external API の認可（認証集約 P4）
+
+Bot は hub の `/api/x/consult/external/*` を呼ぶとき、Cernere service token
+（`target_project_key = EducationLab`、hub 側 scope `glab-external:write`）を
+`X-Glab-Service-Token` で送る（`bot/glab-api.ts`、発行とキャッシュは `plugins/cernere-service-token.ts`）。
+
+- 発行に使う `CERNERE_BASE_URL` / `CERNERE_PROJECT_CLIENT_ID` / `CERNERE_PROJECT_CLIENT_SECRET` は
+  **env からだけ渡す**（`config-setup` の対象キーにしない）。Excubitor の `cernere_launch_credentials` は
+  起動ごとに secret を rotate するため、暗号化 config に固定保存すると次回起動で失効する。
+- 発行に失敗したとき（credentials 未設定 / 401 / 403 / 404 / 通信失敗）だけ、従来の
+  `GLAB_PROJECTS_SERVICE_TOKEN` を同じヘッダで送る（P5 で撤去）。どちらも無ければ hub を呼ばない。
+- Bot は Excubitor catalog に載っていないため、現状 credentials を注入する経路が無い。
+  hub と同じ `EducationLab` の launch credential を共有すると hub の secret が rotate されて失効するので、
+  Bot 用の Cernere project（`service_scopes` に `glab-external:write`）と catalog 登録が別途必要（未決）。
+
 ## npm スクリプト（`bot/package.json`）
 
 | script | 内容 |

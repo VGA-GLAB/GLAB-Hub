@@ -30,7 +30,17 @@ export interface BotConfig {
     daily: string;
   };
   glabBaseUrl: string;
+  /** 従来の固定トークン。 認証集約 P4 の間は Cernere service token の発行失敗時だけ使う (P5 で撤去)。 */
   glabServiceToken: string;
+  /**
+   * Cernere project client credentials (Excubitor `cernere_launch_credentials` が env 注入)。
+   * GLAB external API 用の Cernere service token を発行するためだけに使い、 Cernere 以外へ送らない。
+   */
+  cernere: {
+    baseUrl: string;
+    clientId: string;
+    clientSecret: string;
+  };
   /** admin 扱いする Discord ユーザ id。 */
   adminUserIds: string[];
   llm: {
@@ -97,6 +107,11 @@ export function loadConfig(): BotConfig {
     },
     glabBaseUrl: pick('GLAB_BASE_URL'),
     glabServiceToken: pick('GLAB_PROJECTS_SERVICE_TOKEN'),
+    cernere: {
+      baseUrl: pick('CERNERE_BASE_URL'),
+      clientId: pick('CERNERE_PROJECT_CLIENT_ID'),
+      clientSecret: pick('CERNERE_PROJECT_CLIENT_SECRET'),
+    },
     adminUserIds: pick('GLAB_ADMIN_USER_IDS')
       .split(',')
       .map((s) => s.trim())

@@ -15,7 +15,7 @@ GLAB の `tech-links` モジュールは、認証済みユーザが技術情報�
 
 ## Memoria outbound API
 
-`POST` および `DELETE /api/x/tech-links/external/links` は、Corpus の通常のユーザ認証に加え `X-Glab-Service-Token`（または Bearer token）で `GLAB_PROJECTS_SERVICE_TOKEN` を検証する。サービス認証だけでは到達できない。
+`POST` および `DELETE /api/x/tech-links/external/links` は、Corpus の通常のユーザ認証に加え `X-Glab-Service-Token`（または Bearer token）を検証する。値が `v4.public.` で始まれば Cernere service token（scope `glab-external:write`）、それ以外は `GLAB_PROJECTS_SERVICE_TOKEN` と照合する（認証集約 P4 の新旧両受理。[`projects-registry.md`](./projects-registry.md)）。サービス認証だけでは到達できない。
 
 - `POST` body: `{ url, title, summary?, memo?, tags?, sourceRef }`。`postedBy` は受け付けず、`getIdentity()` の `userId` で保存する。同じ `(source='memoria', source_ref, posted_by)` が未削除なら `200 { created: false, id }`、新規は `201 { created: true, id }`。
 - `DELETE` body: `{ sourceRef }`。`source='memoria'`、`source_ref`、`posted_by=getIdentity().userId` の三条件で限定して `deleted_at` を設定する。他ユーザの共有をサービス token のみで削除できない。

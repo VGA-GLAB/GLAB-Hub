@@ -65,15 +65,35 @@ GLabの「レビュー」パネルではプロジェクト名を選択し、Omni
   ルートを追加できない。`corpus/` submodule は変更禁止のスコープのため、
   `/api/*` の外や `requireAuth` の手前にルートを増設する手段がない。
 - そのため本タスクでは、requireAuth の**内側**に service token による追加ゲート
-  (`plugins/projects/service-auth.ts` の `requireServiceToken`) を重ねる形で実装する。
-  呼び出し側 (Calliope) は Cernere で検証可能な bearer（他コネクタと同じ経路）に加えて、
+  (`plugins/projects/service-auth.ts` の `requireExternalServiceAuth` → `requireServiceToken`) を
+  重ねる形で実装する。consult / projects / tech-links の `/external/*` は全てこのガードを通る。
+  呼び出し側は Cernere で検証可能な bearer（Corpus requireAuth 用。他コネクタと同じ経路）に加えて、
   以下のいずれかの header で service token を提示する:
-  - `X-Glab-Service-Token: <token>`
-  - `Authorization: Bearer <token>`（Cernere 検証を経ないその他クライアント向け）
-- token は env `GLAB_PROJECTS_SERVICE_TOKEN` で設定する（Excubitor spawn env / Excubitor Vault）。
-  **未設定時は `503 { error: 'service_token_unconfigured' }`**（無言で全許可・全拒否のどちらにも
-  倒さない、§7.1）。token 不一致 / 未提示は `401 { error: 'invalid_service_token' }`。
-  比較は `crypto.timingSafeEqual`（平文比較しない）。
+  - `X-Glab-Service-Token: <token>`（正規）
+  - `X-ProjectHub-Service-Token: <token>`（Calliope の現行ヘッダ。同じ判定で受ける）
+  - `Authorization: Bearer <token>`（P4 以前からの固定トークン互換。Cernere service token としては見ない）
+
+### 認証集約 P4: Cernere service token と固定トークンの両受理
+
+Corpus `spec/plan/auth-plane-consolidation.md` §6 P4。固定トークンの撤去は P5（別 PR）。
+
+- サービス用ヘッダ（`X-Glab-Service-Token` / `X-ProjectHub-Service-Token`）の値が `v4.public.` で
+  始まれば **Cernere service token** として検証する（`plugins/projects/service-token-verifier.ts`）。
+  - 署名: Cernere `/.well-known/cernere-public-key` の公開鍵（Ed25519、10 分キャッシュ、未知 kid は
+    30 秒以上空けて再取得）。PASETO v4.public の検証は `plugins/projects/paseto-v4-public.ts`。
+  - claims: `kind === "service"`、`exp` 未到来、`aud` が GLAB の storage_slug
+    （env `GLAB_SERVICE_TOKEN_AUDIENCE`、既定 `educationlab`）、scope に `glab-external:write`。
+  - 呼出元名（`sub`）では分岐しない。不正 → `401 invalid_service_token`、scope 不足 →
+    `403 insufficient_scope`、公開鍵を取得できない → `503 service_token_verifier_unavailable`。
+  - service token として拒否した値を固定トークン照合へは回さない。
+  - `CERNERE_BASE_URL` 未設定なら検証器を作らず、`v4.public.` 値も固定トークン照合へ回る（= 不一致で 401）。
+- それ以外の値は従来どおり固定トークン env `GLAB_PROJECTS_SERVICE_TOKEN` と照合する
+  （Excubitor spawn env / Excubitor Vault）。比較は `crypto.timingSafeEqual`（平文比較しない）。
+- 固定トークン未設定かつ有効な service token も無いときは
+  **`503 { error: 'service_token_unconfigured' }`**（無言で全許可・全拒否のどちらにも倒さない、§7.1）。
+  token 不一致 / 未提示は `401 { error: 'invalid_service_token' }`。
+- Authorization は Corpus requireAuth のユーザ token と取り合いになるため、service token は
+  固定トークンと同じサービス用ヘッダで受ける。
 - レスポンス形式はパネル API の GET と同一（`{ projects: [...] }` / `{ project: {...} }`）。
 
 Calliope 側 (`H3 GLabConnector`) が実装時に Cernere 認証をどう満たすか（project token 発行の

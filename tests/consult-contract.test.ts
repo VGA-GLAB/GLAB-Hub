@@ -12,7 +12,7 @@ test('forum listing filters by canSee on the server', () => {
 
 test('consult external routes are guarded by a service token', () => {
   const src = readSource('plugins/consult/index.ts');
-  assert.ok(/requireServiceToken\(/.test(src), 'service token guard missing');
+  assert.ok(/requireExternalServiceAuth\(/.test(src), 'service token guard missing');
   assert.ok(/\/external\/presence/.test(src), 'presence external route missing');
 });
 

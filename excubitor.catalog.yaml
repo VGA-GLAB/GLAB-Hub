@@ -45,6 +45,12 @@ services:
       # odeum-relay が topology で提供し、署名鍵 GLAB_ODEUM_TICKET_PRIVATE_KEY /
       # GLAB_ODEUM_TICKET_KID は Ex Vault から注入する。欠けても hub は起動し odeum だけ無効になる
       # (spec/feature/odeum-live-presentation.md)。required_env には入れない。
+      # 認証集約 P4: /external/* が受理する Cernere service token の aud
+      # (= Cernere 上の EducationLab の storage_slug)。Cernere の実値と異なるならここを直す。
+      # 送り側 (progress → Calliope) は下の cernere_launch_credentials の client credentials を
+      # 再利用する。CALLIOPE_PROJECT_KEY は Calliope が Cernere に登録されたら追記する
+      # (未設定の間は CALLIOPE_SERVICE_TOKEN へフォールバック)。
+      GLAB_SERVICE_TOKEN_AUDIENCE: educationlab
     required_env: [CERNERE_BASE_URL, CERNERE_FRONTEND_URL, CORPUS_PUBLIC_URL, CORPUS_TOKEN_MODE, GLAB_OMNIPOTENS_REVIEW_ROOT, GLAB_DATABASE_URL]
     requires_secret:
       - service: cernere

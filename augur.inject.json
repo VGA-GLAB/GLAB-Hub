@@ -11,7 +11,12 @@
     "plugins/attendance/gps-checkin-form.ts",
     "plugins/attendance/location-statement.ts",
     "plugins/attendance/gps-checkin.ts",
-    "plugins/data.ts"
+    "plugins/data.ts",
+    "plugins/projects/service-token-verifier.ts",
+    "plugins/projects/service-auth.ts",
+    "plugins/projects/paseto-v4-public.ts",
+    "plugins/cernere-service-token.ts",
+    "plugins/service-credential.ts"
   ],
   "rules": {
     "contract-wrap": true

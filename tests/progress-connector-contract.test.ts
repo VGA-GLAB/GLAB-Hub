@@ -32,7 +32,7 @@ function connector(fetchImpl: (path: string) => Promise<Response>) {
 }
 
 describe('Calliope connector configuration', () => {
-  it('authenticates with the fixed service token rather than a user token', () => {
+  it('carries no credential in the static connector options (data requests get it per call)', () => {
     const options = calliopeConnectorOptions(env({
       CALLIOPE_BASE_URL: 'http://calliope.test/',
       CALLIOPE_SERVICE_TOKEN: 'service-token',
@@ -40,7 +40,7 @@ describe('Calliope connector configuration', () => {
 
     assert.equal(options.id, 'calliope');
     assert.equal(options.scope, 'multi');
-    assert.deepEqual(options.headers, { authorization: 'Bearer service-token' });
+    assert.deepEqual(options.headers, {});
   });
 
   it('probes the unauthenticated /health route, not /api/health', () => {
@@ -53,17 +53,12 @@ describe('Calliope connector configuration', () => {
     assert.equal(calliopeConnectorOptions(env({ CALLIOPE_BASE_URL: '   ' })).baseUrl, '');
   });
 
-  it('omits the Authorization header when no service token is configured', () => {
-    const options = calliopeConnectorOptions(env({ CALLIOPE_BASE_URL: 'http://calliope.test' }));
-    assert.deepEqual(options.headers, {});
-  });
-
   it('reports degraded instead of down while Calliope is unconfigured', async () => {
     const calliope = makeCalliopeConnector(env({}));
     assert.equal((await calliope.health()).status, 'degraded');
   });
 
-  it('sends the service token on data reads', async () => {
+  it('sends the legacy fixed token on data reads while Cernere credentials are not injected', async () => {
     const seen: Array<Record<string, string>> = [];
     globalThis.fetch = async (_url, init) => {
       seen.push(Object.fromEntries(new Headers(init?.headers).entries()));
@@ -79,7 +74,7 @@ describe('Calliope connector configuration', () => {
     assert.equal(seen[0]?.authorization, 'Bearer service-token');
   });
 
-  it('keeps Calliope on its fixed service credential even if a caller supplies another token', async () => {
+  it('keeps Calliope on its machine credential even if a caller supplies another token', async () => {
     // Calliope は user-token proxy とは異なる機械 credential 経路。
     const seen: Array<Record<string, string>> = [];
     globalThis.fetch = async (_url, init) => {
@@ -96,6 +91,92 @@ describe('Calliope connector configuration', () => {
     });
 
     assert.equal(seen[0]?.authorization, 'Bearer service-token');
+  });
+});
+
+describe('Calliope connector with Cernere service tokens (auth P4)', () => {
+  const CERNERE_ENV = {
+    CALLIOPE_BASE_URL: 'http://calliope.test',
+    CERNERE_BASE_URL: 'http://cernere.test',
+    CERNERE_PROJECT_CLIENT_ID: 'client-id',
+    CERNERE_PROJECT_CLIENT_SECRET: 'client-secret',
+    CALLIOPE_PROJECT_KEY: 'Calliope',
+  };
+
+  function recordFetch(issue: () => Response) {
+    const calls: Array<{ url: string; headers: Record<string, string>; body: unknown }> = [];
+    globalThis.fetch = async (url, init) => {
+      calls.push({
+        url: String(url),
+        headers: Object.fromEntries(new Headers(init?.headers).entries()),
+        body: init?.body ? JSON.parse(String(init.body)) : null,
+      });
+      if (String(url).endsWith('/api/auth/service-token')) return issue();
+      return Response.json({ generatedAt: 'now', projects: [] });
+    };
+    return calls;
+  }
+
+  it('sends a Cernere service token issued for CALLIOPE_PROJECT_KEY as the Bearer', async () => {
+    const calls = recordFetch(() => Response.json({ accessToken: 'v4.public.calliope', expiresIn: 900 }));
+    const calliope = makeCalliopeConnector(env({ ...CERNERE_ENV, CALLIOPE_SERVICE_TOKEN: 'service-token' }));
+
+    await calliope.fetch(CALLIOPE_PROGRESS_PATH);
+    await calliope.fetch(CALLIOPE_PROGRESS_PATH);
+
+    const issued = calls.filter((c) => c.url.endsWith('/api/auth/service-token'));
+    assert.equal(issued.length, 1, 'the token is cached between requests');
+    assert.equal(issued[0]?.url, 'http://cernere.test/api/auth/service-token');
+    assert.deepEqual(issued[0]?.body, {
+      client_id: 'client-id',
+      client_secret: 'client-secret',
+      target_project_key: 'Calliope',
+    });
+    const reads = calls.filter((c) => c.url.startsWith('http://calliope.test'));
+    assert.equal(reads.length, 2);
+    for (const read of reads) assert.equal(read.headers.authorization, 'Bearer v4.public.calliope');
+    // client credentials は Cernere 以外へ送らない。
+    for (const read of reads) assert.equal(JSON.stringify(read).includes('client-secret'), false);
+  });
+
+  it('falls back to CALLIOPE_SERVICE_TOKEN only when issuance fails', async () => {
+    const calls = recordFetch(() => new Response('', { status: 403 }));
+    const calliope = makeCalliopeConnector(env({ ...CERNERE_ENV, CALLIOPE_SERVICE_TOKEN: 'service-token' }));
+
+    await calliope.fetch(CALLIOPE_PROGRESS_PATH);
+
+    const read = calls.find((c) => c.url.startsWith('http://calliope.test'));
+    assert.equal(read?.headers.authorization, 'Bearer service-token');
+  });
+
+  it('falls back when CALLIOPE_PROJECT_KEY is not set, without calling Cernere', async () => {
+    const calls = recordFetch(() => Response.json({ accessToken: 'unused', expiresIn: 900 }));
+    const { CALLIOPE_PROJECT_KEY: _omitted, ...withoutKey } = CERNERE_ENV;
+    const calliope = makeCalliopeConnector(env({ ...withoutKey, CALLIOPE_SERVICE_TOKEN: 'service-token' }));
+
+    await calliope.fetch(CALLIOPE_PROGRESS_PATH);
+
+    assert.equal(calls.some((c) => c.url.includes('cernere')), false);
+    assert.equal(calls[0]?.headers.authorization, 'Bearer service-token');
+  });
+
+  it('returns 503 without reaching Calliope when issuance fails and no fixed token is set', async () => {
+    const calls = recordFetch(() => new Response('', { status: 401 }));
+    const calliope = makeCalliopeConnector(env(CERNERE_ENV));
+
+    const res = await calliope.fetch(CALLIOPE_PROGRESS_PATH);
+
+    assert.equal(res.status, 503);
+    assert.equal((await res.json() as { error: string }).error, 'service_token_unavailable');
+    assert.equal(calls.some((c) => c.url.startsWith('http://calliope.test')), false);
+  });
+
+  it('never sends a credential on the public health probe', async () => {
+    const calls = recordFetch(() => Response.json({ accessToken: 'v4.public.calliope', expiresIn: 900 }));
+    await makeCalliopeConnector(env({ ...CERNERE_ENV, CALLIOPE_SERVICE_TOKEN: 'service-token' })).health();
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]?.url, 'http://calliope.test/health');
+    assert.equal(calls[0]?.headers.authorization, undefined);
   });
 });
 

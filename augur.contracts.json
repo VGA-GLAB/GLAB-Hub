@@ -101,6 +101,51 @@
       "module": "./contracts/gps-checkin-relay.contract.ts",
       "mode": "observe",
       "sample": 1
+    },
+    {
+      "id": "C-12",
+      "criterion": "C-12 decideServiceClaims(claims, audience, scope, now): kind=service・aud 一致・exp 未到来の service token だけを通し、scope 不足は insufficient_scope、それ以外は invalid",
+      "symbol": "decideServiceClaims",
+      "file": "plugins/projects/service-token-verifier.ts",
+      "module": "./contracts/service-claims.contract.ts",
+      "mode": "observe",
+      "sample": 1
+    },
+    {
+      "id": "C-13",
+      "criterion": "C-13 decideServiceAuth(provided, expected, verification): service token の照合結果があればそれだけで 200/401/403/503 を決め、無ければ従来の固定トークン照合 (未設定 503・不一致 401) に進む",
+      "symbol": "decideServiceAuth",
+      "file": "plugins/projects/service-auth.ts",
+      "module": "./contracts/service-auth-decision.contract.ts",
+      "mode": "observe",
+      "sample": 1
+    },
+    {
+      "id": "C-14",
+      "criterion": "C-14 verifyPasetoV4Public(token, keys): 渡した鍵で v4.public 署名が検証できた token だけ claims を返し、改ざん・別鍵・別形式は null",
+      "symbol": "verifyPasetoV4Public",
+      "file": "plugins/projects/paseto-v4-public.ts",
+      "module": "./contracts/paseto-v4-public.contract.ts",
+      "mode": "observe",
+      "sample": 1
+    },
+    {
+      "id": "C-15",
+      "criterion": "C-15 serviceTokenCacheDeadline(issuedAt, expiresIn): 送り側は service token を exp の 60 秒前までだけキャッシュする",
+      "symbol": "serviceTokenCacheDeadline",
+      "file": "plugins/cernere-service-token.ts",
+      "module": "./contracts/service-token-cache.contract.ts",
+      "mode": "observe",
+      "sample": 1
+    },
+    {
+      "id": "C-16",
+      "criterion": "C-16 selectSenderCredential(issued, legacy): 発行成功なら service token、失敗時に限り設定済みの固定トークンへフォールバックし、どちらも無ければ送らない",
+      "symbol": "selectSenderCredential",
+      "file": "plugins/service-credential.ts",
+      "module": "./contracts/sender-credential.contract.ts",
+      "mode": "observe",
+      "sample": 1
     }
   ]
 }

@@ -36,12 +36,24 @@ health の 5 秒では fan-out を待てないが、無制限だと応答しな�
 Aedilis 等は `plugins/shared.ts` の `proxy()` 経由で、ログイン中ユーザの Cernere access token
 から接続先向け project token を都度発行して中継する。
 
-Calliope はその方式に乗らない。Calliope の `/api/*` は固定の `CALLIOPE_SERVICE_TOKEN`
-（Bearer）でのみ認可され、ユーザ単位のトークン発行機構を持たない
-（`Calliope/src/app.ts` の `apiAuth(config.serviceToken)`）。そのため `progress` モジュールは
-`proxy()` を使わず、コネクタに固定ヘッダ
-`{ authorization: 'Bearer ' + CALLIOPE_SERVICE_TOKEN }` を持たせ、
-ルートハンドラから `connector.fetch(path)` を直接呼ぶ。
+Calliope はその方式に乗らない。Calliope の `/api/*` はサービス間 Bearer でのみ認可され、
+ユーザ単位のトークン発行機構を持たない（`Calliope/src/app.ts` の `apiAuth(config.serviceToken)`）。
+そのため `progress` モジュールは `proxy()` を使わず、`CalliopeServiceConnector` が data request に
+だけ machine credential の `Authorization: Bearer` を付け、ルートハンドラから `connector.fetch(path)` を
+直接呼ぶ。
+
+### 認証集約 P4（Cernere service token）
+
+- credential はリクエストごとに `plugins/progress/connector.ts` の `calliopeCredentialProvider` から取る。
+- 優先: Cernere service token。GLAB の project client credentials（`CERNERE_PROJECT_CLIENT_ID` /
+  `CERNERE_PROJECT_CLIENT_SECRET`）で `POST {CERNERE_BASE_URL}/api/auth/service-token`
+  `{ client_id, client_secret, target_project_key: CALLIOPE_PROJECT_KEY }` を呼び、Calliope 側が
+  scope `calliope-api:access` を照合する。発行と `exp - 60 秒` までのメモリキャッシュは
+  `plugins/cernere-service-token.ts`（bot と共通）。
+- 発行に失敗したとき（credentials 未設定 / `CALLIOPE_PROJECT_KEY` 未設定 / 401 / 403 / 404 / 通信失敗）
+  に限り、`CALLIOPE_SERVICE_TOKEN` が設定されていればそれを Bearer で送る（P5 で撤去）。
+  理由コードだけを 1 行ログに出す（`plugins/service-credential.ts`）。
+- どちらも無ければ HTTP 送信前に `503 service_token_unavailable`。
 
 > 結果として、この経路は**ユーザ単位の認可を持たない**。GLAB hub にログインできる利用者は
 > 全員同じ進捗ビューを見る（Corpus の `requireAuth` 配下ではある）。PJ 単位で出し分けたく
@@ -52,9 +64,12 @@ Calliope はその方式に乗らない。Calliope の `/api/*` は固定の `CA
 - `CALLIOPE_BASE_URL` — Calliope のベース URL。未設定・空白のみなら「意図的に未設定」と
   みなし、コネクタが `503 { error: 'connector_unconfigured' }` を返す
   → パネルが「未接続（degraded）」を表示する。health も `degraded`（`down` ではない）。
-- `CALLIOPE_SERVICE_TOKEN` — Calliope 側 `CALLIOPE_SERVICE_TOKEN` と同じ値。未設定・空・空白のみは
-  HTTP 送信前に `503 service_token_unavailable` と `Cache-Control: no-store` を返す。
-  token がない場合は base URL の有無よりこのエラーを優先する。
+- `CALLIOPE_PROJECT_KEY` — Calliope の Cernere managed project key（service token の
+  `target_project_key`）。Calliope は Cernere 未登録のため env で受け取る。未設定なら発行せず固定トークンへ落ちる。
+- `CALLIOPE_SERVICE_TOKEN` — Calliope 側 `CALLIOPE_SERVICE_TOKEN` と同じ値。P4 の間は service token の
+  発行失敗時だけ使う。service token も固定トークンも得られないときは HTTP 送信前に
+  `503 service_token_unavailable` と `Cache-Control: no-store` を返す。
+  base URL 未設定時は `503 connector_unconfigured` が先に返る。
 
 ## health
 

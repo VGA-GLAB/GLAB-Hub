@@ -3,8 +3,8 @@ import type { CorpusContext, CorpusModule } from '../../corpus/server/hub/sdk.ts
 import { z } from 'zod';
 import { ensureSchema } from '../data.ts';
 import { createCernereProjectClient } from '../cernere/create-client.ts';
-import { requireServiceToken } from '../projects/service-auth.ts';
-import { noStore, serviceToken } from '../shared.ts';
+import { requireExternalServiceAuth } from '../projects/service-auth.ts';
+import { noStore } from '../shared.ts';
 import {
   consultsPendingPost,
   consultsPendingResolveNotice,
@@ -102,7 +102,7 @@ const consultModule: CorpusModule = {
 
     // The mounted endpoints include /external/presence and /external/presence/resolve.
     const external = new Hono();
-    external.use('*', requireServiceToken(serviceToken(ctx.env)));
+    external.use('*', requireExternalServiceAuth(ctx.env));
     external.post('/presence/resolve', async (c) => {
       noStore(c); const parsed = discordSchema.safeParse(await c.req.json().catch(() => null));
       if (!parsed.success) return c.json({ error: 'invalid_discord_id' }, 400);

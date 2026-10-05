@@ -44,7 +44,7 @@ test('edit and delete are restricted to the poster or an admin', () => {
 
 test('the external share route requires both a service token and a user identity', () => {
   const src = readSource('plugins/tech-links/index.ts');
-  assert.ok(/requireServiceToken\(/.test(src), 'service token guard missing');
+  assert.ok(/requireExternalServiceAuth\(/.test(src), 'service token guard missing');
   assert.ok(/getIdentity\(/.test(src), 'the poster must come from the user identity');
   assert.ok(!/body\.postedBy|postedBy:\s*body\./.test(src), 'postedBy must never be taken from the request body');
 });
