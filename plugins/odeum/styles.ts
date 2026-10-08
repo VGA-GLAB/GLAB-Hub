@@ -8,6 +8,13 @@ export function ensureOdeumStyles(): void {
   const style = document.createElement('style');
   style.textContent = `
     .od-live-card { display: grid; gap: 0.4rem; margin-bottom: 0.6rem; }
+    .od-invite-wrap { display: grid; gap: 0.5rem; width: 100%; }
+    .od-invite { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; }
+    .od-invite-qr { background: #fff; border-radius: var(--radius); image-rendering: pixelated; max-width: 100%; height: auto; }
+    .od-invite-info { display: grid; gap: 0.4rem; min-width: 0; flex: 1 1 16rem; }
+    .od-invite-code { font-size: 1.8rem; font-weight: 800; letter-spacing: 0.08em; font-family: ui-monospace, monospace; }
+    .od-invite-url { overflow-wrap: anywhere; font-size: 0.8rem; }
+    .od-invite-overlay { display: grid; gap: 0.4rem; }
     .od-live-title { font-size: 1.1rem; }
     .od-live-waiting { border-color: var(--line); }
     .od-viewer { display: grid; gap: 0.8rem; margin-bottom: 1.4rem; }

@@ -3,6 +3,7 @@
 // 開始すると odeum:// リンクを出し、 発表者アプリ (odeum-presenter) を起動させる。
 
 import { el, type PanelContext } from '../panel-kit.ts';
+import { invitationToggle } from './invitation-view.ts';
 import { endSession, loadLiveSummary, type LiveCardView } from './live-card.ts';
 
 export interface PresentableEvent {
@@ -52,12 +53,13 @@ export function presentControls(
             : `発表を始められませんでした (${response.status})。`;
         return;
       }
-      const body = await response.json() as { presentUrl: string };
+      const body = await response.json() as { presentUrl: string; session: { id: string } };
       message.textContent = '';
       const link = el('a', 'gl-btn', '発表者アプリを起動');
       link.href = body.presentUrl;
       box.replaceChild(link, start);
       box.appendChild(el('span', 'gl-muted', 'リンクは 5 分間有効です。'));
+      if (!session) box.appendChild(invitationToggle(ctx, body.session.id));
       // 発表者アプリ (odeum://) を起動する。 ブラウザが確認を出す場合はリンクを押してもらう。
       window.location.href = body.presentUrl;
     }).catch(() => {
@@ -69,6 +71,7 @@ export function presentControls(
   box.appendChild(start);
 
   if (session) {
+    box.appendChild(invitationToggle(ctx, session.sessionId));
     const end = el('button', 'gl-btn ghost', '発表を終了');
     end.type = 'button';
     end.onclick = () => {

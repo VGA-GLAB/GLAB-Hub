@@ -5,12 +5,14 @@
 // - POST /sessions                   発表開始 (作成者/管理者) → odeum:// リンク
 // - POST /sessions/:id/end           発表終了
 // - POST /sessions/:id/viewer-ticket 視聴チケット (WebSocket 接続用)
+// - GET  /sessions/:id/invitation   参加コード・参加 QR・OBS オーバーレイ URL (発表者/作成者/管理者)
 // - GET  /ticket-pubkeys             中継の ODEUM_RELAY_TICKET_PUBKEYS 用 JSON (管理者)
 //
 // チケットとコメント本文はログに出さない。チケットに載せるのは Cernere user_id と表示名だけ。
 
 import { Hono, getIdentity, getDisplayName, cacheDisplayName } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusContext } from '../../corpus/server/hub/sdk.ts';
+import QRCode from 'qrcode';
 import { z } from 'zod';
 import { getEventStore, type EventRow } from '../events/store.ts';
 import { canSee, parseAudience, resolveRoles } from '../roles/audience.ts';
@@ -25,6 +27,15 @@ import {
   listLiveOdeumSessions,
   startOdeumSession,
 } from './session-store.ts';
+import {
+  deriveInvitation,
+  formatGuestCode,
+  guestJoinUrl,
+  invitationSecret,
+  inviteClaim,
+  overlayUrl,
+  type OdeumInvitation,
+} from './invitation.ts';
 import { publicKeysDocument, signOdeumTicket, type TicketSigner } from './ticket.ts';
 
 const PRESENTER_TICKET_TTL_SECONDS = 300;
@@ -58,6 +69,9 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
     viewer.displayName || getDisplayName(ctx.db, viewer.userId) || viewer.userId;
   const enabledSigner = (): TicketSigner | null =>
     config.disabledReason == null ? config.signer : null;
+  const secret = config.signer ? invitationSecret(config.signer.privateKey) : null;
+  const invitationFor = (sessionId: string): OdeumInvitation | null =>
+    secret ? deriveInvitation(secret, sessionId) : null;
 
   routes.get('/status', (c) => {
     noStore(c);
@@ -107,11 +121,13 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
     const started = startOdeumSession(ctx.db, { eventId: event.id, presenterUserId: viewer.userId });
     if (started.kind === 'conflict') return c.json({ error: 'session_already_live' }, 409);
     if (viewer.displayName) cacheDisplayName(ctx.db, viewer.userId, viewer.displayName);
+    const invitation = invitationFor(started.session.id);
     const ticket = signOdeumTicket(signer, {
       sub: viewer.userId,
       name: nameOf(viewer),
       role: 'presenter',
       sid: started.session.id,
+      ...(invitation ? { invite: inviteClaim(invitation) } : {}),
     }, { ttlSeconds: PRESENTER_TICKET_TTL_SECONDS });
     ctx.logger.info(`odeum session ${started.kind}: ${started.session.id} (event ${event.id})`);
     return c.json({
@@ -156,6 +172,28 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
       expiresAt: ticket.claims.exp * 1000,
       eventTitle: event.title,
       self: { sub: viewer.userId, name: ticket.claims.name },
+    });
+  });
+
+  routes.get('/sessions/:id/invitation', async (c) => {
+    noStore(c);
+    const signer = enabledSigner();
+    if (!signer || !config.invitationBases) {
+      return c.json({ error: 'odeum_disabled', reason: config.disabledReason ?? 'invitation_base_invalid' }, 503);
+    }
+    const viewer = getIdentity(c);
+    const session = getOdeumSession(ctx.db, c.req.param('id'));
+    if (!session || session.status !== 'live') return c.json({ error: 'session_not_live' }, 404);
+    const event = await getEventStore().get(session.eventId);
+    // 招待は発表の運営者だけが見る (終了できる人と同じ範囲)。
+    if (!canEndPresentation(session, event, viewer)) return c.json({ error: 'forbidden' }, 403);
+    const invitation = invitationFor(session.id)!;
+    const joinUrl = guestJoinUrl(config.invitationBases.guest, invitation.guestCode);
+    return c.json({
+      joinCode: formatGuestCode(invitation.guestCode),
+      joinUrl,
+      joinQr: await QRCode.toDataURL(joinUrl, { errorCorrectionLevel: 'M', margin: 2, width: 320 }),
+      overlayUrl: overlayUrl(config.invitationBases.overlay, invitation.overlayKey),
     });
   });
 

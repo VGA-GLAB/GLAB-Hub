@@ -28,6 +28,8 @@ export interface TicketSubject {
   role: OdeumTicketRole;
   /** 発表セッション id。 presenter / viewer では必須、 service では持たない。 */
   sid?: string;
+  /** presenter だけ: 参加コード / overlay 鍵の SHA-256 (base64url)。 relay が照合に使う。 */
+  invite?: { join: string; overlay: string };
 }
 
 export interface TicketClaims {
@@ -37,6 +39,7 @@ export interface TicketClaims {
   name: string;
   role: OdeumTicketRole;
   sid?: string;
+  invite?: { join: string; overlay: string };
   exp: number;
   jti: string;
 }
@@ -73,6 +76,9 @@ export function signOdeumTicket(
   if (subject.role === 'service' ? subject.sid != null : !subject.sid) {
     throw new Error(`odeum ${subject.role} ticket has an invalid sid`);
   }
+  if (subject.invite && (subject.role !== 'presenter' || subject.invite.join === subject.invite.overlay)) {
+    throw new Error('odeum invite claim is only valid on presenter tickets');
+  }
   const ttl = Math.min(
     Math.max(1, Math.floor(options.ttlSeconds ?? MAX_TICKET_TTL_SECONDS)),
     MAX_TICKET_TTL_SECONDS,
@@ -85,6 +91,7 @@ export function signOdeumTicket(
     name: truncateName(subject.name),
     role: subject.role,
     ...(subject.sid ? { sid: subject.sid } : {}),
+    ...(subject.invite ? { invite: { join: subject.invite.join, overlay: subject.invite.overlay } } : {}),
     exp: nowSeconds + ttl,
     jti: options.jti ?? randomUUID(),
   };
