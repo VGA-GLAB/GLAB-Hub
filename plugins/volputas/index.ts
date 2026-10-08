@@ -21,10 +21,10 @@ const volputasModule: CorpusModule = {
     // 同テーブルを使うため、 他モジュールの読み込み順に依存せず自分で冪等初期化する
     // (data.ts の規約)。
     ensureSchema(ctx.db);
-    const apiBaseUrl = normalizeHttpBaseUrl(ctx.env('VOLPUTAS_URL'), 'VOLPUTAS_URL');
+    const apiBaseUrl = normalizeHttpBaseUrl(ctx.env('VOLUPTAS_URL') ?? ctx.env('VOLPUTAS_URL'), 'VOLUPTAS_URL');
     const connector = new VersionedHttpServiceConnector({
       id: 'volputas',
-      title: 'レビュー (Volputas)',
+      title: 'レビュー (Voluptas)',
       scope: 'multi',
       baseUrl: apiBaseUrl ?? '',
       healthPath: '/health',
@@ -54,15 +54,15 @@ const volputasModule: CorpusModule = {
     routes.get('/reviews', (c) => proxy(
       c, connector, GLAB_REVIEWS_PATH, ctx.tokenProvider, 'volputas',
     ));
-    // 投稿は Volputas に保存させ、 201 で返った record を GLAB が自分でリレー
-    // キューに積む。 感想の入口は GLAB (認証フロント) だけなので、 Volputas から
+    // 投稿は Voluptas に保存させ、 201 で返った record を GLAB が自分でリレー
+    // キューに積む。 感想の入口は GLAB (認証フロント) だけなので、 Voluptas から
     // GLAB への折り返し (service token) は持たない。 キュー失敗で投稿を失敗にしない。
     routes.post('/reviews', async (c) => {
       const response = await proxy(c, connector, GLAB_REVIEWS_PATH, ctx.tokenProvider, 'volputas');
       if (response.status !== 201) return response;
       const record = parseCreatedReview(await response.clone().json().catch(() => null));
       if (!record) {
-        ctx.logger.warn('review relay skipped: unexpected Volputas response shape');
+        ctx.logger.warn('review relay skipped: unexpected Voluptas response shape');
         return response;
       }
       const relay = relayFromCreatedReview(record, {
@@ -86,11 +86,11 @@ const volputasModule: CorpusModule = {
       c, connector, GLAB_RECENT_GAMES_PATH, ctx.tokenProvider, 'volputas',
     ));
     // ゲームマスタ。 一覧は全員、 登録と更新は管理者だけ。 requireAdmin は
-    // 画面と操作を出すかどうかの判断で、 権限の正本は Volputas 側が
+    // 画面と操作を出すかどうかの判断で、 権限の正本は Voluptas 側が
     // Cernere token の role で見る (GLAB を迂回されても書けない)。
     routes.get('/games', (c) => {
       // 非公開ゲームの列挙は管理 UI だけに許可する。任意のクエリをそのまま
-      // Volputas へ渡すこの中継で includeInactive を許すと、画面を経由せず
+      // Voluptas へ渡すこの中継で includeInactive を許すと、画面を経由せず
       // 停止中のゲームを取得できてしまう。
       if (c.req.query('includeInactive') !== undefined) {
         return c.json({ error: 'admin_required' }, 403);
@@ -166,7 +166,7 @@ const volputasModule: CorpusModule = {
     ctx.registerRoute(routes);
     ctx.registerPanel({ title: 'レビュー', icon: '📝' });
     ctx.logger.info(
-      `survey catalog → Volputas, responses → Cernere (${apiBaseUrl ?? '未設定 = degraded'})`,
+      `survey catalog → Voluptas, responses → Cernere (${apiBaseUrl ?? '未設定 = degraded'})`,
     );
   },
 };

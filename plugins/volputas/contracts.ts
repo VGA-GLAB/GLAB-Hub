@@ -132,7 +132,7 @@ export function parseEmotionCurveDetail(value: unknown): EmotionCurveRecord | nu
   return parseEmotionCurve(value.data.record);
 }
 
-/** 再生 URL は Volputas 側のパスで返るので、 チケットだけを取り出して使う。 */
+/** 再生 URL は Voluptas 側のパスで返るので、 チケットだけを取り出して使う。 */
 export function parseMediaTicket(value: unknown): string | null {
   if (!isRecord(value) || value.ok !== true || !isRecord(value.data)) return null;
   if (typeof value.data.url !== 'string') return null;

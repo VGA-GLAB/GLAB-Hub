@@ -59,7 +59,7 @@ export function gameSelector(games: GameView[] | null): {
     element: select,
     read: () => {
       const game = active.find((candidate) => candidate.id === select.value);
-      // タイトルは Volputas 側でマスタの値に上書きされる。 ここで送るのは
+      // タイトルは Voluptas 側でマスタの値に上書きされる。 ここで送るのは
       // 送信前バリデーション (空でないこと) を成立させるための値。
       return { gameId: game?.id ?? null, gameTitle: game?.title ?? '' };
     },

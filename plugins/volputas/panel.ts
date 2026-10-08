@@ -171,17 +171,17 @@ async function loadReviews(
   const path = projectId ? `/reviews?projectId=${encodeURIComponent(projectId)}` : '/reviews';
   const response = await ctx.api(path).catch(() => null);
   if (!response) {
-    renderUnavailable(body, 'Volputasへ接続できませんでした。', '感想を表示できません');
+    renderUnavailable(body, 'Voluptasへ接続できませんでした。', '感想を表示できません');
     return;
   }
-  const guard = await connectorGuard(response, 'Volputas');
+  const guard = await connectorGuard(response, 'Voluptas');
   if (guard) {
     body.replaceChildren(guard);
     return;
   }
   const reviews = parseReviewList(await response.json().catch(() => null));
   if (!reviews) {
-    renderUnavailable(body, 'Volputasから不正な感想応答を受け取りました。', '感想を表示できません');
+    renderUnavailable(body, 'Voluptasから不正な感想応答を受け取りました。', '感想を表示できません');
     return;
   }
   body.replaceChildren(
@@ -276,7 +276,7 @@ async function renderReviewForm(
       // 未接続 (503) と本当の失敗を混ぜると「投稿できない理由」が伝わらない。
       if (!response.ok) {
         message.textContent = response.status === 503
-          ? 'Volputas に未接続のため投稿できません。'
+          ? 'Voluptas に未接続のため投稿できません。'
           : `感想を投稿できませんでした (${response.status})。`;
         submit.disabled = false;
         return;
@@ -345,7 +345,7 @@ async function loadList(
   try {
     response = await ctx.api(`/surveys?category=${encodeURIComponent(category)}`);
   } catch {
-    renderUnavailable(list, 'Volputasへ接続できませんでした。');
+    renderUnavailable(list, 'Voluptasへ接続できませんでした。');
     return;
   }
   if (!response.ok) {
@@ -360,7 +360,7 @@ async function loadList(
   }
   const surveys = parseSurveyList(await response.json().catch(() => null));
   if (!surveys) {
-    renderUnavailable(list, 'Volputasから不正な応答を受け取りました。');
+    renderUnavailable(list, 'Voluptasから不正な応答を受け取りました。');
     return;
   }
   list.innerHTML = '';
@@ -400,7 +400,7 @@ async function loadDetail(
   }
   const parsed = parseSurveyDetail(await response.json().catch(() => null));
   if (!parsed) {
-    renderUnavailable(detail, 'Volputasから不正な設問を受け取りました。');
+    renderUnavailable(detail, 'Voluptasから不正な設問を受け取りました。');
     return;
   }
   renderForm(ctx, detail, parsed.survey, parsed.response?.answers ?? {}, afterSave);

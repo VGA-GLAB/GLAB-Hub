@@ -239,7 +239,7 @@ export interface JobRow {
   deadline_notified_at: number | null;
 }
 
-/** Volputas から受け取り、Discord へ未投稿のコミュニティ感想。 */
+/** Voluptas から受け取り、Discord へ未投稿のコミュニティ感想。 */
 export interface ReviewRelayRow {
   reviewId: string;
   projectId: string | null;

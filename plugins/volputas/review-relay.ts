@@ -1,9 +1,9 @@
-// 感想リレーの組み立て — Volputas への投稿 (POST /reviews の proxy) が 201 で返した
+// 感想リレーの組み立て — Voluptas への投稿 (POST /reviews の proxy) が 201 で返した
 // record から、bot が Discord に流す glab_review_relay の行を作る。
 //
-// 以前は Volputas が GLAB の /external/review-relay へ折り返していたが、感想の
-// 入口は GLAB の proxy だけなので (Volputas 側の producer は integrations/glab/reviews
-// のみ)、GLAB が応答を見て自分でキューする。これで Volputas → GLAB の service token と
+// 以前は Voluptas が GLAB の /external/review-relay へ折り返していたが、感想の
+// 入口は GLAB の proxy だけなので (Voluptas 側の producer は integrations/glab/reviews
+// のみ)、GLAB が応答を見て自分でキューする。これで Voluptas → GLAB の service token と
 // 折り返し経路が要らなくなる (spec/interface/review-relay.md)。
 //
 // このファイルは純粋関数のみ。DB 書き込み (queueReviewRelay) は index.ts が行う。
@@ -15,12 +15,12 @@ import type { NewReviewRelay } from '../data.ts';
 export const MAX_EXCERPT_LENGTH = 300;
 export const MAX_TITLE_LENGTH = 120;
 export const MAX_AUTHOR_LENGTH = 80;
-/** 匿名投稿の表示名 (Volputas 折り返し時代と同じ語)。 */
+/** 匿名投稿の表示名 (Voluptas 折り返し時代と同じ語)。 */
 export const ANONYMOUS_AUTHOR = '匿名';
 const FALLBACK_AUTHOR = 'Player';
 
 /**
- * Volputas `POST /api/v1/integrations/glab/reviews` の 201 応答。
+ * Voluptas `POST /api/v1/integrations/glab/reviews` の 201 応答。
  * `{ ok: true, data: { record } }` の record のうちリレーに要る列だけを見る
  * (他の列は無視 = passthrough で増えても壊れない)。
  */
@@ -57,7 +57,7 @@ function outboundText(value: unknown, maxLength: number): string {
   return text.slice(0, end);
 }
 
-/** Volputas の 201 応答本文から record を取り出す。形が違えば null (無言で通さず呼び出し側が warn する)。 */
+/** Voluptas の 201 応答本文から record を取り出す。形が違えば null (無言で通さず呼び出し側が warn する)。 */
 export function parseCreatedReview(body: unknown): CreatedReviewRecord | null {
   const parsed = createdReviewResponseSchema.safeParse(body);
   return parsed.success ? parsed.data.data.record : null;

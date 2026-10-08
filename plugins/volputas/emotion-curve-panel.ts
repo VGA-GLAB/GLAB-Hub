@@ -9,7 +9,7 @@ import {
 } from './contracts.ts';
 import { gameSelector } from './games-panel.ts';
 
-// Volputas の EMOTION_STAMPS と同じ 4 種。 増やすときは Volputas 側が正本で、
+// Voluptas の EMOTION_STAMPS と同じ 4 種。 増やすときは Voluptas 側が正本で、
 // 未知の stamp は保存時に 400 で弾かれる。
 const STAMPS = [
   { id: 'hype', label: '盛り上がり' },
@@ -181,7 +181,7 @@ async function save(ctx: PanelContext, params: {
   }
   const record = parseEmotionCurveDetail(await created.json().catch(() => null));
   if (!record) {
-    params.report('Volputas から不正な応答を受け取りました。');
+    params.report('Voluptas から不正な応答を受け取りました。');
     return false;
   }
 
@@ -218,7 +218,7 @@ async function loadHistory(ctx: PanelContext, container: HTMLElement): Promise<v
   }
   const records = parseEmotionCurveList(await response.json().catch(() => null));
   if (!records) {
-    container.appendChild(el('p', 'gl-muted', 'Volputas から不正な応答を受け取りました。'));
+    container.appendChild(el('p', 'gl-muted', 'Voluptas から不正な応答を受け取りました。'));
     return;
   }
   if (records.length === 0) {
@@ -262,7 +262,7 @@ function recordCard(
         }
         const video = el('video', 'gl-curve-video') as HTMLVideoElement;
         video.controls = true;
-        // チケットは Volputas 側のパス付きで返るので、 GLAB の中継口へ
+        // チケットは Voluptas 側のパス付きで返るので、 GLAB の中継口へ
         // 付け替えて使う。
         video.src = `/api/x/volputas/evidence/media/videos/${encodeURIComponent(record.id)}`
           + `?ticket=${encodeURIComponent(ticket)}`;
@@ -301,7 +301,7 @@ function recordCard(
   return card;
 }
 
-/** 時刻順のスタンプを帯で表す。 曲線そのものは Volputas 本体が描く。 */
+/** 時刻順のスタンプを帯で表す。 曲線そのものは Voluptas 本体が描く。 */
 function curveStrip(entries: EmotionCurveEntry[]): HTMLElement {
   const strip = el('div', 'gl-curve-strip');
   for (const entry of entries) {

@@ -324,9 +324,9 @@ async function loadProjectReviews(
   const response = await ctx.hubApi(
     `/api/x/volputas/reviews?projectId=${encodeURIComponent(projectId)}&limit=${PROJECT_REVIEW_LIMIT}`,
   ).catch(() => null);
-  // Volputas 未設定時は connector が 503 を返す。 degraded は失敗ではないので未接続と伝える。
+  // Voluptas 未設定時は connector が 503 を返す。 degraded は失敗ではないので未接続と伝える。
   if (response?.status === 503) {
-    container.textContent = 'Volputas に未接続です。';
+    container.textContent = 'Voluptas に未接続です。';
     return;
   }
   if (!response?.ok) {
