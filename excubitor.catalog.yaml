@@ -28,7 +28,7 @@ services:
     allow_hot_reload: false
     # GLAB は Corpus (submodule) を in-process 起動する派生 hub。
     # Corpus プラグインが接続する実依存を起動順へ反映する。
-    depends_on: [cernere, cernere-frontend, aedilis, bibliotheca, tirocinium, discutere, volputas, ostiarius]
+    depends_on: [cernere, cernere-frontend, aedilis, bibliotheca, tirocinium, discutere, voluptas, ostiarius]
     autostart: false
     env:
       CORPUS_PUBLIC_URL: http://localhost:5187
