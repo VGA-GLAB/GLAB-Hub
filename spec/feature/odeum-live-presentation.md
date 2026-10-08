@@ -8,6 +8,9 @@ design: spec/plan/2026-10-04-odeum-live-presentation-design.md
 
 # Odeum ライブ発表 (`odeum` プラグイン)
 
+スマホのツッコミ・質問／感想の投稿者選択表示は
+[`odeum-sender-reactions.md`](odeum-sender-reactions.md) を参照。
+
 発表者が自分の画面を配信し、GLab ユーザーが Web 画面で視聴してグッド・スタンプ・コメント・
 投票回答を返す。配信と中継は Odeum の `odeum-relay` (ネイティブ SFU) が担い、GLab は
 **発表セッション台帳・権限・チケット発行・視聴画面**を持つ。設計の正本は

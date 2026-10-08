@@ -4,7 +4,7 @@
 // 中継が offer を送ってきた場合も answer で応じる。 メディア以外の受信は
 // コールバックで画面へ渡す。 チケットは URL にだけ載せ、 ログには出さない。
 
-import type { ClientMessage, ServerMessage, StampKind } from './viewer-protocol.ts';
+import type { ClientMessage, ServerMessage, StampKind, SubmissionCategory } from './viewer-protocol.ts';
 import { parseServerMessage } from './viewer-protocol.ts';
 
 export interface ViewerConnectionHandlers {
@@ -17,6 +17,7 @@ export class OdeumViewerConnection {
   private readonly socket: WebSocket;
   private peer: RTCPeerConnection | null = null;
   private closed = false;
+  private reactionsReady = false;
 
   constructor(wsUrl: string, ticket: string, private readonly handlers: ViewerConnectionHandlers) {
     const url = new URL(wsUrl);
@@ -42,11 +43,20 @@ export class OdeumViewerConnection {
     this.send({ type: 'comment', text });
   }
 
+  sendTelop(text: string): boolean {
+    return this.reactionsReady && this.send({ type: 'telop', text });
+  }
+
+  sendSubmission(text: string, category: SubmissionCategory, showOnScreen: boolean): boolean {
+    return this.reactionsReady && this.send({ type: 'submission', text, category, show_on_screen: showOnScreen });
+  }
+
   answerPoll(pollId: string, choices: number[]): void {
     this.send({ type: 'poll.answer', poll_id: pollId, choices });
   }
 
   close(): void {
+    this.reactionsReady = false;
     this.closed = true;
     this.peer?.close();
     this.peer = null;
@@ -55,11 +65,14 @@ export class OdeumViewerConnection {
     }
   }
 
-  private send(message: ClientMessage): void {
-    if (this.socket.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify(message));
+  private send(message: ClientMessage): boolean {
+    if (this.closed || this.socket.readyState !== WebSocket.OPEN) return false;
+    this.socket.send(JSON.stringify(message));
+    return true;
   }
 
   private finish(): void {
+    this.reactionsReady = false;
     if (this.closed) return;
     this.closed = true;
     this.peer?.close();
@@ -68,6 +81,9 @@ export class OdeumViewerConnection {
   }
 
   private async receive(message: ServerMessage): Promise<void> {
+    if (message.type === 'presence') {
+      this.reactionsReady = message.presenter_connected === true && message.reaction_version === 1;
+    }
     try {
       if (message.type === 'welcome') {
         await this.startPeer(message.ice_servers ?? []);

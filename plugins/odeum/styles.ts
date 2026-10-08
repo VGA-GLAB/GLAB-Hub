@@ -13,9 +13,24 @@ export function ensureOdeumStyles(): void {
     .od-viewer { display: grid; gap: 0.8rem; margin-bottom: 1.4rem; }
     .od-viewer-head { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
     .od-viewer-title { font-size: 1.1rem; margin-right: auto; }
-    .od-stage { position: relative; }
+    .od-stage { position: relative; overflow: hidden; }
     .od-video { width: 100%; max-height: 70vh; background: #000; border-radius: var(--radius); }
-    .od-sound { position: absolute; right: 0.5rem; bottom: 0.5rem; }
+    .od-sound { position: absolute; right: 0.5rem; bottom: 0.5rem; z-index: 2; }
+    .od-effects { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+    .od-telops { position: absolute; top: 5%; left: 5%; right: 5%; display: grid; gap: 0.25rem; }
+    .od-telop { color: white; background: #141126cc; font-size: clamp(1rem, 3vw, 1.6rem); font-weight: 800; padding: 0.25rem 0.5rem; border-radius: 0.4rem; overflow-wrap: anywhere; white-space: pre-wrap; }
+    .od-public-posts { position: absolute; bottom: 3rem; left: 3%; width: 80%; display: grid; gap: 0.3rem; }
+    .od-public-post { color: white; background: #141126dd; border-left: 3px solid #c4b5fd; padding: 0.3rem 0.5rem; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 5em; overflow: hidden; font-size: 0.85rem; }
+    .od-particle { position: absolute; bottom: 5%; font-size: 2rem; animation: od-rise 2s ease-out forwards; }
+    @keyframes od-rise { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-120px); opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .od-particle, .od-good.od-pop .od-good-icon { animation: none; } }
+    .od-composer { grid-area: comment; min-width: 0; }
+    .od-composer-fields { border: 0; padding: 0; margin: 0; display: grid; gap: 1rem; min-width: 0; }
+    .od-text-form, .od-text-form > label { display: grid; gap: 0.4rem; min-width: 0; }
+    .od-text-form { border-top: 1px solid var(--line); padding-top: 0.6rem; }
+    .od-text-form .gl-input { width: 100%; box-sizing: border-box; }
+    .od-text-form > .od-visibility { display: flex; align-items: start; }
+    .od-text-form input[type=checkbox] { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
     .od-burst { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
     .od-burst-label { font-weight: 700; min-width: 9rem; }
     .od-meter { flex: 1; min-width: 6rem; height: 0.6rem; background: var(--bg-2); border-radius: 999px; overflow: hidden; }

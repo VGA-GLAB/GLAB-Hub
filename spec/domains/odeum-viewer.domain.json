@@ -1,0 +1,11 @@
+{
+  "name": "odeum-viewer",
+  "description": "Odeum の視聴接続、投稿者が選択する表示範囲、映像を止めないリアクション描画。",
+  "presetRules": [],
+  "templateRules": [],
+  "specRefs": ["spec/feature/odeum-live-presentation.md", "spec/feature/odeum-sender-reactions.md"],
+  "membership": [
+    {"pathPattern": "(^|/)plugins/odeum/(viewer-[^/]+|reaction-composer|styles|good-batcher)\\.ts$"},
+    {"pathPattern": "(^|/)tests/odeum-sender-reactions\\.test\\.ts$"}
+  ]
+}

@@ -43,11 +43,16 @@ test('odeum is registered as a plugin with its panel built and relay health aggr
     'チケットやコメント本文をログに出さない');
 });
 
-test('the dashboard puts the live card above the rest and the viewer splits reactions in three', () => {
+test('the dashboard puts the live card above the rest and the viewer separates reactions and text intent', () => {
   const dashboard = read('plugins/dashboard/panel.ts');
   assert.ok(dashboard.indexOf('renderLiveCards') < dashboard.indexOf('renderDailyEngagement(summary.daily'));
   const viewer = read('plugins/odeum/viewer-ui.ts');
-  for (const area of ['od-good-area', 'od-stamps', 'od-comment']) assert.match(viewer, new RegExp(area));
+  for (const area of ['od-good-area', 'od-stamps']) assert.match(viewer, new RegExp(area));
+  assert.match(viewer, /reactions\.append\(goodArea, stampArea, composer\.element\)/);
+  const composer = read('plugins/odeum/reaction-composer.ts');
+  assert.match(composer, /fields\.append\(telopForm, postForm\)/, 'ツッコミと質問・感想は別の入力');
+  assert.match(composer, /visibility\.checked = false/, '質問・感想は既定で非表示');
+  assert.match(viewer, /sendSubmission\(text, category, show\)/, '投稿者の表示選択を送信する');
   assert.match(viewer, /event\.repeat/, '長押しのキーリピートは連打扱いにしない');
   const styles = read('plugins/odeum/styles.ts');
   assert.match(styles, /min-height: 96px/);

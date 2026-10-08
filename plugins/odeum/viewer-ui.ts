@@ -3,17 +3,17 @@
 // リアクションは neco 指示 (2026-10-04) どおり 3 つに分ける:
 //   グッド   — 画面で最も大きいボタン。 押すたびに即時の手応え、 送信は 200ms まとめ。
 //   スタンプ — グッドとは別の列の小さめのボタン。
-//   コメント — 任意文字列 (≤280) の入力欄 + 送信。 スタンプ列とは分ける。
+//   テキスト — ツッコミと質問/感想。画面表示の選択は投稿者に委ねる。
 // ダッシュボードと odeum パネルの両方から使うので、 API は hubApi で絶対パスを叩く。
 
 import { el, type PanelContext } from '../panel-kit.ts';
 import { GoodBatcher } from './good-batcher.ts';
 import { ensureOdeumStyles } from './styles.ts';
 import { OdeumViewerConnection } from './viewer-connection.ts';
+import { reactionComposer } from './reaction-composer.ts';
+import { viewerEffects } from './viewer-effects.ts';
 import {
-  MAX_COMMENT_LENGTH,
   STAMP_KINDS,
-  normalizeComment,
   type ServerMessage,
   type StampKind,
 } from './viewer-protocol.ts';
@@ -48,12 +48,18 @@ export function mountViewer(
   let batcher: GoodBatcher | null = null;
   let decayTimer: ReturnType<typeof setInterval> | null = null;
   let disposed = false;
+  let effects: ReturnType<typeof viewerEffects> | null = null;
+  let noticeTimer: ReturnType<typeof setTimeout> | null = null;
 
   const root = el('div', 'od-viewer');
   container.innerHTML = '';
   container.appendChild(root);
 
   const teardown = (): void => {
+    effects?.dispose();
+    effects = null;
+    if (noticeTimer != null) clearTimeout(noticeTimer);
+    noticeTimer = null;
     batcher?.dispose();
     batcher = null;
     connection?.close();
@@ -127,6 +133,7 @@ export function mountViewer(
     };
     const stage = el('div', 'od-stage');
     stage.append(video, sound);
+    effects = viewerEffects(stage);
     root.appendChild(stage);
 
     // みんなのグッドの盛り上がり (reaction.burst の集計)。
@@ -167,22 +174,11 @@ export function mountViewer(
       stampArea.appendChild(button);
     }
 
-    const commentArea = el('form', 'od-comment');
-    const commentInput = el('input', 'gl-input od-comment-input');
-    commentInput.maxLength = MAX_COMMENT_LENGTH;
-    commentInput.placeholder = `コメント (${MAX_COMMENT_LENGTH} 文字まで)`;
-    const commentSend = el('button', 'gl-btn', '送信');
-    commentSend.type = 'submit';
-    commentArea.append(commentInput, commentSend);
-    commentArea.onsubmit = (event) => {
-      event.preventDefault();
-      const text = normalizeComment(commentInput.value);
-      if (!text || !connection) return;
-      connection.sendComment(text);
-      commentInput.value = '';
-    };
-
-    reactions.append(goodArea, stampArea, commentArea);
+    const composer = reactionComposer({
+      telop: (text) => connection?.sendTelop(text) ?? false,
+      submission: (text, category, show) => connection?.sendSubmission(text, category, show) ?? false,
+    });
+    reactions.append(goodArea, stampArea, composer.element);
     root.append(reactions, notice);
 
     let level = 0;
@@ -192,7 +188,6 @@ export function mountViewer(
       meterFill.style.width = `${Math.min(100, level * 4)}%`;
     }, 250);
 
-    let noticeTimer: ReturnType<typeof setTimeout> | null = null;
     const showNotice = (text: string): void => {
       notice.textContent = text;
       if (noticeTimer != null) clearTimeout(noticeTimer);
@@ -202,8 +197,10 @@ export function mountViewer(
     const pollView = renderPoll(pollArea, (pollId, choices) => connection?.answerPoll(pollId, choices));
 
     const handle = (message: ServerMessage): void => {
+      effects?.receive(message);
       switch (message.type) {
         case 'presence':
+          composer.setReady(message.presenter_connected === true && message.reaction_version === 1);
           presence.textContent = message.presenter_connected
             ? `配信中 · 視聴者 ${message.viewer_count} 人`
             : `発表者の接続待ち · 視聴者 ${message.viewer_count} 人`;
@@ -246,6 +243,8 @@ export function mountViewer(
       },
       onClose: () => {
         if (disposed) return;
+        composer.setReady(false);
+        effects?.dispose();
         presence.textContent = '中継との接続が切れました';
         batcher?.dispose();
         batcher = null;
