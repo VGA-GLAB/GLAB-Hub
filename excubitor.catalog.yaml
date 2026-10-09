@@ -72,6 +72,44 @@ services:
     provides:
       GLAB_URL: http://${host}:${port}
 
+  # 本社のテスト用 GLAB。本社の Excubitor Vault は AWS の glab の取得元なので、glab の値を本社用に変えると
+  # 本番に届く。別の service code にして、Vault のテスト用 project (Cernere の cernere-test と同じ) だけに
+  # 紐付ける。接続先 Cernere・DB・起動用資格情報の発行元は全部テスト用
+  # (Cernere spec/setup/hq-test-instance.md、neco 2026-10-09)。本社では glab を起動しない。
+  - code: glab-test
+    name: GLAB (本社テスト用)
+    tier: saas
+    project_code: glab
+    component: server
+    port: 5188
+    repo: VGA-GLAB/GLAB-Hub
+    runtime: node
+    cwd: ${ARS_ROOT}/GLAB
+    command: node --run start
+    build_command: npm run build
+    allow_hot_reload: false
+    depends_on: [cernere-test, cernere-frontend-test]
+    autostart: false
+    env:
+      GLAB_PORT: "5188"
+      CORPUS_PUBLIC_URL: http://localhost:5188
+      CORPUS_TOKEN_MODE: cernere-project-token
+      GLAB_OMNIPOTENS_REVIEW_ROOT: ${ARS_ROOT}/Omnipotents/Review
+      GLAB_SERVICE_TOKEN_AUDIENCE: educationlab
+      CALLIOPE_PROJECT_KEY: calliope
+      CORPUS_EXTERNAL_SERVICE_AUTH_MODULES: consult,projects
+      CORPUS_EXTERNAL_SERVICE_TOKEN_HEADERS: x-glab-service-token,x-projecthub-service-token
+      CORPUS_CERNERE_STORAGE_SLUG: educationlab
+    required_env: [CERNERE_BASE_URL, CERNERE_FRONTEND_URL, CORPUS_PUBLIC_URL, CORPUS_TOKEN_MODE, GLAB_OMNIPOTENS_REVIEW_ROOT, GLAB_DATABASE_URL]
+    requires_secret:
+      - service: cernere-test
+        keys: [EXCUBITOR_CERNERE_CLIENT_ID, EXCUBITOR_CERNERE_CLIENT_SECRET]
+    cernere_launch_credentials:
+      target_project: EducationLab
+    health:
+      type: tcp
+      interval_sec: 30
+
   # GLAB の Discord 通知 bot (bot/)。通知専用で、利用者操作の command は持たない (CLAUDE.md「Discord 入力境界」)。
   # 相談通知の巡回で hub の external API (/api/x/consult/external/*) を呼ぶため、Cernere service token
   # (scope glab-external:write) を自分の client credentials で取得する。hub (EducationLab) と credential を
