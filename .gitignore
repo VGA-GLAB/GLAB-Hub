@@ -18,3 +18,8 @@ bot/.env
 *.tsbuildinfo
 .claude/
 .anatomia/link-stability.json
+
+# 事前コンパイル出力 (scripts/build-server.mjs / テスト用)
+/dist/
+/dist-test/
+bot/dist-test/

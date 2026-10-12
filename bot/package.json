@@ -8,8 +8,9 @@
     "node": ">=22.5.0"
   },
   "scripts": {
-    "start": "tsx --env-file-if-exists=.env index.ts",
-    "dev": "tsx watch --env-file-if-exists=.env index.ts",
+    "build": "node ../scripts/build-bot.mjs",
+    "prestart": "npm run build",
+    "start": "node --env-file-if-exists=.env dist/index.js",
     "config-setup": "tsx config-setup.ts",
     "register": "tsx register.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"

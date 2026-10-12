@@ -79,7 +79,8 @@ catalog は `command: node --run start` → `start: tsx server.ts`。アプリ (
 | praeforma | `--import tsx` → 事前変換 JS | 約 18MB |
 | actio-web | `vite preview` → actio 本体か軽量静的サーバで `dist/` を配信 | 約 100MB |
 
-共通規則: 「Excubitor の `command` は `node <js>` か `node --run <script>` で、script 内も tsx / npm を挟まない」。Excubitor の breakaway で npm を避けた既存理由 (pid が実体を指さない) とも一致する。
+共通規則 (neco 決定 2026-10-12「tsx の監視はほぼ意味ないので不要。事前コンパイルして JS のみで起動。他も同じルール」):
+**常駐サービスは事前コンパイルした JS を `node <js>` で直接起動する。** Excubitor の `command` に tsx / `tsx watch` / npm / `node --run` を使わず、ビルドは `build_command` で起動前に行う。`node --run` も node(--run) → cmd.exe → node の 3 段になり常駐 node が 1 本余分に残る (実測)。tsx はテストと一回限りの CLI だけで使う。GLAB-Hub が最初の適用先 (hub + bot)。
 
 GLAB-Hub での注意: plugins は `corpus/server/hub/sdk.ts` を経由して hono を 1 本に固定している。server の esbuild 変換でこの単一ロードを壊さないこと (bundle するなら hono を 1 コピーに、しないなら `--packages=external`)。
 

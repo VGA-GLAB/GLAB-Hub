@@ -4,17 +4,18 @@
 // フレームワークに、 GLAB 特化のプラグインパック (`plugins/`) を載せた派生 hub。
 // このファイルは Corpus server を「GLAB パック付き」 で起動するだけの薄いランチャ。
 //
-//   tsx server.ts
+//   npm run build で dist/server.js へ事前コンパイルし、その JS を node で直接起動する
+//   (tsx は常駐させない。startup/runtime-paths.ts)
 //     → 環境変数で plugins / data / public / port を Corpus に伝える
 //     → Ex 注入値を検証し corpus/server/index.ts を起動 (Vault-only)
 //
 // Discord Bot は別プロセス (`bot/`)。イベントはGLAB PostgreSQLをWeb hubと共有し、
 // 出席・Bot求人等のローカル運用データはSQLiteを利用する (DESIGN.md §4)。
 
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { installLogging } from './corpus/server/lib/logging.ts';
 import { inspectOdeumEnvironment, requireInjectedEnvironment } from './startup/environment.ts';
+import { resolveRuntimePaths } from './startup/runtime-paths.ts';
 import { closeEventStore, initializeEventStore } from './plugins/events/store.ts';
 import { cernereClientOwner } from './plugins/cernere/shared-owner.ts';
 import { createShutdown } from './plugins/cernere/shutdown.ts';
@@ -23,7 +24,7 @@ import {
   initializeFacilityStore,
 } from './plugins/events/facility-store.ts';
 
-const ROOT = dirname(fileURLToPath(import.meta.url));
+const { root: ROOT, pluginDir: PLUGIN_DIR } = resolveRuntimePaths(import.meta.url);
 
 installLogging();
 requireInjectedEnvironment(process.env);
@@ -35,7 +36,7 @@ if (!odeumEnvironment.enabled) {
 }
 
 // GLAB プラグインパック / データ / frontend の所在を Corpus に伝える
-process.env.CORPUS_PLUGIN_DIR ??= resolve(ROOT, 'plugins');
+process.env.CORPUS_PLUGIN_DIR ??= PLUGIN_DIR;
 process.env.CORPUS_DATA ??= resolve(ROOT, 'data');
 // Serve the packaged shell, not tracked source HTML mixed with older build outputs.
 // @implements SPEC-GLAB-SHELL-010

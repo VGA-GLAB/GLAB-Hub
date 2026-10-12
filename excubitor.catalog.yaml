@@ -16,14 +16,15 @@ services:
     repo: VGA-GLAB/GLAB-Hub
     runtime: node
     cwd: ${ARS_ROOT}/GLAB
-    # npm 経由 (shell) で起動すると Excubitor の breakaway launcher が返す pid は cmd.exe になり、
-    # launcher 終了と同時にその cmd.exe だけが消えて「即死」と判定される (実体は生き残り孤児化)。
-    # node --run は node 本体が常駐するので pid が実体を指す。--run は prestart を走らせないため
-    # ビルドは build_command で起動前に行う。
-    # 本番用の start (tsx の watch なし) で起動する。dev の tsx watch は監視の子プロセスを抱えて
-    # メモリを余分に食い、AWS 拠点 (1.8GB・スワップ無し) で余裕を削っていた (2026-10-04 neco)。
-    # コード変更の反映は Excubitor からの再起動 (build_command → start) で行う。
-    command: node --run start
+    # 事前コンパイルした JS を node で直接起動する (neco 2026-10-12: tsx の監視は不要、JS のみで起動)。
+    # - npm 経由 (shell) だと Excubitor の breakaway launcher が返す pid が cmd.exe になり、
+    #   launcher 終了と同時に「即死」と判定される (実体は孤児化)。
+    # - node --run も node(--run) → cmd.exe → node の 3 段になり、常駐 node が 1 本余分に残る。
+    # - tsx は親 node + 子 node + esbuild.exe を常駐させ、1 本あたり約 135MB 上乗せする
+    #   (spec/plan/2026-10-12-node-process-memory-reduction.md)。
+    # ビルド (dist/ への事前コンパイル) は build_command で起動前に行う。
+    # コード変更の反映は Excubitor からの再起動 (build_command → command) で行う。
+    command: node dist/server.js
     build_command: npm run build
     allow_hot_reload: false
     # GLAB は Corpus (submodule) を in-process 起動する派生 hub。
@@ -85,7 +86,8 @@ services:
     repo: VGA-GLAB/GLAB-Hub
     runtime: node
     cwd: ${ARS_ROOT}/GLAB
-    command: node --run start
+    # glab と同じく事前コンパイルした JS を直接起動する。
+    command: node dist/server.js
     build_command: npm run build
     allow_hot_reload: false
     depends_on: [cernere-test, cernere-frontend-test]
@@ -124,8 +126,10 @@ services:
     repo: VGA-GLAB/GLAB-Hub
     runtime: node
     cwd: ${ARS_ROOT}/GLAB/bot
-    # hub と同じ理由で npm 経由 (shell) にしない (breakaway launcher の pid が cmd.exe を指し即死判定になる)。
-    command: node --run start
+    # hub と同じく事前コンパイルした JS (bot/dist/index.js) を node で直接起動する。
+    # npm / node --run / tsx を挟まない (pid が実体を指し、常駐 node は 1 本だけ)。
+    command: node --env-file-if-exists=.env dist/index.js
+    build_command: npm run build
     allow_hot_reload: false
     depends_on: [glab, cernere]
     autostart: false

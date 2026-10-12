@@ -4,12 +4,13 @@
 // token / API キーは暗号化 config に保存する (平文 JSON を置かない、 ユーザ要望)。
 // 設定は `npm run config-setup` で対話登録する。
 
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { normalizeDailyNotifyAt } from '../plugins/daily-engagement/catalog.ts';
+import { sourceDirOf } from '../startup/runtime-paths.ts';
 import { readBotConfig } from './config-store.ts';
 
-const BOT_DIR = dirname(fileURLToPath(import.meta.url));
+// bot は bot/dist/index.js に事前コンパイルして起動するので、ソースの bot/ に戻して使う。
+const BOT_DIR = sourceDirOf(import.meta.url);
 
 type LlmBackend = 'claude-cli' | 'anthropic' | 'mock';
 

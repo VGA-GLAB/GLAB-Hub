@@ -60,7 +60,7 @@ global と設定済み guild へ同期する。同期前の残存 command は停
 
 ## テスト方針
 
-- v0.1 は手動：hub は `npm run dev` → ブラウザ → 認証 → 初回プロフィール登録 → 各タブ（施設は Aedilis 未稼働なら degraded 表示で OK）。
+- v0.1 は手動：hub は Excubitor から起動 (build_command で `dist/` へ事前コンパイル → `node dist/server.js`) → ブラウザ → 認証 → 初回プロフィール登録 → 各タブ（施設は Aedilis 未稼働なら degraded 表示で OK）。
   Bot は空の command 登録、残存 Interaction の停止案内、通知配送を確認する
 - 後で vitest で `plugins/data.ts` のクエリ最小ケースを書く
 
@@ -71,6 +71,14 @@ global と設定済み guild へ同期する。同期前の残存 command は停
   Discutere、@ludiars/encrypted-config（暗号化 config）
 
 ## Hub の起動設定
+
+**hub と bot は事前コンパイルした JS だけで起動する** (neco 2026-10-12)。`npm run build` が
+`scripts/build-server.mjs` で `dist/` (server + プラグインを chunk 共有で bundle、hono は 1 コピー)、
+bot は `npm --prefix bot run build` で `bot/dist/` を作る。tsx / `tsx watch` / npm / `node --run` を
+常駐プロセスに挟まない (tsx は親 node + 子 node + esbuild.exe で 1 本あたり約 135MB 上乗せ。
+`spec/plan/2026-10-12-node-process-memory-reduction.md`)。コード変更の反映は Excubitor の再起動
+(build_command → command)。ソース基準のパスは `startup/runtime-paths.ts` で `dist/` から戻して作る。
+tsx はテスト (`npm test`) と一回限りの CLI (`bot/config-setup.ts` など) だけで使う。
 
 開発時も Excubitor の Vault-only 注入を使う。非 secret は catalog `env:`、secret は Ex Vault。
 GLAB は `.env` / env-cli を使わず、必須 env を検証して Corpus `index.ts` を直接読み込む。

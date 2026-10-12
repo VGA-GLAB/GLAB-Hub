@@ -41,8 +41,9 @@ test('all missing keys are reported even when legacy credentials are present', (
 test('launch configuration uses injected env and bypasses standalone secret bootstrap', () => {
   const read = (path: string): string => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
   const pkg = JSON.parse(read('package.json')) as { scripts: Record<string, string> };
-  assert.equal(pkg.scripts.dev, 'tsx watch server.ts');
-  assert.equal(pkg.scripts.start, 'tsx server.ts');
+  // 事前コンパイルした JS だけで起動する (tsx の監視・実行時変換を常駐させない、neco 2026-10-12)。
+  assert.equal(pkg.scripts.dev, undefined);
+  assert.equal(pkg.scripts.start, 'node dist/server.js');
   assert.equal(Object.keys(pkg.scripts).some((key) => key.startsWith('env:')), false);
   assert.doesNotMatch(JSON.stringify(pkg.scripts), /env-file|dotenv|env-cli/);
   const launcher = read('server.ts');
@@ -55,7 +56,7 @@ test('launch configuration uses injected env and bypasses standalone secret boot
   assert.ok(launcher.indexOf('requireInjectedEnvironment(process.env)') < launcher.indexOf('await initializeEventStore'));
   assert.match(launcher, /installLogging\(\)/);
   const catalog = read('excubitor.catalog.yaml');
-  assert.match(catalog, /^\s+command: node --run start\s*$/m);
+  assert.match(catalog, /^\s+command: node dist\/server\.js\s*$/m);
   assert.match(catalog, /^\s+build_command: npm run build\s*$/m);
   assert.match(catalog, /^\s+allow_hot_reload: false\s*$/m);
   for (const file of ['env-cli.config.ts', '.env.example']) {
