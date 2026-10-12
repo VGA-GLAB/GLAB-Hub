@@ -92,7 +92,7 @@ Node 1 本の固定費 (private 25〜30MB、RSS 60MB) を消すには本数を�
 
 anatomia 749 / concordia 465 / actio 430 / memoria 346 / revisor 350MB は Node の固定費では説明できない。各サービスで heap snapshot (`--heapsnapshot-signal` か inspector) を取り、保持量の上位を特定してから、**TTL 付きのキャッシュに当たるものだけ** Redis に移す。永続データの全件読み込み (例: Revisor の reviewReport 一覧) は Redis ではなく SQL 側で絞る。
 
-Redis の置き場所 (Cernere 用 Redis の共用可否。本社 Excubitor catalog に redis は未登録) を決める必要がある。
+キャッシュ基盤は本社に置く Garnet に決定 (neco 2026-10-12、§6)。
 
 ### D. GLAB-Hub 固有
 
@@ -107,7 +107,61 @@ Redis の置き場所 (Cernere 用 Redis の共用可否。本社 Excubitor cata
 
 ## 5. 進め方
 
-1. A と D を GLAB-Hub に入れ、glab-test で前後比較する (指標)。
-2. 効果を確認したら memoria-server / ludellus-server / ludellus-web / praeforma / actio-web へ横展開する (各リポ 1 PR)。
-3. C は heap snapshot の結果を見てからサービスごとに設計する。
+1. A と D を GLAB-Hub に入れ、glab-test で前後比較する (指標)。A は VGA-GLAB/GLAB-Hub #2734 でマージ済み。
+2. 効果を確認したら memoria-server / ludellus-server / ludellus-web / praeforma / actio-web へ横展開する (各リポ 1 PR)。**横展開は GLAB 実測の後** (neco 2026-10-12)。
+3. C は heap snapshot の結果を見てからサービスごとに設計する。移し先は §6 の Garnet。
 4. B は A・C の後に残った本数を見て neco が判断する。
+
+## 6. キャッシュ基盤: 本社に Garnet を置く (neco 選定 2026-10-12)
+
+neco「Redis は本社に置きます。Redis より良い Windows で動くキャッシュマネージャがあればそれを使用します」→ 候補 (Garnet / Memurai / 公式 Redis を WSL2・Docker) から Garnet を選定。
+
+### 6.1 現状
+
+- 共有 Redis は Mac (kaoimac) の OrbStack 上の docker `infra-redis-1` (Tailscale IP にバインド)。`--requirepass` 無しで、到達できること自体が権限になっている。
+- 2026-10-11 に OrbStack 停止で redis / postgres が Exited のまま残り、Actio が連鎖停止した (RestartPolicy=no だった)。
+- 本社 Windows の Excubitor catalog に redis / garnet は無い。
+
+### 6.2 Garnet を選ぶ理由
+
+| 観点 | Garnet | Memurai | 公式 Redis (WSL2 / Docker) |
+|---|---|---|---|
+| Windows ネイティブ | ○ (.NET、自己完結バイナリ) | ○ | × (VM / コンテナ経由) |
+| ライセンス | MIT | 本番は有償 | BSD 系 (7.4 以降は別ライセンス) |
+| クライアント互換 | RESP。ioredis がそのまま使える | RESP | 本家 |
+| Excubitor 管理 | native exe として起動・停止・health を持てる | 同左 (Windows サービス前提) | WSL / Docker の寿命に依存 (OrbStack 事故と同型) |
+
+Docker / VM の寿命に引きずられないこと (6.1 の事故) と、Excubitor 1 本で管理できることが決め手。
+
+### 6.3 配置設計
+
+- **管理**: Excubitor catalog の native サービス `garnet` (本社のみ)。起動・停止・再起動は Excubitor 経由。autostart あり、`health: tcp`。
+- **所有リポ**: 共有インフラなので LUDIARS/Infra に catalog 断片とセットアップスクリプトを置く (service-bootstrap の契約に合わせ、バイナリ取得・設定生成は所有側の setup スクリプトで行う)。バイナリ自体はリポに入れない。
+- **接続先の配布**: `provides: GARNET_URL` で依存サービスへ配る。各サービスの env 名は `GARNET_URL` に統一し、自前の `REDIS_URL` と衝突させない (Excubitor の topology env 名衝突の既知事例)。
+- **ネットワーク**: 127.0.0.1 と本社の Tailscale IP だけにバインド。**パスワード必須** (Ex Vault に置き、`GARNET_URL` に含めて注入)。現状 Redis の「到達＝権限」をここで解消する。
+- **名前空間**: DB 番号 (`SELECT n`) ではなく **キー接頭辞 `<service code>:`** で分ける。Garnet の複数 DB 対応は版によって差があるため、接頭辞方式なら依存しない。
+- **用途の限定**: TTL 付きキャッシュだけを置く (§3-C)。正本データ・キュー・永続状態は置かない。消えても再計算できるものに限る。
+- **メモリ上限**: Garnet 自身のメモリ量 (ログ領域・インデックス) を起動引数で固定し、本社の空きに合わせる。初期値は計測して決める (6.5)。
+
+### 6.4 クライアント側の規約
+
+- ioredis を使い、接続失敗時はキャッシュ無しで動く (キャッシュは劣化許容。起動を止めない)。
+- キーは `<service code>:<用途>:<id>`、必ず TTL を付ける (TTL 無しの SET を禁止)。
+- 1 値は小さく (目安 1MB 以下)。大きな一覧 (例: reviewReport 全件) は Garnet に入れず SQL で絞る。
+
+### 6.5 未検証 (導入時に確かめる)
+
+本設計の Garnet の性質は公開情報からの理解で、本社ではまだ動かしていない。導入時に次を実測・確認する。
+
+- 対応している最新の版と Windows 用の配布形態 (自己完結 exe か .NET ランタイム要か)。
+- 既定ポートと、bind / パスワード / メモリ量を指定する起動引数の正確な名前。
+- 空の状態と負荷時の Garnet 自身の常駐メモリ (.NET のため Node 1 本より大きい可能性)。
+- ioredis から使う予定のコマンド (GET/SET EX/DEL/MGET/SCAN など) と、TTL・接頭辞 SCAN の互換。
+- Excubitor の native サービスとしての停止 (graceful) と、pid が実体を指すか。
+
+### 6.6 進め方
+
+1. LUDIARS/Infra に Garnet の setup スクリプト (版固定のバイナリ取得 + 設定生成) と catalog 断片を作る。バイナリの取得 (外部ダウンロード) は実行前に neco の許可を取る。
+2. 本社で Excubitor から起動し、6.5 を実測して起動引数とメモリ上限を確定する。
+3. §3-C の heap snapshot で「TTL キャッシュ」と判定したものから、サービスごとに Garnet へ移す (各リポ 1 PR)。
+4. Mac の共有 Redis を使っているサービス (Cernere ほか) の移行は、本社 Garnet が安定してから別途判断する。
