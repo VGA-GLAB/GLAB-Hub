@@ -37,6 +37,7 @@ Web hub (Corpus)   Discord Bot
   volputas ─────────────► Volputas (ゲーム定性評価 / 嗜好アンケートUI)
   di ───────────────────► Di (議論 / 学習ビュー)
   tirocinium ────────────► Tr (企業検索 / 志望・内定企業)
+  tendentia ─────────────► Td (トレンドマップの表示)
         │            │
         ├─ GLAB PostgreSQL (イベント共有) ─┤
         └─ data/corpus.db (出席 / Bot求人) ─┘
@@ -62,6 +63,7 @@ Web hub (Corpus)   Discord Bot
 | `consult` | 自前データ | 在席共有（おれひま）。`glab_consult` |
 | `progress` | コネクタ | Calliope進捗の表示面。エンジンはCalliope、自前DBへキャッシュしない |
 | `tech-links` | 自前データ | 技術リンク共有（タグ・コメント） |
+| `tendentia` | コネクタ | Tendentia のトレンドマップを表示 (読み取りのみ、[spec](spec/interface/tendentia-connector.md)) |
 | `vantan-user` | Cernere連携 | 個人データの登録・編集。末尾にCernereページへのリンク |
 
 アンケート設問はVolputas、回答はCernereのTEXT/INTEGER正規化テーブルを正本とする。

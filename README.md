@@ -30,6 +30,7 @@ GLAB を操作しない。デスクトップでは Cocoiru の常駐アプリ (L
 | 在席共有 | Web hub `consult` → 「おれひま」在席共有 |
 | Cocoiru バックエンド | Web hub `cocoiru` → デスクトップ常駐アプリ Cocoiru の在席 lease・呼び出し・タスケテ・Discord ロビー secret（画面なし、[spec](spec/feature/cocoiru-backend.md)） |
 | 技術リンク | Web hub `tech-links` → 技術リンクの共有・タグ・コメント |
+| トレンド | Web hub `tendentia` → Tendentia (Td) のトレンドマップ (最初はゲーム) |
 | 個人データ | Web hub `vantan-user` + Cernere（個人情報の登録・編集、末尾にCernereへのリンク） |
 
 施設予約は **Aedilis**、イベントは **GLAB PostgreSQL** が真実の源で、両機能は独立する。

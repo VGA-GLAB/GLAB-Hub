@@ -1,0 +1,29 @@
+{
+  "name": "trend-view",
+  "description": "Tendentia 連携のトレンド表示。トレンドの巡回・興味の度合いは Tendentia が正本で、GLAB は全体マップを表示用の列だけに射影して見せる。本人向けの好みの記録は Tendentia 側に閉じる。",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "/plugins/tendentia/"
+    },
+    {
+      "pathPattern": "(^|/)plugins/tendentia/(?:.*/)?[^/]+$"
+    },
+    {
+      "pathPattern": "(^|/)tests/tendentia-[a-z0-9-]*\.test\.ts$"
+    },
+    {
+      "pathPattern": "(^|/)spec/interface/tendentia-connector\.md$"
+    }
+  ],
+  "cardTemplate": "Summarise the \"trend-view\" domain: Tendentia 連携のトレンド表示。トレンドの巡回・興味の度合いは Tendentia が正本で、GLAB は全体マップを表示用の列だけに射影して見せる。",
+  "mechanics": [
+    "connector-relay",
+    "allowlist-projection"
+  ],
+  "specRefs": [
+    "spec/interface/tendentia-connector.md"
+  ],
+  "rationale": "neco 2026-10-14「GLAB に Td を載せる」。Tendentia の読み取り専用連携として discussion と同じ形で切り出した。"
+}
