@@ -3,12 +3,21 @@ import { authorizedConnectorFetch, PRIVATE_NO_STORE } from '../shared.ts';
 import { readOrganizations, readTeams, type BookingGroup } from './groups.ts';
 import { signBookingContext } from './context-signature.ts';
 
-export async function bookingGroups(c: Context, ctx: CorpusContext): Promise<BookingGroup[]> {
+async function readGroupsOf(c: Context, ctx: CorpusContext, withRepresentative: boolean): Promise<BookingGroup[]> {
   const token = getUserToken(c), base = ctx.env('CERNERE_BASE_URL');
   if (!token || !base) throw new Error('Authenticated Cernere connection required');
   const userId = getIdentity(c).userId;
-  const organizations = await readOrganizations(base, token, userId);
+  const organizations = await readOrganizations(base, token, userId, { withRepresentative });
   return [...organizations, ...readTeams(ctx.db, userId)];
+}
+
+export function bookingGroups(c: Context, ctx: CorpusContext): Promise<BookingGroup[]> {
+  return readGroupsOf(c, ctx, false);
+}
+
+/** Same as bookingGroups, plus which organizations the caller represents (Meet representative routes only). */
+export function bookingGroupsWithRepresentative(c: Context, ctx: CorpusContext): Promise<BookingGroup[]> {
+  return readGroupsOf(c, ctx, true);
 }
 
 /** Do not forward caller-supplied assertions, owner IDs, cookies or upstream errors. */

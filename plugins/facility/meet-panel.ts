@@ -3,8 +3,11 @@
 
 import { el, section, type PanelContext } from '../panel-kit.ts';
 
+/** 自分が代表者 (Cr 組織の owner) の組織。組織で予約した会議の Meet はこの組織の代表アカウントで作る。 */
+interface RepresentedOrganization { id: string; name: string; organizerConnected: boolean; isOrganizer: boolean }
 interface MeetStatus {
   configured: boolean; isAdmin: boolean; organizerConnected: boolean; isOrganizer: boolean;
+  organizations?: RepresentedOrganization[];
   googleConnected: boolean; email: string | null;
 }
 interface MeetLink { status: string; url?: string }
@@ -65,12 +68,12 @@ export function meetControls(ctx: PanelContext, meeting: { id: string; onlineAll
 }
 
 /** Google の認可を popup で開く。popup を同期で開いてから URL を入れる (ポップアップブロック対策)。 */
-async function startAuthorization(ctx: PanelContext, mode: 'creator' | 'organizer', status: HTMLElement): Promise<void> {
+async function startAuthorization(ctx: PanelContext, target: { mode: 'creator' | 'organizer'; organizationId?: string }, status: HTMLElement): Promise<void> {
   const popup = window.open('', '_blank', 'width=520,height=680');
   if (!popup) { status.textContent = 'ポップアップを許可して再試行してください。'; return; }
   popup.opener = window;
   const response = await ctx.api('/meet/oauth/start', {
-    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ mode }),
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(target),
   }).catch(() => null);
   const body = response?.ok ? await response.json().catch(() => null) as { url?: unknown } | null : null;
   if (typeof body?.url !== 'string' || !body.url.startsWith('https://accounts.google.com/')) {
@@ -82,7 +85,22 @@ async function startAuthorization(ctx: PanelContext, mode: 'creator' | 'organize
   status.textContent = 'Google の画面で認可してください。';
 }
 
-/** Meet 代表アカウント (GLab でログインした Ae 管理者) と自分の Google 連携の欄。 */
+/** 自分が代表者の組織ごとに、組織の Meet 代表アカウントの状態と認可ボタンを出す。 */
+function organizationRows(ctx: PanelContext, organizations: RepresentedOrganization[], status: HTMLElement): HTMLElement[] {
+  return organizations.map((organization) => {
+    const row = el('div', 'gl-row');
+    const state = organization.organizerConnected
+      ? `組織「${organization.name}」の Meet 代表アカウントは設定済みです${organization.isOrganizer ? ' (あなた)' : ''}。`
+      : `組織「${organization.name}」の Meet 代表アカウントが未設定です。組織で予約した会議の Meet はこの代表アカウントで作られます。`;
+    const button = el('button', 'gl-btn ghost', organization.isOrganizer ? '組織の代表アカウントを Google で再認可' : '組織の Meet 代表にする (Google で認可)') as HTMLButtonElement;
+    button.type = 'button';
+    button.onclick = () => void startAuthorization(ctx, { mode: 'organizer', organizationId: organization.id }, status);
+    row.append(el('span', 'gl-muted', state), button);
+    return row;
+  });
+}
+
+/** Meet 代表アカウント (組織の代表者 / GLab でログインした Ae 管理者) と自分の Google 連携の欄。 */
 export async function renderMeetAccount(container: HTMLElement, ctx: PanelContext): Promise<void> {
   const block = section('Google Meet');
   container.append(block.wrap);
@@ -94,19 +112,22 @@ export async function renderMeetAccount(container: HTMLElement, ctx: PanelContex
     if (!value) { block.body.append(el('p', 'gl-muted', 'Meet 連携の状態を取得できませんでした (Aedilis 未接続または未更新)。')); return; }
     if (!value.configured) { block.body.append(el('p', 'gl-muted', 'Aedilis の Google API 設定がまだありません。')); return; }
     block.body.append(el('p', 'gl-muted', value.organizerConnected
-      ? `Meet の代表アカウントは設定済みです${value.isOrganizer ? ' (あなた)' : ''}。オンライン参加可の会議で Meet リンクを発行できます。`
-      : 'Meet の代表アカウントが未設定です。管理者が GLab から Google で認可すると Meet リンクを発行できます。'));
+      ? `全体の Meet 代表アカウントは設定済みです${value.isOrganizer ? ' (あなた)' : ''}。組織の代表アカウントが無い会議はこのアカウントで作ります。`
+      : '全体の Meet 代表アカウントが未設定です。組織で予約した会議は組織の代表者が認可すると Meet リンクを発行できます。'));
+    const organizations = Array.isArray(value.organizations) ? value.organizations : [];
+    block.body.append(...organizationRows(ctx, organizations, status));
     const actions = el('div', 'gl-row');
     if (value.isAdmin) {
-      const organizer = el('button', 'gl-btn ghost', value.isOrganizer ? '代表アカウントを Google で再認可' : 'このアカウントを Meet の代表にする (Google で認可)') as HTMLButtonElement;
+      const organizer = el('button', 'gl-btn ghost', value.isOrganizer ? '全体の代表アカウントを Google で再認可' : 'このアカウントを全体の Meet 代表にする (Google で認可)') as HTMLButtonElement;
       organizer.type = 'button';
-      organizer.onclick = () => void startAuthorization(ctx, 'organizer', status);
+      organizer.onclick = () => void startAuthorization(ctx, { mode: 'organizer' }, status);
       actions.append(organizer);
     }
-    if (!value.isOrganizer) {
+    // 代表アカウントの Google は代表用の権限を持つので、作成者の連携で上書きしない (Aedilis も拒否する)。
+    if (!value.isOrganizer && !organizations.some(organization => organization.isOrganizer)) {
       const creator = el('button', 'gl-btn ghost', value.googleConnected ? `Google 連携済み (${value.email ?? ''}) を更新` : '自分の Google を連携 (共同ホストになる・任意)') as HTMLButtonElement;
       creator.type = 'button';
-      creator.onclick = () => void startAuthorization(ctx, 'creator', status);
+      creator.onclick = () => void startAuthorization(ctx, { mode: 'creator' }, status);
       actions.append(creator);
     }
     // Google の画面が opener を切る (COOP) と結果の通知が届かないので、手動の更新も置く。

@@ -10,12 +10,12 @@
 
 import type { Context, CorpusContext, Hono, ServiceConnector } from '../../corpus/server/hub/sdk.ts';
 import { PRIVATE_NO_STORE } from '../shared.ts';
-import { bookingProxy } from './booking-proxy.ts';
+import { bookingGroupsWithRepresentative, bookingProxy } from './booking-proxy.ts';
 import {
   meetOAuthCompletion,
   meetOAuthRedirectUri,
   meetOAuthResultPage,
-  parseMeetOAuthMode,
+  parseMeetOAuthTarget,
   type MeetOAuthResult,
 } from './meet-oauth.ts';
 
@@ -35,14 +35,15 @@ function html(result: MeetOAuthResult, status = 200): Response {
 }
 
 export function registerMeetRoutes(r: Hono, ctx: CorpusContext, aedilis: ServiceConnector): void {
-  r.get('/meet/status', c => bookingProxy(c, ctx, aedilis, '/api/meet/status'));
+  // 代表者の判定 (Cr 組織の owner) が要るルートだけ、組織ごとの役割も読んで署名する。
+  r.get('/meet/status', c => bookingProxy(c, ctx, aedilis, '/api/meet/status', bookingGroupsWithRepresentative));
   r.post('/meet/oauth/start', async (c) => {
-    const mode = parseMeetOAuthMode(await c.req.json().catch(() => null));
-    if (!mode) return Response.json({ error: 'invalid_mode' }, { status: 400, headers: { 'cache-control': PRIVATE_NO_STORE } });
+    const target = parseMeetOAuthTarget(await c.req.json().catch(() => null));
+    if (!target) return Response.json({ error: 'invalid_mode' }, { status: 400, headers: { 'cache-control': PRIVATE_NO_STORE } });
     const redirectUri = meetOAuthRedirectUri(ctx.env('CORPUS_PUBLIC_URL'));
     if (!redirectUri) return Response.json({ error: 'public_url_unconfigured' }, { status: 503, headers: { 'cache-control': PRIVATE_NO_STORE } });
-    return bookingProxy(c, ctx, aedilis, '/api/meet/oauth/start', undefined, {
-      method: 'POST', body: JSON.stringify({ mode, redirectUri }),
+    return bookingProxy(c, ctx, aedilis, '/api/meet/oauth/start', bookingGroupsWithRepresentative, {
+      method: 'POST', body: JSON.stringify({ ...target, redirectUri }),
     });
   });
   r.get('/meet/oauth/callback', async (c: Context) => {
@@ -50,7 +51,7 @@ export function registerMeetRoutes(r: Hono, ctx: CorpusContext, aedilis: Service
       state: c.req.query('state'), code: c.req.query('code'), error: c.req.query('error'),
     });
     if (!completion) return html('failed', 400);
-    const response = await bookingProxy(c, ctx, aedilis, '/api/meet/oauth/complete', undefined, {
+    const response = await bookingProxy(c, ctx, aedilis, '/api/meet/oauth/complete', bookingGroupsWithRepresentative, {
       method: 'POST', body: JSON.stringify(completion),
     });
     if (!response.ok) return html('failed', 400);

@@ -48,18 +48,28 @@ neco 2026-10-14「Ae と接続し、Meet のリンクを発行した予定を登
 
 | hub ルート | Aedilis API | 用途 |
 |---|---|---|
-| `GET /meet/status` | `GET /api/meet/status` | 代表アカウントの設定状況・自分の Google 連携 |
-| `POST /meet/oauth/start` `{mode}` | `POST /api/meet/oauth/start` | Google 認可 URL。`redirectUri` はサーバが `CORPUS_PUBLIC_URL` から作る (利用者は渡せない) |
+| `GET /meet/status` | `GET /api/meet/status` | 代表アカウントの設定状況・自分が代表者の組織の代表アカウント状況・自分の Google 連携 |
+| `POST /meet/oauth/start` `{mode, organizationId?}` | `POST /api/meet/oauth/start` | Google 認可 URL。`redirectUri` はサーバが `CORPUS_PUBLIC_URL` から作る (利用者は渡せない)。`organizationId` は組織の代表アカウントの認可 (organizer だけ) |
 | `GET /meet/oauth/callback` | `POST /api/meet/oauth/complete` | Google の戻り。GLab のログイン cookie で本人確認し、code/state を Ae へ渡して結果ページを返す |
 | `GET /meet/:id` | `GET /api/meet/:id` | 会議の Meet リンク |
 | `POST /meet/:id` | `POST /api/meet/:id` | Meet リンクの発行 (会議の主催者だけ、オンライン参加可の会議だけ) |
 
-- 代表アカウント (organizer) は Aedilis の `AEDILIS_ADMIN_IDS` に入っている Cr ユーザが、GLab にログインしたまま
-  「このアカウントを Meet の代表にする」で Google (Workspace) を認可する。
+- 組織の代表アカウント: neco 2026-10-15「Meet の代表アカウントは、GLAB の組織で予約した場合 GLAB の代表で登録したい。
+  組織の代表者アカウントとしたい」。Cr 組織で役割が `owner` の人を組織の代表者とし、GLab は Meet のルート
+  (status / oauth start / oauth callback) だけ、組織ごとのメンバー一覧から自分の役割を読んで
+  `representative: true` を署名に載せる (他のメンバーの情報は捨てる、照会は 20 組織まで)。代表者は
+  「組織の Meet 代表にする」で Google (Workspace) を認可する。組織で予約した会議の Meet はその組織の代表アカウントで作り、
+  未認可なら全体の代表アカウントで作る (Aedilis SPEC-MANAGED-MEET-ORGANIZATION-REPRESENTATIVE)。
+- 全体の代表アカウント (organizer) は Aedilis の `AEDILIS_ADMIN_IDS` に入っている Cr ユーザが、GLab にログインしたまま
+  「このアカウントを全体の Meet 代表にする」で Google (Workspace) を認可する。
+- 代表アカウントは作成者の Google 連携を出さない (代表用の権限を上書きしないため、Aedilis も拒否する)。
 - 作成者の Google 連携は任意。無ければ代表アカウントだけがホストになる。連携すると共同ホストになる。
 - 会議の作成フォームで「作成時に Google Meet のリンクを発行する」を選ぶと、作成直後に発行する。失敗しても会議は残り、会議の欄から再発行できる。
-- 戻り先 `<CORPUS_PUBLIC_URL>/api/x/facility/meet/oauth/callback` は Aedilis の `AEDILIS_MEET_EXTERNAL_REDIRECT_URIS` と、
-  Google OAuth client の承認済みリダイレクト URI の両方に登録する (後者は Google Cloud の画面で人が行う)。
+- 戻り先 `<CORPUS_PUBLIC_URL>/api/x/facility/meet/oauth/callback` は Aedilis の GLab 専用リスト
+  `AEDILIS_MEET_GLAB_REDIRECT_URIS` (旧名 `AEDILIS_MEET_EXTERNAL_REDIRECT_URIS`) と、Google OAuth client の承認済み
+  リダイレクト URI の両方に登録する (後者は Google Cloud の画面で人が行う)。GLab 経由の認可は必ず GLab に戻り、
+  Ae 単体の画面は Ae の callback に戻る。別サービスに組み込むときはそのサービス専用のリストを Aedilis に足す
+  (Aedilis SPEC-MANAGED-MEET-CALLBACK-PER-EMBEDDING)。
 - 結果ページは固定文言だけで、code・state・トークンを載せない。opener へは同一 Origin 限定の postMessage で結果だけを知らせる。
 
 ## 関連

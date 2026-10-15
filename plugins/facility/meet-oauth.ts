@@ -20,10 +20,19 @@ export function meetOAuthRedirectUri(publicUrl: string | undefined): string | nu
   }
 }
 
-export function parseMeetOAuthMode(value: unknown): MeetOAuthMode | null {
+/**
+ * `organizationId` は組織の Meet 代表アカウントの認可 (organizer だけ)。代表者かどうかは GLab が Cr の役割を読んで
+ * 署名し、Aedilis が判定する (neco 2026-10-15「組織の代表者アカウントとしたい」)。
+ */
+export interface MeetOAuthTarget { mode: MeetOAuthMode; organizationId?: string }
+
+export function parseMeetOAuthTarget(value: unknown): MeetOAuthTarget | null {
   if (!value || typeof value !== 'object') return null;
-  const mode = (value as Record<string, unknown>).mode;
-  return mode === 'creator' || mode === 'organizer' ? mode : null;
+  const { mode, organizationId } = value as Record<string, unknown>;
+  if (mode !== 'creator' && mode !== 'organizer') return null;
+  if (organizationId === undefined) return { mode };
+  if (mode !== 'organizer' || typeof organizationId !== 'string' || !/^[A-Za-z0-9_-]{1,200}$/.test(organizationId)) return null;
+  return { mode, organizationId };
 }
 
 export interface MeetOAuthCallbackQuery {

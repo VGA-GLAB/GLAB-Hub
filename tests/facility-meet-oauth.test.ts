@@ -7,7 +7,7 @@ import {
   meetOAuthCompletion,
   meetOAuthRedirectUri,
   meetOAuthResultPage,
-  parseMeetOAuthMode,
+  parseMeetOAuthTarget,
 } from '../plugins/facility/meet-oauth.ts';
 
 const state = 'A'.repeat(43);
@@ -20,11 +20,15 @@ test('the Google redirect URI is GLab\'s own facility callback under the public 
   assert.equal(meetOAuthRedirectUri('not a url'), null);
 });
 
-test('only the two authorization modes are accepted', () => {
-  assert.equal(parseMeetOAuthMode({ mode: 'organizer' }), 'organizer');
-  assert.equal(parseMeetOAuthMode({ mode: 'creator' }), 'creator');
-  assert.equal(parseMeetOAuthMode({ mode: 'admin' }), null);
-  assert.equal(parseMeetOAuthMode(null), null);
+test('only the two authorization modes are accepted, and an organization only for the organizer', () => {
+  assert.deepEqual(parseMeetOAuthTarget({ mode: 'organizer' }), { mode: 'organizer' });
+  assert.deepEqual(parseMeetOAuthTarget({ mode: 'creator' }), { mode: 'creator' });
+  assert.deepEqual(parseMeetOAuthTarget({ mode: 'organizer', organizationId: '6f1c2a3b-0000-4000-8000-000000000001' }),
+    { mode: 'organizer', organizationId: '6f1c2a3b-0000-4000-8000-000000000001' });
+  assert.equal(parseMeetOAuthTarget({ mode: 'creator', organizationId: 'org' }), null);
+  assert.equal(parseMeetOAuthTarget({ mode: 'organizer', organizationId: '../x' }), null);
+  assert.equal(parseMeetOAuthTarget({ mode: 'admin' }), null);
+  assert.equal(parseMeetOAuthTarget(null), null);
 });
 
 test('a cancelled or malformed Google return is not relayed to Aedilis', () => {
