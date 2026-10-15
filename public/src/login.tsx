@@ -1,27 +1,16 @@
 // GLab のログイン画面。
 //
-// 認証そのものは Cernere composite (Corpus 経由) をそのまま使い、 GLab は
-// 表示ラベルだけを持つ。 認証ロジック側 (CernereCompositeAuthClient /
-// buildPasskeyRedirectUrl) は Corpus submodule の実装を再利用する。
+// 入口は「パスキーで続ける」1 つ。押すと Cernere のログイン画面 (/composite/login) へ移り、
+// パスキーでのログイン・はじめての方のアカウント作成は Cernere 側で行う。戻ってきた authCode を
+// GLab の user token に交換する。リダイレクト URL の組み立ては Corpus submodule の実装を再利用する。
 
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import {
-  CompositeLogin,
-  CompositePasskeyPopup,
-} from '../../corpus/lib/cernere/packages/composite/src/ui/index.ts';
-import {
-  buildPasskeyRedirectUrl,
-  CernereCompositeAuthClient,
-} from '../../corpus/public/src/cernere-login.tsx';
+import { buildPasskeyRedirectUrl } from '../../corpus/public/src/cernere-login.tsx';
 import { clearLegacyToken } from '../../corpus/public/src/api.ts';
 import { BRAND_TITLE, LOGIN_SUBTITLE } from './branding.ts';
-
-interface PublicConfig {
-  cernereFrontendUrl?: string;
-  authUiMode?: 'composite' | 'passkey';
-}
+import { resolveLoginEntry, type PublicLoginConfig } from './login-config.ts';
 
 const COMPOSITE_STATE_PARAM = 'cernere_composite_state';
 const COMPOSITE_STATE_KEY = 'cernere:composite:redirect-state';
@@ -42,72 +31,6 @@ async function exchangeAuthCode(authCode: string): Promise<void> {
   }
   clearLegacyToken();
   location.reload();
-}
-
-/**
- * Email / パスワードの composite フォームに、 Cernere ホストのパスキーを併設する。
- * パスキーの儀式は WebAuthn の RP ID を保つため Cernere origin で行い、
- * 返ってきた authCode だけを GLab が user token へ交換する。 導線は
- * composite の alternatives スロットへ渡してカード内に収める。
- * Cernere frontend の所在が公開設定に無い場合はパスキー導線を出さない。
- * @implements SPEC-GLAB-SHELL-002
- */
-function CompositeLoginHost({
-  client,
-  message,
-  cernereFrontendUrl,
-}: {
-  client: CernereCompositeAuthClient;
-  message: string;
-  cernereFrontendUrl: string;
-}) {
-  const [error, setError] = useState('');
-  return (
-    <>
-      {error && <p className="error">{error}</p>}
-      <CompositeLogin
-        authApi={client}
-        onAuthCode={(code) => {
-          setError('');
-          void exchangeAuthCode(code).catch((cause: unknown) => {
-            setError(cause instanceof Error ? cause.message : String(cause));
-          });
-        }}
-        labels={{
-          title: BRAND_TITLE,
-          subtitle: message || LOGIN_SUBTITLE,
-          loginTab: 'ログイン',
-          registerTab: '新規登録',
-          name: '名前',
-          email: 'メールアドレス',
-          password: 'パスワード',
-          submitLogin: 'ログイン',
-          submitRegister: 'アカウントを作成',
-          processing: '処理中…',
-          deviceTitle: '本人確認',
-          deviceCode: '確認コード',
-          deviceSubmit: '確認する',
-          deviceResend: 'コードを再送',
-        }}
-        alternativesLabel="または"
-        alternatives={
-          cernereFrontendUrl ? (
-            <CompositePasskeyPopup
-              cernereUrl={cernereFrontendUrl}
-              className="ghost login-passkey"
-              buttonLabel="パスキーでログイン"
-              pendingLabel="パスキーを確認中…"
-              onAuthCode={(code) => {
-                setError('');
-                return exchangeAuthCode(code);
-              }}
-              onError={(cause) => setError(cause.message)}
-            />
-          ) : null
-        }
-      />
-    </>
-  );
 }
 
 /** @implements SPEC-GLAB-SHELL-002 */
@@ -158,8 +81,9 @@ function PasskeyLoginHost({
       <p className="muted">{message || LOGIN_SUBTITLE}</p>
       {error && <p className="error">{error}</p>}
       <button type="button" className="primary" onClick={startPasskeyLogin}>
-        ログイン
+        パスキーで続ける
       </button>
+      <p className="muted">はじめての方も、このボタンから Cernere のアカウントを作れます。</p>
     </>
   );
 }
@@ -171,35 +95,22 @@ function PasskeyLoginHost({
 export function mountGlabLogin(mount: HTMLElement, message: string): () => void {
   const root = createRoot(mount);
   let disposed = false;
-  let client: CernereCompositeAuthClient | null = null;
   root.render(<p className="muted">Cernere を読み込み中…</p>);
 
   void (async () => {
     try {
       const response = await fetch('/api/public-config');
-      const config = (await response.json()) as PublicConfig;
+      const config = (await response.json()) as PublicLoginConfig;
       if (!response.ok) {
         throw new Error('Cernere の接続先を取得できませんでした');
       }
       if (disposed) return;
-      if (config.authUiMode === 'passkey') {
-        if (!config.cernereFrontendUrl) {
-          throw new Error('Cernere ログイン画面の接続先を取得できませんでした');
-        }
-        root.render(
-          <PasskeyLoginHost
-            cernereFrontendUrl={config.cernereFrontendUrl}
-            message={message}
-          />,
-        );
-        return;
-      }
-      client = new CernereCompositeAuthClient();
+      const entry = resolveLoginEntry(config);
+      if (entry.kind === 'unavailable') throw new Error(entry.message);
       root.render(
-        <CompositeLoginHost
-          client={client}
+        <PasskeyLoginHost
+          cernereFrontendUrl={entry.cernereFrontendUrl}
           message={message}
-          cernereFrontendUrl={config.cernereFrontendUrl ?? ''}
         />,
       );
     } catch (cause) {
@@ -215,7 +126,6 @@ export function mountGlabLogin(mount: HTMLElement, message: string): () => void 
 
   return () => {
     disposed = true;
-    client?.dispose();
     root.unmount();
   };
 }
