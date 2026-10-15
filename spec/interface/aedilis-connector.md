@@ -39,6 +39,29 @@ Aedilis はこのコネクタを含め出席検証に関与しない。
 - イベント削除時は Aedilis 予約を取り消してから GLAB イベントを削除する。
 - 固定の `AEDILIS_SERVICE_TOKEN` は使用しない。
 
+## Google Meet（`plugins/facility/meet-routes.ts`）
+
+neco 2026-10-14「Ae と接続し、Meet のリンクを発行した予定を登録できるようにする。Meet の代表者になる
+アカウントは GLab でログインする」。会議 (Aedilis の日程調整) に Meet リンクを発行する。中継はすべて
+`bookingProxy` の署名付き (`x-glab-booking-context`) で、Aedilis はこれを同一 Origin 検査の代わりに受ける
+(Aedilis `spec/feature/managed-google-meet.md` SPEC-MANAGED-MEET-GLAB-RELAY)。
+
+| hub ルート | Aedilis API | 用途 |
+|---|---|---|
+| `GET /meet/status` | `GET /api/meet/status` | 代表アカウントの設定状況・自分の Google 連携 |
+| `POST /meet/oauth/start` `{mode}` | `POST /api/meet/oauth/start` | Google 認可 URL。`redirectUri` はサーバが `CORPUS_PUBLIC_URL` から作る (利用者は渡せない) |
+| `GET /meet/oauth/callback` | `POST /api/meet/oauth/complete` | Google の戻り。GLab のログイン cookie で本人確認し、code/state を Ae へ渡して結果ページを返す |
+| `GET /meet/:id` | `GET /api/meet/:id` | 会議の Meet リンク |
+| `POST /meet/:id` | `POST /api/meet/:id` | Meet リンクの発行 (会議の主催者だけ、オンライン参加可の会議だけ) |
+
+- 代表アカウント (organizer) は Aedilis の `AEDILIS_ADMIN_IDS` に入っている Cr ユーザが、GLab にログインしたまま
+  「このアカウントを Meet の代表にする」で Google (Workspace) を認可する。
+- 作成者の Google 連携は任意。無ければ代表アカウントだけがホストになる。連携すると共同ホストになる。
+- 会議の作成フォームで「作成時に Google Meet のリンクを発行する」を選ぶと、作成直後に発行する。失敗しても会議は残り、会議の欄から再発行できる。
+- 戻り先 `<CORPUS_PUBLIC_URL>/api/x/facility/meet/oauth/callback` は Aedilis の `AEDILIS_MEET_EXTERNAL_REDIRECT_URIS` と、
+  Google OAuth client の承認済みリダイレクト URI の両方に登録する (後者は Google Cloud の画面で人が行う)。
+- 結果ページは固定文言だけで、code・state・トークンを載せない。opener へは同一 Origin 限定の postMessage で結果だけを知らせる。
+
 ## 関連
 
 - 機能: [`feature/facility.md`](../feature/facility.md)

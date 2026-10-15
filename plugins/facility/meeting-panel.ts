@@ -1,6 +1,7 @@
 import { el, section, fmtDateTime, type PanelContext } from '../panel-kit.ts';
 import { guestResponseLabel, meetingShareUrl } from './meeting-share.ts';
 import { audienceFields, audienceLabel, field, localDateTime, requireOk, type Audience, type Facility, type Group } from './audience-fields.ts';
+import { issueMeet, meetControls, renderMeetAccount } from './meet-panel.ts';
 
 interface Slot { id: string; startAt: string; endAt: string; venue: string }
 interface Meeting extends Audience {
@@ -18,6 +19,7 @@ export async function renderMeetings(container: HTMLElement, ctx: PanelContext, 
   organizer.value = ctx.identity.displayName ?? '';
   const online = el('input') as HTMLInputElement; online.type = 'checkbox';
   const guest = el('input') as HTMLInputElement; guest.type = 'checkbox';
+  const withMeet = el('input') as HTMLInputElement; withMeet.type = 'checkbox';
   const audience = audienceFields(groups);
   const slotsArea = el('div', 'gl-col');
   const slots: { id: string; start: HTMLInputElement; end: HTMLInputElement; venue: HTMLSelectElement }[] = [];
@@ -46,9 +48,10 @@ export async function renderMeetings(container: HTMLElement, ctx: PanelContext, 
   };
   reset.onclick = () => { resetForm(); status.textContent = ''; };
   form.append(field('会議名', title), field('内容', description), field('主催者の表示名', organizer),
-    field('オンライン参加可', online), audience.element,
+    field('オンライン参加可', online), field('作成時に Google Meet のリンクを発行する（オンライン参加可のとき）', withMeet), audience.element,
     field('ログインしていない人の回答も受け付ける（公開範囲 Public のとき。共有URLから回答できます）', guest), slotsArea, add, save, reset, status);
   formSection.body.append(form); container.append(formSection.wrap); addSlot();
+  await renderMeetAccount(container, ctx);
   const listSection = section('閲覧できる会議'); container.append(listSection.wrap);
   // Aedilis owns the canonical share page; without its public origin no link is shown.
   let publicUrl: string | undefined;
@@ -91,6 +94,8 @@ export async function renderMeetings(container: HTMLElement, ctx: PanelContext, 
         status.textContent = copy ? '回答と確定状態はコピーしません。日時を確認して保存してください。' : '変更すると日程調整を再開します。';
         form.scrollIntoView({ block: 'start', behavior: 'smooth' }); title.focus();
       };
+      const meet = meetControls(ctx, item);
+      if (meet) card.append(meet);
       const copy = el('button', 'gl-btn ghost', 'コピー'); copy.onclick = () => fill(true); card.append(copy);
       if (item.canManage && item.state !== 'cancelled') {
         const edit = el('button', 'gl-btn ghost', '編集'); edit.onclick = () => fill(false); card.append(edit);
@@ -139,8 +144,19 @@ export async function renderMeetings(container: HTMLElement, ctx: PanelContext, 
         onlineAllowed: online.checked, guestResponses: guest.checked, slots: values, venues: facilities.filter(f => usedVenues.has(f.name)).map(f => ({ name: f.name, facilityId: f.id, busy: [] })),
         ...(editing ? { revision: editing.revision } : {}),
       };
-      await action(editing ? `/meetings/${encodeURIComponent(editing.id)}` : '/meetings', editing ? 'PATCH' : 'POST', body);
-      resetForm(); status.textContent = '会議を保存しました。'; await load();
+      let message = '会議を保存しました。';
+      if (editing) {
+        await action(`/meetings/${encodeURIComponent(editing.id)}`, 'PATCH', body);
+      } else {
+        const created = await ctx.api('/meetings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+        await requireOk(created);
+        const id = (await created.json().catch(() => null) as { id?: unknown } | null)?.id;
+        if (online.checked && withMeet.checked && typeof id === 'string') {
+          const meet = await issueMeet(ctx, id);
+          message = 'url' in meet ? `会議を保存し、Meet リンクを発行しました：${meet.url}` : `会議を保存しました。Meet は発行できませんでした（${meet.error}）。会議の欄から再度発行できます。`;
+        }
+      }
+      resetForm(); status.textContent = message; await load();
     } catch (error) { status.textContent = error instanceof Error ? error.message : '保存できませんでした。'; }
     finally { save.disabled = false; }
   };

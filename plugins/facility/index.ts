@@ -5,6 +5,7 @@ import { Hono, getUserToken } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusModule, CorpusContext, Context } from '../../corpus/server/hub/sdk.ts';
 import { ensureSchema } from '../data.ts';
 import { bookingGroups, bookingProxy } from './booking-proxy.ts';
+import { registerMeetRoutes } from './meet-routes.ts';
 import { aedilisBaseUrl, makeAedilisConnector, proxy } from '../shared.ts';
 
 function segment(c: Context, name: string): string {
@@ -50,6 +51,7 @@ const facilityModule: CorpusModule = {
     r.post('/meetings/:id/finalize', c => bookingProxy(c, ctx, aedilis, '/api/meetings/' + segment(c, 'id') + '/finalize'));
     r.post('/meetings/:id/responses', c => bookingProxy(c, ctx, aedilis, '/api/meetings/' + segment(c, 'id') + '/responses'));
     r.patch('/meetings/:id/responses/:responseId', c => bookingProxy(c, ctx, aedilis, '/api/meetings/' + segment(c, 'id') + '/responses/' + segment(c, 'responseId')));
+    registerMeetRoutes(r, ctx, aedilis);
     ctx.registerRoute(r);
 
     ctx.registerPanel({ title: '施設・会議', icon: '🏫' });

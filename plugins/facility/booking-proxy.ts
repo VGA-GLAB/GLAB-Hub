@@ -15,6 +15,8 @@ export async function bookingGroups(c: Context, ctx: CorpusContext): Promise<Boo
 export async function bookingProxy(
   c: Context, ctx: CorpusContext, connector: ServiceConnector, pathname: string,
   readGroups: typeof bookingGroups = bookingGroups,
+  /** Server-built request (e.g. a redirect URI GLab owns). Replaces the caller's method/body; query is not forwarded. */
+  override?: { method: 'GET' | 'POST'; body: string },
 ): Promise<Response> {
   const noStore = { 'cache-control': PRIVATE_NO_STORE };
   if (!getUserToken(c)) return Response.json({ error: 'unauthorized' }, { status: 401, headers: noStore });
@@ -27,9 +29,9 @@ export async function bookingProxy(
       return Response.json({ error: 'booking_service_update_required' }, { status: 503, headers: noStore });
     }
     const groups = await readGroups(c, ctx);
-    const method = c.req.method;
-    const body = ['GET', 'HEAD'].includes(method) ? '' : await c.req.text();
-    const path = pathname + new URL(c.req.url).search;
+    const method = override?.method ?? c.req.method;
+    const body = override ? override.body : ['GET', 'HEAD'].includes(method) ? '' : await c.req.text();
+    const path = override ? pathname : pathname + new URL(c.req.url).search;
     const assertion = signBookingContext(secret, getIdentity(c).userId, groups, method, path, body);
     const response = await authorizedConnectorFetch(c, connector, path, ctx.tokenProvider, connector.id, {
       method, headers: { 'content-type': 'application/json', 'x-glab-booking-context': assertion },
