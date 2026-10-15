@@ -27,6 +27,8 @@ import { createOmnipotensReviewSection } from './omnipotens-panel.ts';
 import { createGameAdminSection, gameSelector, loadGames } from './games-panel.ts';
 import { renderEmotionCurves } from './emotion-curve-panel.ts';
 import type { GameView } from './contracts.ts';
+import { isPlayProgress, parseCreatedReviewId, PLAY_PROGRESS_OPTIONS } from './review-follow-up-contract.ts';
+import { renderFollowUp } from './review-follow-up-panel.ts';
 
 // 設問カテゴリのタブに、 データの持ち方が違う 2 つ (感想・感情曲線) を並べる。
 type ActiveTab = SurveyCategory | 'reviews' | 'emotion_curves';
@@ -238,6 +240,11 @@ async function renderReviewForm(
   comment.placeholder = '感想本文';
   comment.required = true;
   comment.maxLength = 4000;
+  // どこまで遊んだか。未プレイ範囲の質問を出さないための手がかりで、選ばなければ投稿後に質問で聞く。
+  const progress = el('select', 'gl-select') as HTMLSelectElement;
+  progress.append(new Option('どこまで遊んだか (任意)', ''));
+  for (const option of PLAY_PROGRESS_OPTIONS) progress.append(new Option(option.label, option.value));
+  const followUp = el('div', 'gl-review-follow-up-wrap');
   const anonymous = el('input') as HTMLInputElement;
   anonymous.type = 'checkbox';
   const anonymousLabel = el('label', 'gl-row');
@@ -245,7 +252,7 @@ async function renderReviewForm(
   const message = el('p', 'gl-muted');
   const submit = el('button', 'gl-btn', '公開して投稿');
   submit.type = 'submit';
-  form.append(selector.element, suggestions, toggle, comment, anonymousLabel, message, submit);
+  form.append(selector.element, suggestions, toggle, progress, comment, anonymousLabel, message, submit);
   form.onsubmit = (event) => {
     event.preventDefault();
     // required は空白のみの入力を通してしまうので、 trim 後の中身で判定する。
@@ -271,8 +278,9 @@ async function renderReviewForm(
         glabProjectId: projectId,
         anonymous: anonymous.checked,
         visibility: 'community',
+        ...(isPlayProgress(progress.value) ? { playProgress: progress.value } : {}),
       }),
-    }).then((response) => {
+    }).then(async (response) => {
       // 未接続 (503) と本当の失敗を混ぜると「投稿できない理由」が伝わらない。
       if (!response.ok) {
         message.textContent = response.status === 503
@@ -282,16 +290,21 @@ async function renderReviewForm(
         return;
       }
       message.textContent = '感想を公開しました。';
+      const recordId = parseCreatedReviewId(await response.json().catch(() => null));
       selector.reset();
       comment.value = '';
+      progress.value = '';
       submit.disabled = false;
       afterPost();
+      // 足りない情報を一問ずつ聞き、最後に体験の解析 (任意・同意制) を出す。
+      if (recordId) renderFollowUp(ctx, followUp, recordId);
     }).catch(() => {
       message.textContent = '感想を投稿できませんでした。';
       submit.disabled = false;
     });
   };
   container.appendChild(form);
+  container.appendChild(followUp);
   await loadRecentTrends(ctx, suggestions, games, selector.selectSuggestion);
 }
 

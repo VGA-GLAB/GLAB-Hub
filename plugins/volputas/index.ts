@@ -82,6 +82,22 @@ const volputasModule: CorpusModule = {
       }
       return response;
     });
+    // 投稿後の追加ヒアリングと体験解析 (Voluptas SPEC-GLAB-VOICE-FOLLOW-UP)。
+    // 記録は Voluptas が token の本人 (Cernere owner id) だけに閉じる。
+    const reviewRecordPath = (c: { req: { param(name: string): string | undefined } }, suffix: string): string =>
+      `${GLAB_REVIEWS_PATH}/${suffix.replace(':id', encodeURIComponent(c.req.param('id') ?? ''))}`;
+    routes.get('/reviews/:id/follow-up', (c) => proxy(
+      c, connector, reviewRecordPath(c, ':id/follow-up'), ctx.tokenProvider, 'volputas',
+    ));
+    routes.post('/reviews/:id/follow-up', (c) => proxy(
+      c, connector, reviewRecordPath(c, ':id/follow-up'), ctx.tokenProvider, 'volputas',
+    ));
+    routes.get('/reviews/analysis/:id', (c) => proxy(
+      c, connector, reviewRecordPath(c, 'analysis/:id'), ctx.tokenProvider, 'volputas',
+    ));
+    routes.post('/reviews/analysis/:id', (c) => proxy(
+      c, connector, reviewRecordPath(c, 'analysis/:id'), ctx.tokenProvider, 'volputas',
+    ));
     routes.get('/recent-games', (c) => proxy(
       c, connector, GLAB_RECENT_GAMES_PATH, ctx.tokenProvider, 'volputas',
     ));

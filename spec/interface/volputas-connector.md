@@ -116,3 +116,19 @@ Volputas 未設定時も GLAB は degraded で起動し、パネルは「未接�
   `tests/volputas-review-suggestions.test.ts` /
   `tests/di-review-trends.test.ts`
 - Volputas 側: `spec/feature/glab-game-catalog.md` / `spec/feature/glab-emotion-curves.md`
+
+## 感想の追加ヒアリングと体験解析
+
+neco 2026-10-14「GLab のゲーム感想を書く Vo のロジックを仕上げる」。Voluptas の SPEC-GLAB-VOICE-FOLLOW-UP を中継する。
+
+| hub ルート | Voluptas API | 用途 |
+|---|---|---|
+| `GET/POST /reviews/:id/follow-up` | `/api/v1/integrations/glab/reviews/:id/follow-up` | 次の追加質問 / 回答・スキップ |
+| `GET/POST /reviews/analysis/:id` | `/api/v1/integrations/glab/reviews/analysis/:id` | 体験解析の状態 / 実行 (`{ consent: true }`) |
+
+- 投稿フォームに「どこまで遊んだか」(任意) を足し、`playProgress` として送る。選ばなければ投稿後の質問で聞かれる。
+- 投稿が成功したら、201 の `data.record.id` で追加質問を一問ずつ出す (答える / スキップ)。質問が尽きたら体験解析の欄を出す。
+- 解析は「AI に送って解析することに同意する」にチェックしたときだけ実行する。表示は出来事の見出しと感情の向き、観測の数だけ
+  (`plugins/volputas/review-follow-up-contract.ts` で絞る)。
+- 記録は Voluptas が token の本人 (Cernere owner id) に閉じる。GLab は記録を保存しない。
+
