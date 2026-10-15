@@ -46,9 +46,11 @@ process.env.CORPUS_PUBLIC_DIR ??= resolve(ROOT, 'public/build');
 // deploymentで変更する場合はGLAB_PORTを使い、汎用Corpusの設定とは分離する。
 process.env.CORPUS_PORT = process.env.GLAB_PORT?.trim() || '5187';
 process.env.CORPUS_PUBLIC_URL ??= `http://localhost:${process.env.CORPUS_PORT}`;
-// GLAB内蔵UI → Corpus backend → project認証済みCernere backend の経路に固定する。
-// Cernere frontendへのredirectは行わず、セッションはGLAB originのHttpOnly Cookieで保持する。
-process.env.CORPUS_AUTH_UI_MODE = 'composite';
+// ログインはパスキー一本 (neco 2026-10-15)。Cernere のパスキーは RP ID が Cernere の origin なので、
+// 「パスキーで続ける」で Cernere のログイン画面へ移り、戻った authCode を /auth/exchange で GLAB origin の
+// HttpOnly Cookie セッションに交換する。旧 composite (GLAB 画面内の email/password 中継) は Cernere で廃止済み。
+// passkey では Corpus が CERNERE_FRONTEND_URL を必須にする (公開設定の cernereFrontendUrl)。
+process.env.CORPUS_AUTH_UI_MODE = 'passkey';
 
 // 認証の配置モード。 Corpus は無言フォールバックを禁じており未設定だと起動を拒否する
 // (Corpus DESIGN §16.1)。 GLAB は Cloudflare Access のようなエッジ認証の背後には

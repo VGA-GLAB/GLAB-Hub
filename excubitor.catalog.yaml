@@ -36,6 +36,10 @@ services:
       CORPUS_TOKEN_MODE: cernere-project-token
       # ログインはパスキー一本 (Cernere のログイン画面へ移る)。旧 composite (email/password) は Cernere で廃止済み。
       CORPUS_AUTH_UI_MODE: passkey
+      # 利用者のブラウザが開く Cernere ログイン画面 (passkey の RP ID もこの origin)。service code cernere-frontend の
+      # topology 自動変数 CERNERE_FRONTEND_URL (=拠点内の http://<host>:5173) が provides の公開 URL を上書きし、
+      # 「パスキーで続ける」が外から届かない内部アドレスへ飛んでいた (2026-10-15)。catalog env は topology より優先する。
+      CERNERE_FRONTEND_URL: https://cr.ai-run-do.com
       GLAB_OMNIPOTENS_REVIEW_ROOT: ${ARS_ROOT}/Omnipotents/Review
       # GLAB 所有のイベント/施設マスタ (plugins/events, plugins/events/facility-store)。
       # server.ts が起動時に必ず要求するため、未設定だと Corpus の listen 前に落ちる。
