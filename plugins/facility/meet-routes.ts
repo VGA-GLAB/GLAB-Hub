@@ -16,6 +16,7 @@ import {
   meetOAuthRedirectUri,
   meetOAuthResultPage,
   parseMeetOAuthTarget,
+  requestOrigin,
   type MeetOAuthResult,
 } from './meet-oauth.ts';
 
@@ -40,7 +41,7 @@ export function registerMeetRoutes(r: Hono, ctx: CorpusContext, aedilis: Service
   r.post('/meet/oauth/start', async (c) => {
     const target = parseMeetOAuthTarget(await c.req.json().catch(() => null));
     if (!target) return Response.json({ error: 'invalid_mode' }, { status: 400, headers: { 'cache-control': PRIVATE_NO_STORE } });
-    const redirectUri = meetOAuthRedirectUri(ctx.env('CORPUS_PUBLIC_URL'));
+    const redirectUri = meetOAuthRedirectUri(requestOrigin(c.req.url, c.req.header('x-forwarded-proto')));
     if (!redirectUri) return Response.json({ error: 'public_url_unconfigured' }, { status: 503, headers: { 'cache-control': PRIVATE_NO_STORE } });
     return bookingProxy(c, ctx, aedilis, '/api/meet/oauth/start', bookingGroupsWithRepresentative, {
       method: 'POST', body: JSON.stringify({ ...target, redirectUri }),

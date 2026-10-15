@@ -3,7 +3,7 @@
 // 候補にだけ使い、イベント作成・削除時に対応する予約を Aedilis へ同期する。
 
 import { Hono, getIdentity, cacheDisplayName } from '../../corpus/server/hub/sdk.ts';
-import type { CorpusModule, CorpusContext } from '../../corpus/server/hub/sdk.ts';
+import type { CorpusModule, CorpusContext, ServiceConnector } from '../../corpus/server/hub/sdk.ts';
 import { z } from 'zod';
 import { getEventStore, type EventRow } from './store.ts';
 import { canSee, resolveRoles, parseAudience as audience } from '../roles/audience.ts';
@@ -14,6 +14,7 @@ import {
   AedilisRequestError,
   type AedilisFacilityCandidate,
 } from './aedilis-client.ts';
+import { ORGANIZATION_ID, isMeetUrl, issueEventMeet, meetOrganizations } from './meet-client.ts';
 
 const eventInputSchema = z.object({
   title: z.string().trim().min(1).max(255),
@@ -23,6 +24,13 @@ const eventInputSchema = z.object({
   facilityId: z.string().trim().max(255).optional(),
   audienceRoles: z.array(z.string().regex(/^[a-z][a-z0-9_-]{0,62}$/)).max(20).default([]),
   recurrence: z.enum(['none', 'weekly']).default('none'),
+  // 作成と同時に Google Meet のリンクを発行する。組織を選ぶとその組織の代表アカウントで作る。
+  meet: z.boolean().default(false),
+  meetOrganizationId: z.string().regex(ORGANIZATION_ID).optional(),
+}).strict();
+
+const meetInputSchema = z.object({
+  organizationId: z.string().regex(ORGANIZATION_ID).optional(),
 }).strict();
 
 /** `from`〜`to` に許す最大幅 (週次イベントの occurrence 展開量の上限)。 */
@@ -43,6 +51,7 @@ function eventView(row: EventRow): Record<string, unknown> {
     audienceRoles: audience(row.audience_roles) ?? [],
     recurrence: row.recurrence,
     occurrenceDate: row.occurrence_date ?? null,
+    meetUrl: isMeetUrl(row.meet_url) ? row.meet_url : null,
   };
 }
 
@@ -84,7 +93,7 @@ function aedilisFailure(error: AedilisRequestError): Response {
   }, { status });
 }
 
-export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient): Hono {
+export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient, connector: ServiceConnector): Hono {
   const events = getEventStore();
   const facilities = getFacilityStore();
   const routes = new Hono();
@@ -107,6 +116,15 @@ export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient): Hon
         aedilisAvailable: false,
         downstreamStatus: error instanceof AedilisRequestError ? error.status : 502,
       });
+    }
+  });
+
+  // Meet の代表にできる組織 (自分の所属)。Cernere に届かなければ空 (組織無しでは発行できる)。
+  routes.get('/meet/organizations', async (c) => {
+    try {
+      return c.json({ items: await meetOrganizations(c, ctx) });
+    } catch {
+      return c.json({ items: [], available: false });
     }
   });
 
@@ -192,8 +210,36 @@ export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient): Hon
       throw error;
     }
     if (identity.displayName) cacheDisplayName(ctx.db, identity.userId, identity.displayName);
+    // Meet の発行に失敗してもイベントは残す (一覧の「Meet リンクを発行」から再発行できる)。
+    let meetError: string | null = null;
+    if (parsed.data.meet) {
+      const meet = await issueEventMeet(c, ctx, connector, eventId, parsed.data.meetOrganizationId ?? null);
+      if ('url' in meet) await events.setMeetUrl(eventId, meet.url);
+      else meetError = meet.error;
+    }
     const created = await events.get(eventId);
-    return c.json({ ok: true, event: created ? eventView(created) : null });
+    return c.json({ ok: true, event: created ? eventView(created) : null, ...(meetError ? { meetError } : {}) });
+  });
+
+  routes.post('/events/:id/meet', async (c) => {
+    const identity = getIdentity(c);
+    const eventId = Number(c.req.param('id'));
+    if (!Number.isSafeInteger(eventId) || eventId <= 0) {
+      return c.json({ error: 'invalid_event_id' }, 400);
+    }
+    const parsed = meetInputSchema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: 'invalid_meet' }, 400);
+    const event = await events.get(eventId);
+    if (!event) return c.json({ error: 'not_found' }, 404);
+    // 削除と同じく登録者と管理者だけ。
+    if (event.created_by !== identity.userId && !identity.isAdmin) {
+      return c.json({ error: 'forbidden' }, 403);
+    }
+    if (isMeetUrl(event.meet_url)) return c.json({ ok: true, meetUrl: event.meet_url });
+    const meet = await issueEventMeet(c, ctx, connector, eventId, parsed.data.organizationId ?? null);
+    if (!('url' in meet)) return c.json({ error: meet.error }, 502);
+    await events.setMeetUrl(eventId, meet.url);
+    return c.json({ ok: true, meetUrl: meet.url });
   });
 
   routes.delete('/events/:id', async (c) => {
@@ -238,7 +284,7 @@ const eventsModule: CorpusModule = {
     // registerConnector は facility 側の 1 箇所だけ (重複登録しない)。
     const connector = makeAedilisConnector(ctx.env);
     const aedilis = new AedilisEventClient(connector, ctx.tokenProvider);
-    ctx.registerRoute(makeRoutes(ctx, aedilis));
+    ctx.registerRoute(makeRoutes(ctx, aedilis, connector));
     ctx.registerPanel({ title: 'イベント', icon: '📅' });
     ctx.logger.info('events ready (GLAB PostgreSQL + Aedilis reservations)');
   },

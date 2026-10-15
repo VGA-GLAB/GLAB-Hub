@@ -7,6 +7,7 @@ import {
   type PanelContext,
 } from '../panel-kit.ts';
 import { loadLiveByEvent, presentControls } from '../odeum/present-controls.ts';
+import { eventMeetControls, meetFormControls } from './meet-panel.ts';
 
 interface EventView {
   id: number;
@@ -21,6 +22,7 @@ interface EventView {
   audienceRoles: string[];
   recurrence: 'none' | 'weekly';
   occurrenceDate: string | null;
+  meetUrl: string | null;
 }
 
 interface RoleDef { key: string; label: string; sort: number; }
@@ -141,6 +143,7 @@ function eventForm(
   const weekly = el('input');
   weekly.type = 'checkbox';
   recurrence.append(weekly, document.createTextNode(' 毎週繰り返す'));
+  const meet = meetFormControls(ctx);
   const submit = el('button', 'gl-btn', 'イベントを登録');
   submit.type = 'button';
   const message = el('p', 'gl-muted');
@@ -172,6 +175,7 @@ function eventForm(
         facilityId: facility.value || undefined,
         audienceRoles: Array.from(audience.selectedOptions, (option) => option.value),
         recurrence: weekly.checked ? 'weekly' : 'none',
+        ...meet.value(),
       }),
     }).then(async (response) => {
       if (!response.ok) {
@@ -183,6 +187,12 @@ function eventForm(
           : body?.downstreamStatus
             ? `Aedilisの予約作成に失敗しました (${body.downstreamStatus}${body.code ? `: ${body.code}` : ''})。`
             : `登録に失敗しました (${response.status})。`;
+        return;
+      }
+      const created = await response.json().catch(() => null) as { meetError?: unknown } | null;
+      // 再描画するとフォームごと消えるので、Meet の失敗はここに残し、一覧は「更新」で出す。
+      if (typeof created?.meetError === 'string') {
+        message.textContent = `イベントは登録しましたが、Meet を発行できませんでした (${created.meetError})。「更新」で一覧に出し、一覧の「Meet リンクを発行」から再発行できます。`;
         return;
       }
       await rerender();
@@ -199,7 +209,7 @@ function eventForm(
       ? 'Aedilisに接続できません。施設を選ぶと予約作成に失敗しますが、施設なしでは登録できます。'
       : 'Aedilisに接続できないため施設候補を取得できません。施設なしでは登録できます。';
   }
-  form.body.append(row, description, audience, recurrence, message);
+  form.body.append(row, description, audience, recurrence, meet.element, message);
   return form.wrap;
 }
 
@@ -239,6 +249,7 @@ function eventRow(
   if (event.recurrence === 'weekly') row.appendChild(el('span', 'gl-tag', '毎週'));
   if (event.notified) row.appendChild(el('span', 'gl-tag', '通知済'));
   if (event.body) row.appendChild(el('div', 'gl-muted', event.body));
+  row.appendChild(eventMeetControls(ctx, event));
   const present = presentControls(ctx, event, live, rerender);
   if (present) row.appendChild(present);
   const remove = el('button', 'gl-btn ghost', 'イベントを削除');

@@ -70,6 +70,14 @@ neco 2026-10-14「Ae と接続し、Meet のリンクを発行した予定を登
   リダイレクト URI の両方に登録する (後者は Google Cloud の画面で人が行う)。GLab 経由の認可は必ず GLab に戻り、
   Ae 単体の画面は Ae の callback に戻る。別サービスに組み込むときはそのサービス専用のリストを Aedilis に足す
   (Aedilis SPEC-MANAGED-MEET-CALLBACK-PER-EMBEDDING)。
+- 戻り先の Origin は CORPUS_PUBLIC_URL (catalog は全拠点共通で本社の localhost) ではなく、ブラウザが開いている
+  GLab の Origin (X-Forwarded-Proto を戻す) から作る。AWS は `https://glab.ai-run-do.com` (neco 2026-10-15)。
+- イベントの Meet: neco 2026-10-15「(Meet を GLAB のイベント (予定) にも) つけます」。イベント登録で
+  「Google Meet のリンクを発行する」を選ぶと、登録直後に `POST /api/meet/external/glab-event/:eventId`
+  (署名付き中継、body `{ organizationId? }`) で発行し、リンクを `glab_event.meet_url` に控える。組織を選ぶと
+  その組織の代表アカウントで作る (未認可なら全体の代表)。発行に失敗してもイベントは残り、一覧の
+  「Meet リンクを発行」(`POST /events/:id/meet`、登録者と管理者だけ) から再発行できる。代表にできる組織は
+  `GET /meet/organizations` (自分の所属)。Aedilis SPEC-MANAGED-MEET-EXTERNAL-EVENT。
 - 結果ページは固定文言だけで、code・state・トークンを載せない。opener へは同一 Origin 限定の postMessage で結果だけを知らせる。
 
 ## 関連

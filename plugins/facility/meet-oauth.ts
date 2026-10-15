@@ -8,7 +8,20 @@
 export const MEET_OAUTH_CALLBACK_PATH = '/api/x/facility/meet/oauth/callback';
 export type MeetOAuthMode = 'creator' | 'organizer';
 
-/** Ae の AEDILIS_MEET_EXTERNAL_REDIRECT_URIS と完全一致させる戻り先。公開 URL が無ければ null。 */
+/**
+ * ブラウザが実際に開いている GLab の Origin (TLS を終端する proxy の X-Forwarded-Proto を戻す)。
+ * catalog の CORPUS_PUBLIC_URL は全拠点共通で本社の localhost のままなので、Meet の戻り先には使わない
+ * (AWS の公開 URL は https://glab.ai-run-do.com、neco 2026-10-15)。偽の Host でも Aedilis の許可リストとの
+ * 完全一致で弾かれる。
+ */
+export function requestOrigin(requestUrl: string, forwardedProto: string | undefined): string {
+  const url = new URL(requestUrl);
+  const proto = forwardedProto?.split(',', 1)[0]?.trim().toLowerCase();
+  if (proto === 'http' || proto === 'https') url.protocol = `${proto}:`;
+  return url.origin;
+}
+
+/** Ae の AEDILIS_MEET_GLAB_REDIRECT_URIS と完全一致させる戻り先。Origin が無効なら null。 */
 export function meetOAuthRedirectUri(publicUrl: string | undefined): string | null {
   if (!publicUrl?.trim()) return null;
   try {

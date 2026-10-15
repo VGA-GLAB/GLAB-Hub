@@ -24,6 +24,7 @@ export interface EventRow {
   audience_roles: string | null;
   recurrence: 'none' | 'weekly';
   occurrence_date?: string | null;
+  meet_url?: string | null;
 }
 
 interface NewEvent {
@@ -54,7 +55,7 @@ const EVENT_COLUMNS = `
   (EXTRACT(EPOCH FROM created_at) * 1000)::double precision AS created_at,
   CASE WHEN notified_at IS NULL THEN NULL
        ELSE (EXTRACT(EPOCH FROM notified_at) * 1000)::double precision END AS notified_at,
-  discord_message_id, audience_roles, recurrence
+  discord_message_id, audience_roles, recurrence, meet_url
 `;
 
 class EventStore {
@@ -79,6 +80,8 @@ class EventStore {
     `;
     await this.sql`ALTER TABLE glab_event ADD COLUMN IF NOT EXISTS audience_roles TEXT`;
     await this.sql`ALTER TABLE glab_event ADD COLUMN IF NOT EXISTS recurrence TEXT NOT NULL DEFAULT 'none'`;
+    // Aedilis が発行した Google Meet のリンク (一覧で毎回 Aedilis に問い合わせないための控え)。
+    await this.sql`ALTER TABLE glab_event ADD COLUMN IF NOT EXISTS meet_url TEXT`;
     await this.sql`
       CREATE TABLE IF NOT EXISTS glab_event_occurrence_notified (
         event_id INTEGER NOT NULL,
@@ -138,6 +141,10 @@ class EventStore {
       DELETE FROM glab_event WHERE id = ${id} RETURNING id
     `;
     return rows.length > 0;
+  }
+
+  async setMeetUrl(id: number, meetUrl: string): Promise<void> {
+    await this.sql`UPDATE glab_event SET meet_url = ${meetUrl} WHERE id = ${id}`;
   }
 
   async markNotified(id: number, discordMessageId: string | null): Promise<void> {
