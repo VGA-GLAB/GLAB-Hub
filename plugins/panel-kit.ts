@@ -1,4 +1,3 @@
-import { steamProfileFields } from './vantan-user/steam-profile-form.ts';
 // プラグインパネル共有 frontend ヘルパ。
 //
 // 各モジュールの panel.ts はこれを import する。 esbuild が panel ごとに
@@ -99,8 +98,12 @@ export function ensureStyles(): void {
 }
 
 /**
- * GLAB のどのパネルを最初に開いても、Cernere の必須 Vantan profile を先に登録する。
- * 登録完了までは Promise を解決せず、呼び出し元パネルの通常描画を止める。
+ * GLAB のどのパネルを最初に開いても、Cernere の必須 Vantan profile (名前・役職・学科) が揃っているかを確かめる。
+ *
+ * 入力は Cernere のログイン時入力 (EducationLab の signup_fields、Cernere migration 074) で行う。
+ * GLAB 側では入力フォームを出さない (neco 2026-10-16「GLAB の宣言を進める」)。揃っていないのは
+ * 宣言より前に GLAB へ入った人なので、ログインし直してもらい Cernere の入力画面へ回す。
+ * 揃うまでは Promise を解決せず、呼び出し元パネルの通常描画を止める。
  */
 export async function requireVantanUserRegistration(
   container: HTMLElement,
@@ -125,73 +128,33 @@ export async function requireVantanUserRegistration(
   }
   if (profileResponse.complete) return true;
 
-  return new Promise<boolean>((resolve) => {
-    container.innerHTML = '';
-    const gate = el('section', 'gl-notice gl-profile-gate');
-    gate.appendChild(el('h2', undefined, 'GLAB 初回登録'));
-    gate.appendChild(el(
-      'p',
-      'gl-muted',
-      'GLAB を利用するため、名前・役職・学科を登録してください。情報は Cernere に保存されます。',
-    ));
-
-    const form = el('form', 'gl-profile-form');
-    const name = profileField('名前', profileResponse.profile.name || ctx.identity.displayName || '');
-    const roleTitle = profileField('役職', profileResponse.profile.roleTitle);
-    const departmentName = profileField('学科', profileResponse.profile.departmentName);
-    const steam = steamProfileFields(ctx);
-    form.append(name.label, roleTitle.label, departmentName.label, steam.element);
-
-    const message = el('p', 'gl-muted');
-    const submit = el('button', 'gl-btn', '登録して GLAB を開く');
-    submit.type = 'submit';
-    form.append(message, submit);
-    form.onsubmit = (event) => {
-      event.preventDefault();
-      submit.disabled = true;
-      message.textContent = '登録中…';
-      void ctx.hubApi('/api/x/vantan-user/profile', {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          name: name.input.value,
-          roleTitle: roleTitle.input.value,
-          departmentName: departmentName.input.value,
-          steamProfile: steam.read(),
-        }),
-      }).then(async (result) => {
-        if (!result.ok) {
-          const body = await result.json().catch(() => null) as { error?: string } | null;
-          message.textContent = body?.error === 'invalid_profile'
-            ? '名前・役職・学科とSteam IDの形式（任意・17桁の数字）を確認してください。'
-            : 'Cernere への登録に失敗しました。時間をおいて再試行してください。';
-          submit.disabled = false;
-          return;
-        }
-        resolve(true);
-      }).catch(() => {
-        message.textContent = 'Cernere への登録に失敗しました。時間をおいて再試行してください。';
-        submit.disabled = false;
-      });
-    };
-
-    gate.appendChild(form);
-    container.appendChild(gate);
-  });
+  renderProfileViaCernere(container);
+  return new Promise<boolean>(() => { /* ログインし直すまで描画を止める */ });
 }
 
-function profileField(labelText: string, value: string): {
-  label: HTMLLabelElement;
-  input: HTMLInputElement;
-} {
-  const label = el('label', 'gl-profile-field', labelText);
-  const input = el('input', 'gl-input');
-  input.type = 'text';
-  input.required = true;
-  input.maxLength = 200;
-  input.value = value;
-  label.appendChild(input);
-  return { label, input };
+/** プロフィールは Cernere のログイン時入力で登録する。ログアウトして入り直すと Cernere が聞く。 */
+function renderProfileViaCernere(container: HTMLElement): void {
+  container.innerHTML = '';
+  const gate = el('section', 'gl-notice gl-profile-gate');
+  gate.appendChild(el('h2', undefined, 'プロフィールの登録'));
+  gate.appendChild(el(
+    'p',
+    'gl-muted',
+    'GLAB を使うには、名前・役職・学科の登録が必要です。登録は Cernere のログイン画面で行います。'
+      + 'ログインし直すと入力画面が表示されます。',
+  ));
+  const message = el('p', 'gl-muted');
+  const button = el('button', 'gl-btn', 'ログインし直して登録する');
+  button.type = 'button';
+  button.onclick = () => {
+    button.disabled = true;
+    message.textContent = 'ログアウトしています…';
+    void fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' })
+      .catch(() => undefined)
+      .finally(() => location.reload());
+  };
+  gate.append(message, button);
+  container.appendChild(gate);
 }
 
 function renderProfileUnavailable(container: HTMLElement): void {
