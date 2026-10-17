@@ -4,6 +4,7 @@
 // ドメイン UI は一切持たない (中身は plugins/<id>/panel.ts 側)。
 
 import { clearLegacyToken } from '../../corpus/public/src/api.ts';
+import { installHubResumeRecovery } from '../../corpus/public/src/hub-resume.ts';
 import type {
   Identity,
   ModuleInfo,
@@ -11,7 +12,7 @@ import type {
 } from '../../corpus/public/src/types.ts';
 import { BRAND_TITLE } from './branding.ts';
 import { el } from './dom.ts';
-import { clearTrackedPanel, initHmr } from './hmr.ts';
+import { clearTrackedPanel, initHmr, isHmrConnectionStale } from './hmr.ts';
 import { renderOverview } from './overview.ts';
 import { renderModulePanel, renderServicePanel } from './panels.ts';
 import { themeControl } from './theme.ts';
@@ -134,7 +135,9 @@ export function renderShell(
   // 構成でも画面が空にならないよう、 従来のステータスへ落とす。
   activate(tabs.some((t) => t.id === LANDING_TAB_ID) ? LANDING_TAB_ID : '__overview');
   initHmr();
+  const disposeResumeRecovery = installHubResumeRecovery(app, isHmrConnectionStale);
   return () => {
+    disposeResumeRecovery();
     document.removeEventListener('glab:public-name', onPublicName);
     navigation.dispose(); disposeStatus();
   };

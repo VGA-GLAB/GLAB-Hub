@@ -14,6 +14,11 @@ interface TrackedPanel {
 let currentDecl: TrackedPanel | null = null;
 let hmrSource: EventSource | null = null;
 
+/** Read connection state without creating another stream. @implements SPEC-GLAB-RESUME-001 */
+export function isHmrConnectionStale(): boolean {
+  return hmrSource !== null && hmrSource.readyState !== EventSource.OPEN;
+}
+
 /** いま描いている declarative パネルを記録する。 @implements SPEC-GLAB-SHELL-004 */
 export function trackDeclarativePanel(panel: TrackedPanel): void {
   currentDecl = panel;
