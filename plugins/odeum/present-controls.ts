@@ -5,6 +5,7 @@
 import { el, type PanelContext } from '../panel-kit.ts';
 import { invitationToggle } from './invitation-view.ts';
 import { endSession, loadLiveSummary, type LiveCardView } from './live-card.ts';
+import { programControls } from './program-controls.ts';
 
 export interface PresentableEvent {
   id: number;
@@ -32,9 +33,26 @@ export function presentControls(
 
   const box = el('div', 'gl-row');
   if (session) box.appendChild(el('span', 'gl-tag', '🎤 発表中'));
+  if (session && live.enabled) box.appendChild(programControls(ctx, session.sessionId, owner));
   if (!owner || !live.enabled) return box;
 
   const message = el('span', 'gl-muted');
+  if (!session) {
+    const prepare = el('button', 'gl-btn', '合成番組を準備');
+    prepare.type = 'button';
+    prepare.onclick = () => {
+      prepare.disabled = true;
+      void ctx.hubApi('/api/x/odeum/sessions', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ eventId: event.id, mode: 'program' }),
+      }).then(async (response) => {
+        if (!response.ok) throw new Error('program_prepare_failed');
+        await rerender();
+      }).catch(() => { message.textContent = '番組を準備できませんでした。'; })
+        .finally(() => { prepare.disabled = false; });
+    };
+    box.appendChild(prepare);
+  }
   const start = el('button', 'gl-btn', session ? '発表者アプリを開き直す' : '発表を始める');
   start.type = 'button';
   start.onclick = () => {
@@ -60,6 +78,7 @@ export function presentControls(
       box.replaceChild(link, start);
       box.appendChild(el('span', 'gl-muted', 'リンクは 5 分間有効です。'));
       if (!session) box.appendChild(invitationToggle(ctx, body.session.id));
+      if (!session) box.appendChild(programControls(ctx, body.session.id, owner));
       // 発表者アプリ (odeum://) を起動する。 ブラウザが確認を出す場合はリンクを押してもらう。
       window.location.href = body.presentUrl;
     }).catch(() => {

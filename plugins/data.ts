@@ -381,6 +381,10 @@ function ensureOdeumSchema(db: SqlDb): void {
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS glab_odeum_sessions_live_event
     ON glab_odeum_sessions(event_id) WHERE status = 'live'`);
   db.exec('CREATE INDEX IF NOT EXISTS glab_odeum_sessions_status ON glab_odeum_sessions(status, started_at)');
+  db.exec(`CREATE TABLE IF NOT EXISTS glab_odeum_programs (
+    session_id TEXT PRIMARY KEY REFERENCES glab_odeum_sessions(id),
+    project_id TEXT NOT NULL REFERENCES glab_project(id)
+  )`);
 }
 
 const DEFAULT_ROLE_DEFS = [

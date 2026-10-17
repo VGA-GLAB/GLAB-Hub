@@ -6,7 +6,8 @@
 
 import { createPrivateKey, createPublicKey, randomUUID, sign, type KeyObject } from 'node:crypto';
 
-export type OdeumTicketRole = 'presenter' | 'viewer' | 'service';
+export type OdeumTicketRole = 'presenter' | 'producer' | 'viewer' | 'service';
+export type OdeumInputSlot = 'input1' | 'input2' | 'input3' | 'input4';
 
 export const TICKET_ISSUER = 'glab';
 export const TICKET_AUDIENCE = 'odeum-relay';
@@ -21,6 +22,7 @@ export interface TicketSigner {
 }
 
 export interface TicketSubject {
+  slot?: OdeumInputSlot;
   /** Cernere user_id (service チケットでは GLab 自身の識別子)。 */
   sub: string;
   /** 表示名。 64 文字を超える分は切り詰める。 */
@@ -33,6 +35,7 @@ export interface TicketSubject {
 }
 
 export interface TicketClaims {
+  slot?: OdeumInputSlot;
   iss: typeof TICKET_ISSUER;
   aud: typeof TICKET_AUDIENCE;
   sub: string;
@@ -76,7 +79,10 @@ export function signOdeumTicket(
   if (subject.role === 'service' ? subject.sid != null : !subject.sid) {
     throw new Error(`odeum ${subject.role} ticket has an invalid sid`);
   }
-  if (subject.invite && (subject.role !== 'presenter' || subject.invite.join === subject.invite.overlay)) {
+  if (subject.slot && (subject.role !== 'presenter' || !/^input[1-4]$/.test(subject.slot))) {
+    throw new Error('odeum slot claim is only valid on input presenter tickets');
+  }
+  if (subject.invite && (!['presenter', 'producer'].includes(subject.role) || subject.invite.join === subject.invite.overlay)) {
     throw new Error('odeum invite claim is only valid on presenter tickets');
   }
   const ttl = Math.min(
@@ -90,6 +96,7 @@ export function signOdeumTicket(
     sub: subject.sub,
     name: truncateName(subject.name),
     role: subject.role,
+    ...(subject.slot ? { slot: subject.slot } : {}),
     ...(subject.sid ? { sid: subject.sid } : {}),
     ...(subject.invite ? { invite: { join: subject.invite.join, overlay: subject.invite.overlay } } : {}),
     exp: nowSeconds + ttl,

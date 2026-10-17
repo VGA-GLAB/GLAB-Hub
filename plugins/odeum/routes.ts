@@ -37,13 +37,14 @@ import {
   type OdeumInvitation,
 } from './invitation.ts';
 import { publicKeysDocument, signOdeumTicket, type TicketSigner } from './ticket.ts';
+import { makeProgramRoutes } from './program-routes.ts';
 
 const PRESENTER_TICKET_TTL_SECONDS = 300;
 const VIEWER_TICKET_TTL_SECONDS = 120;
 const SERVICE_TICKET_TTL_SECONDS = 60;
 const SERVICE_SUBJECT = 'glab-hub';
 
-const startSchema = z.object({ eventId: z.number().int().positive() }).strict();
+const startSchema = z.object({ eventId: z.number().int().positive(), mode: z.literal('program').optional() }).strict();
 
 interface Viewer {
   userId: string;
@@ -58,6 +59,7 @@ export function presentUrl(wsBase: string, ticket: string): string {
 
 export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
   const routes = new Hono();
+  routes.route('/', makeProgramRoutes(ctx, config));
 
   const visible = (event: EventRow, viewer: Viewer): boolean => canSee(
     parseAudience(event.audience_roles),
@@ -120,6 +122,9 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
 
     const started = startOdeumSession(ctx.db, { eventId: event.id, presenterUserId: viewer.userId });
     if (started.kind === 'conflict') return c.json({ error: 'session_already_live' }, 409);
+    if (parsed.data.mode === 'program') return c.json({ session: started.session, resumed: started.kind === 'resumed' }, started.kind === 'created' ? 201 : 200);
+    if (ctx.db.prepare('SELECT session_id FROM glab_odeum_programs WHERE session_id = ?').get(started.session.id))
+      return c.json({ error: 'use_program_source_controls' }, 409);
     if (viewer.displayName) cacheDisplayName(ctx.db, viewer.userId, viewer.displayName);
     const invitation = invitationFor(started.session.id);
     const ticket = signOdeumTicket(signer, {
