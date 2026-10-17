@@ -9,8 +9,10 @@ frontend の外殻を `public/` に所有する。実装関数は以下の claus
   Corpus に渡す。`public/index.html` は GLAB の bundle / style と、Corpus の静的
   allowlist で配信できる `/vendor/:file` asset だけを参照する。
 - **SPEC-GLAB-SHELL-002** — 未認証時は Corpus の Cernere composite client を
-  GLAB ブランドで mount する。passkey redirect は sessionStorage の一回限り state を
-  callback の code 交換前に照合し、logout は server session と legacy token の双方を破棄する。
+  GLAB ブランドで mount する。Corpus の CompositeLoginFrame で現在の Cr ログイン画面を
+  埋め込み、外部ページ遷移や popup は開始しない。共通 frame が送信元 origin と window を
+  照合した auth code だけを `/auth/exchange` に渡し、成功後に GLAB を再読み込みする。
+  失敗は画面内で表示する。logout は server session と legacy token の双方を破棄する。
 - **SPEC-GLAB-SHELL-003** — 認証後は `/api/me`、`/api/hub/modules`、
   `/api/hub/services` からステータス、GLAB module、参照 service panel のタブを構成する。
   UI へ挿入する外部文字列は text node として扱い、panel の API は same-origin cookie を使う。

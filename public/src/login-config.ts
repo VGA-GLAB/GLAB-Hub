@@ -1,9 +1,5 @@
-// GLab のログイン入口の決定。
-//
-// Cernere のログインはパスキーのみ (2026-10-14)。パスキーの RP ID は Cernere の origin なので、
-// 認証は必ず Cernere のログイン画面 (/composite/login) で行い、GLab は「パスキーで続ける」
-// 1 つの入口からそこへ移るだけにする (neco 2026-10-15「Composite もパスキー一本化」)。
-// 旧 composite (GLab 画面内の email / password) は Cernere 側で 410 になっているので出さない。
+// Authentication stays inside the hosted Composite frame on the GLab page.
+// Cernere owns the passkey origin and current login UI.
 
 export interface PublicLoginConfig {
   cernereFrontendUrl?: string;
