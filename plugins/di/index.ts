@@ -4,6 +4,7 @@ import { createDiEntryPoints, resolveDiLaunchUrl } from './entry-points.ts';
 import { sanitizeDiReviewTrends } from './review-trend-contract.ts';
 import { normalizeHttpBaseUrl, PRIVATE_NO_STORE } from '../shared.ts';
 import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
+import { diAccessHeaders } from './transport.ts';
 
 const diModule: CorpusModule = {
   id: 'di',
@@ -16,6 +17,7 @@ const diModule: CorpusModule = {
       'DISCUTERE_WEB_URL',
     ) ?? apiBaseUrl;
     const entryPoints = webBaseUrl ? createDiEntryPoints(webBaseUrl) : null;
+    const accessHeaders = diAccessHeaders(ctx.env, apiBaseUrl);
 
     ctx.registerConnector(new VersionedHttpServiceConnector({
       id: 'discutere',
@@ -23,6 +25,8 @@ const diModule: CorpusModule = {
       scope: 'multi',
       baseUrl: apiBaseUrl ?? '',
       healthPath: '/health',
+      headers: accessHeaders,
+      requireJsonHealth: true,
     }));
 
     const routes = new Hono();
@@ -38,7 +42,9 @@ const diModule: CorpusModule = {
       try {
         const response = await fetch(`${apiBaseUrl}api/integrations/glab/launch`, {
           method: 'POST',
-          headers: { 'X-Cernere-User-Id': identity.userId },
+          headers: { ...accessHeaders, 'X-Cernere-User-Id': identity.userId },
+          redirect: 'error',
+          signal: AbortSignal.timeout(10_000),
         });
         const body = await response.json().catch(() => null) as { path?: unknown } | null;
         const url = response.ok ? resolveDiLaunchUrl(webBaseUrl, body?.path) : null;
@@ -57,7 +63,9 @@ const diModule: CorpusModule = {
       }
       try {
         const response = await fetch(`${apiBaseUrl}api/integrations/glab/review-trends`, {
-          headers: { accept: 'application/json' },
+          headers: { ...accessHeaders, accept: 'application/json' },
+          redirect: 'error',
+          signal: AbortSignal.timeout(10_000),
         });
         if (!response.ok) {
           return Response.json(

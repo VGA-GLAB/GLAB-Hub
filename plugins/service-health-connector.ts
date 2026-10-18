@@ -12,6 +12,7 @@ export interface VersionedConnectorOptions {
   scope: ConnectorScope;
   baseUrl: string;
   healthPath: string;
+  requireJsonHealth?: boolean;
   /**
    * 全リクエスト (probe / fetch) に付与する固定ヘッダ。
    * 呼び出し側が同名ヘッダを渡した場合は呼び出し側を優先する
@@ -37,6 +38,7 @@ export class VersionedHttpServiceConnector implements ServiceConnector {
   readonly baseUrl: string;
   private readonly healthPath: string;
   private readonly headers: Record<string, string>;
+  private readonly requireJsonHealth: boolean;
 
   constructor(options: VersionedConnectorOptions) {
     this.id = options.id;
@@ -45,6 +47,7 @@ export class VersionedHttpServiceConnector implements ServiceConnector {
     this.baseUrl = options.baseUrl.replace(/\/+$/, '');
     this.healthPath = options.healthPath;
     this.headers = options.headers ?? {};
+    this.requireJsonHealth = options.requireJsonHealth ?? false;
   }
 
   async health(): Promise<ConnectorHealth> {
@@ -56,11 +59,14 @@ export class VersionedHttpServiceConnector implements ServiceConnector {
       return { health: { status: 'degraded', detail: '接続先未設定' }, payload: null };
     }
     try {
-      const response = await timedFetch(`${this.baseUrl}${this.healthPath}`, this.headers);
+      const response = await timedFetch(`${this.baseUrl}${this.healthPath}`, this.headers, this.requireJsonHealth);
       if (!response.ok) {
         return { health: { status: 'degraded', detail: `health ${response.status}` }, payload: null };
       }
       const body = await response.json().catch(() => null) as unknown;
+      if (this.requireJsonHealth && (!body || typeof body !== 'object' || Array.isArray(body))) {
+        return { health: { status: 'degraded', detail: 'health response is not a JSON object' }, payload: null };
+      }
       const version = healthVersion(body);
       return {
         health: {
@@ -120,11 +126,11 @@ function healthReportsFailure(value: unknown): boolean {
 }
 
 /** probe (health check) 専用の短タイムアウト付き fetch。データ通信には使わない。 */
-async function timedFetch(url: string, headers: Record<string, string> = {}): Promise<Response> {
+async function timedFetch(url: string, headers: Record<string, string>, rejectRedirects: boolean): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
   try {
-    return await fetch(url, { headers, signal: controller.signal });
+    return await fetch(url, { headers, signal: controller.signal, redirect: rejectRedirects ? 'error' : 'follow' });
   } finally {
     clearTimeout(timer);
   }

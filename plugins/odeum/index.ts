@@ -25,6 +25,7 @@ const odeumModule: CorpusModule = {
       scope: 'multi',
       baseUrl: config.relay?.httpBase ?? '',
       healthPath: '/health',
+      requireJsonHealth: true,
     }));
     ctx.registerRoute(makeOdeumRoutes(ctx, config));
     ctx.registerPanel({ title: 'ライブ発表', icon: '🎤' });
