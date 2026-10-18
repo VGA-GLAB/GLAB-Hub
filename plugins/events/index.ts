@@ -15,6 +15,8 @@ import {
   type AedilisFacilityCandidate,
 } from './aedilis-client.ts';
 import { ORGANIZATION_ID, isMeetUrl, issueEventMeet, meetOrganizations } from './meet-client.ts';
+import { cancelMeetingEvent } from '../facility/meeting-event.ts';
+import { registerEventAttendance } from './attendance-routes.ts';
 
 const eventInputSchema = z.object({
   title: z.string().trim().min(1).max(255),
@@ -52,6 +54,7 @@ function eventView(row: EventRow): Record<string, unknown> {
     recurrence: row.recurrence,
     occurrenceDate: row.occurrence_date ?? null,
     meetUrl: isMeetUrl(row.meet_url) ? row.meet_url : null,
+    fromMeeting: !!row.meeting_id,
   };
 }
 
@@ -97,6 +100,7 @@ export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient, conn
   const events = getEventStore();
   const facilities = getFacilityStore();
   const routes = new Hono();
+  registerEventAttendance(routes, ctx);
 
   routes.get('/facilities', async (c) => {
     const master = await facilities.list();
@@ -254,7 +258,11 @@ export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient, conn
       return c.json({ error: 'forbidden' }, 403);
     }
     let aedilisCancelFailed = false;
-    if (event.reservation_id) {
+    if (event.meeting_id) {
+      // Ae's meeting owner must cancel the handed-off reservation; never force-delete one side.
+      const cancelled = await cancelMeetingEvent(c, ctx, connector, event.meeting_id);
+      if (!cancelled.ok) return cancelled;
+    } else if (event.reservation_id) {
       try {
         await aedilis.cancelReservation(c, event.reservation_id);
       } catch (error) {

@@ -25,6 +25,7 @@ export interface EventRow {
   recurrence: 'none' | 'weekly';
   occurrence_date?: string | null;
   meet_url?: string | null;
+  meeting_id?: string | null;
 }
 
 interface NewEvent {
@@ -55,7 +56,7 @@ const EVENT_COLUMNS = `
   (EXTRACT(EPOCH FROM created_at) * 1000)::double precision AS created_at,
   CASE WHEN notified_at IS NULL THEN NULL
        ELSE (EXTRACT(EPOCH FROM notified_at) * 1000)::double precision END AS notified_at,
-  discord_message_id, audience_roles, recurrence, meet_url
+  discord_message_id, audience_roles, recurrence, meet_url, meeting_id
 `;
 
 class EventStore {
@@ -82,6 +83,12 @@ class EventStore {
     await this.sql`ALTER TABLE glab_event ADD COLUMN IF NOT EXISTS recurrence TEXT NOT NULL DEFAULT 'none'`;
     // Aedilis が発行した Google Meet のリンク (一覧で毎回 Aedilis に問い合わせないための控え)。
     await this.sql`ALTER TABLE glab_event ADD COLUMN IF NOT EXISTS meet_url TEXT`;
+    await this.sql`ALTER TABLE glab_event ADD COLUMN IF NOT EXISTS meeting_id TEXT`;
+    await this.sql`CREATE UNIQUE INDEX IF NOT EXISTS glab_event_meeting ON glab_event(meeting_id)`;
+    // Keep the mapping after event deletion: a delayed handoff must not resurrect a cancelled event.
+    await this.sql`CREATE TABLE IF NOT EXISTS glab_meeting_event (
+      meeting_id TEXT PRIMARY KEY, event_id INTEGER
+    )`;
     await this.sql`
       CREATE TABLE IF NOT EXISTS glab_event_occurrence_notified (
         event_id INTEGER NOT NULL,
@@ -123,6 +130,24 @@ class EventStore {
       [options.includePast ? new Date(0) : new Date(from), new Date(to)],
     );
     return expandOccurrences(rows as unknown as EventRow[], new Date(from), new Date(to));
+  }
+
+  async importMeeting(meetingId: string, event: NewEvent): Promise<number> {
+    return this.sql.begin(async tx => {
+      await tx`INSERT INTO glab_meeting_event(meeting_id) VALUES(${meetingId}) ON CONFLICT DO NOTHING`;
+      const [link] = await tx<{ event_id: number | null }[]>`
+        SELECT event_id FROM glab_meeting_event WHERE meeting_id=${meetingId} FOR UPDATE`;
+      if (!link) throw new Error('meeting link missing');
+      if (link.event_id !== null) return link.event_id;
+      const [created] = await tx<{ id: number }[]>`INSERT INTO glab_event
+        (title,body,location,starts_at,ends_at,facility_id,reservation_id,created_by,meeting_id)
+        VALUES(${event.title},${event.body ?? null},${event.location ?? null},${new Date(event.startsAt)},
+          ${event.endsAt == null ? null : new Date(event.endsAt)},${event.facilityId ?? null},
+          ${event.reservationId ?? null},${event.createdBy},${meetingId}) RETURNING id`;
+      if (!created) throw new Error('meeting event creation failed');
+      await tx`UPDATE glab_meeting_event SET event_id=${created.id} WHERE meeting_id=${meetingId}`;
+      return created.id;
+    });
   }
 
   async get(id: number): Promise<EventRow | null> {

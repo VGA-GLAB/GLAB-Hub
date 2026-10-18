@@ -6,6 +6,7 @@ import type { CorpusModule, CorpusContext, Context } from '../../corpus/server/h
 import { ensureSchema } from '../data.ts';
 import { bookingGroups, bookingProxy } from './booking-proxy.ts';
 import { registerMeetRoutes } from './meet-routes.ts';
+import { finalizeMeetingEvent } from './meeting-event.ts';
 import { aedilisBaseUrl, makeAedilisConnector, proxy } from '../shared.ts';
 
 function segment(c: Context, name: string): string {
@@ -49,6 +50,7 @@ const facilityModule: CorpusModule = {
       r.delete('/' + resource + '/:id', c => bookingProxy(c, ctx, aedilis, '/api/' + resource + '/' + segment(c, 'id')));
     }
     r.post('/meetings/:id/finalize', c => bookingProxy(c, ctx, aedilis, '/api/meetings/' + segment(c, 'id') + '/finalize'));
+    r.post('/meetings/:id/glab-event', c => finalizeMeetingEvent(c, ctx, aedilis));
     r.post('/meetings/:id/responses', c => bookingProxy(c, ctx, aedilis, '/api/meetings/' + segment(c, 'id') + '/responses'));
     r.patch('/meetings/:id/responses/:responseId', c => bookingProxy(c, ctx, aedilis, '/api/meetings/' + segment(c, 'id') + '/responses/' + segment(c, 'responseId')));
     registerMeetRoutes(r, ctx, aedilis);

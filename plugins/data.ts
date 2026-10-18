@@ -55,6 +55,13 @@ CREATE TABLE IF NOT EXISTS glab_attendance (
 CREATE INDEX IF NOT EXISTS glab_attendance_date ON glab_attendance(date);
 CREATE INDEX IF NOT EXISTS glab_attendance_user ON glab_attendance(user_id);
 
+CREATE TABLE IF NOT EXISTS glab_event_absence (
+  event_id INTEGER NOT NULL,
+  user_id TEXT NOT NULL,
+  reported_at INTEGER NOT NULL,
+  PRIMARY KEY(event_id, user_id)
+);
+
 CREATE TABLE IF NOT EXISTS glab_gateway (
   lan_id         TEXT PRIMARY KEY,
   facility_id    TEXT NOT NULL,

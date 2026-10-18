@@ -7,6 +7,7 @@ interface Slot { id: string; startAt: string; endAt: string; venue: string }
 interface Meeting extends Audience {
   id: string; title: string; description: string; organizerName: string; onlineAllowed: boolean; guestResponses?: boolean;
   slots: Slot[]; state: string; revision: number; canManage: boolean; selectedSlot: string | null;
+  glabHandoff?: boolean;
   responses: { id: string; name: string; canEdit: boolean; revision: number; comment: string; topic: string; answers: Record<string, string> }[];
 }
 
@@ -47,6 +48,14 @@ export async function renderMeetings(container: HTMLElement, ctx: PanelContext, 
     audience.write({ visibility: 'private', group: null }); slots.splice(0); slotsArea.replaceChildren(); addSlot(); save.textContent = '会議を作成';
   };
   reset.onclick = () => { resetForm(); status.textContent = ''; };
+  const guestPoll = el('button', 'gl-btn ghost', 'ログイン不要の希望日調査を作る') as HTMLButtonElement;
+  guestPoll.type = 'button';
+  guestPoll.onclick = () => {
+    resetForm(); audience.write({ visibility: 'public', group: null }); guest.checked = true;
+    status.textContent = '共有URLを知っている人がログインなしで回答できます。日程確定後はGLABの予定に登録します。';
+    title.focus();
+  };
+  formSection.body.append(guestPoll);
   form.append(field('会議名', title), field('内容', description), field('主催者の表示名', organizer),
     field('オンライン参加可', online), field('作成時に Google Meet のリンクを発行する（オンライン参加可のとき）', withMeet), audience.element,
     field('ログインしていない人の回答も受け付ける（公開範囲 Public のとき。共有URLから回答できます）', guest), slotsArea, add, save, reset, status);
@@ -97,7 +106,8 @@ export async function renderMeetings(container: HTMLElement, ctx: PanelContext, 
       const meet = meetControls(ctx, item);
       if (meet) card.append(meet);
       const copy = el('button', 'gl-btn ghost', 'コピー'); copy.onclick = () => fill(true); card.append(copy);
-      if (item.canManage && item.state !== 'cancelled') {
+      if (item.glabHandoff) card.append(el('p', 'gl-muted', 'GLABの予定へ引き継ぎ済みです。出欠の確認・中止は「イベント」で行えます。'));
+      if (item.canManage && item.state !== 'cancelled' && !item.glabHandoff) {
         const edit = el('button', 'gl-btn ghost', '編集'); edit.onclick = () => fill(false); card.append(edit);
         const cancel = el('button', 'gl-btn ghost', '会議を中止') as HTMLButtonElement;
         cancel.onclick = () => void run(cancel, () => action(`/meetings/${encodeURIComponent(item.id)}`, 'DELETE', { revision: item.revision })); card.append(cancel);
@@ -106,8 +116,16 @@ export async function renderMeetings(container: HTMLElement, ctx: PanelContext, 
         const row = el('div', 'gl-row');
         row.append(el('span', undefined, `${fmtDateTime(Date.parse(slot.startAt))} 〜 ${fmtDateTime(Date.parse(slot.endAt))} ${slot.venue}${item.selectedSlot === slot.id ? ' ✓ 確定' : ''}`));
         if (item.canManage && item.state === 'open') {
-          const finalize = el('button', 'gl-btn ghost', 'この日時に確定') as HTMLButtonElement;
-          finalize.onclick = () => void run(finalize, () => action(`/meetings/${encodeURIComponent(item.id)}/finalize`, 'POST', { slotId: slot.id, revision: item.revision })); row.append(finalize);
+          const publish = item.visibility === 'public';
+          const finalize = el('button', 'gl-btn ghost', publish ? 'この日時でGLABの予定に確定' : 'この日時に確定') as HTMLButtonElement;
+          finalize.onclick = () => void run(finalize, () => action(`/meetings/${encodeURIComponent(item.id)}/${publish ? 'glab-event' : 'finalize'}`, 'POST', { slotId: slot.id, revision: item.revision })); row.append(finalize);
+        }
+        if (item.canManage && item.state === 'finalized' && item.visibility === 'public' && item.selectedSlot === slot.id) {
+          const publish = el('button', 'gl-btn ghost', 'GLABの予定に登録・登録結果を確認') as HTMLButtonElement;
+          publish.onclick = () => void run(publish, async () => {
+            await action(`/meetings/${encodeURIComponent(item.id)}/glab-event`, 'POST', { slotId: slot.id, revision: item.revision });
+            status.textContent = 'GLABの予定に登録されています。「イベント」で確認できます。';
+          }); row.append(publish);
         }
         card.append(row);
       }

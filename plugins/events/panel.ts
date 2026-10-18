@@ -8,6 +8,7 @@ import {
 } from '../panel-kit.ts';
 import { loadLiveByEvent, presentControls } from '../odeum/present-controls.ts';
 import { eventMeetControls, meetFormControls } from './meet-panel.ts';
+import { eventAttendanceControls } from './attendance-panel.ts';
 
 interface EventView {
   id: number;
@@ -23,6 +24,7 @@ interface EventView {
   recurrence: 'none' | 'weekly';
   occurrenceDate: string | null;
   meetUrl: string | null;
+  fromMeeting?: boolean;
 }
 
 interface RoleDef { key: string; label: string; sort: number; }
@@ -250,6 +252,7 @@ function eventRow(
   if (event.notified) row.appendChild(el('span', 'gl-tag', '通知済'));
   if (event.body) row.appendChild(el('div', 'gl-muted', event.body));
   row.appendChild(eventMeetControls(ctx, event));
+  if (event.fromMeeting) row.appendChild(eventAttendanceControls(ctx, event.id));
   const present = presentControls(ctx, event, live, rerender);
   if (present) row.appendChild(present);
   const remove = el('button', 'gl-btn ghost', 'イベントを削除');
@@ -263,8 +266,8 @@ function eventRow(
       return rerender();
     }).catch(() => {
       // 施設予約の取り消しに失敗した場合など。次クリックはローカル削除を強行する。
-      force = true;
-      remove.textContent = '予約解除に失敗 — 強制削除する';
+      force = !event.fromMeeting;
+      remove.textContent = event.fromMeeting ? '中止は未確認です — もう一度確認する' : '予約解除に失敗 — 強制削除する';
       remove.disabled = false;
     });
   };
