@@ -10,7 +10,6 @@ describe('Di entry points', () => {
     assert.ok(baseUrl);
     assert.deepEqual(createDiEntryPoints(baseUrl), {
       discussionLaunchPath: '/discussion-launch',
-      learningUrl: 'https://di.example/app/learning',
     });
   });
 

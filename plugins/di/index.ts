@@ -4,6 +4,7 @@ import { createDiEntryPoints, resolveDiLaunchUrl } from './entry-points.ts';
 import { sanitizeDiReviewTrends } from './review-trend-contract.ts';
 import { normalizeHttpBaseUrl, PRIVATE_NO_STORE } from '../shared.ts';
 import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
+import { registerConclusionRoutes } from './conclusion-routes.ts';
 import { diAccessHeaders } from './transport.ts';
 
 const diModule: CorpusModule = {
@@ -30,6 +31,7 @@ const diModule: CorpusModule = {
     }));
 
     const routes = new Hono();
+    registerConclusionRoutes(routes, apiBaseUrl, ctx.env('DISCUTERE_GLAB_CONCLUSIONS_TOKEN') ?? '', fetch, accessHeaders);
     routes.get('/entry-points', (c) => {
       if (!entryPoints || !apiBaseUrl || !webBaseUrl) {
         return c.json({ error: 'di_unconfigured' }, 503);

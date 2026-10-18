@@ -5,24 +5,19 @@ import {
   section,
   type PanelContext,
 } from '../panel-kit.ts';
+import { mountConclusions } from './conclusion-panel.ts';
 
 interface DiEntryPoints {
   discussionLaunchPath: string;
-  learningUrl: string;
 }
 
 function parseEntryPoints(value: unknown): DiEntryPoints | null {
   if (!value || typeof value !== 'object') return null;
   const fields = value as Record<string, unknown>;
-  if (fields.discussionLaunchPath !== '/discussion-launch' || typeof fields.learningUrl !== 'string') {
+  if (fields.discussionLaunchPath !== '/discussion-launch') {
     return null;
   }
-  try {
-    if (!['http:', 'https:'].includes(new URL(fields.learningUrl).protocol)) return null;
-  } catch {
-    return null;
-  }
-  return { discussionLaunchPath: fields.discussionLaunchPath, learningUrl: fields.learningUrl };
+  return { discussionLaunchPath: fields.discussionLaunchPath };
 }
 
 export async function mount(container: HTMLElement, ctx: PanelContext): Promise<void> {
@@ -30,6 +25,7 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
   if (!await requireVantanUserRegistration(container, ctx)) return;
   container.innerHTML = '';
   container.appendChild(el('h2', undefined, '💬 Di'));
+  mountConclusions(container, ctx);
 
   const response = await ctx.api('/entry-points').catch(() => null);
   if (!response?.ok) {
@@ -79,14 +75,6 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
   discussion.body.appendChild(discussionActions);
   container.appendChild(discussion.wrap);
 
-  const learning = section('学習ビュー');
-  learning.body.appendChild(el('p', 'gl-muted', '収集した学習データ、議論の結論、ギャップをDiで確認します。'));
-  const learningLink = el('a', 'gl-btn', '学習ビューを開く');
-  learningLink.href = entryPoints.learningUrl;
-  learningLink.target = '_blank';
-  learningLink.rel = 'noopener noreferrer';
-  learning.body.appendChild(learningLink);
-  container.appendChild(learning.wrap);
 }
 
 function renderUnavailable(container: HTMLElement): void {

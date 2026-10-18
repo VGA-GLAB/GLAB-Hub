@@ -1,13 +1,11 @@
 export interface DiEntryPoints {
   discussionLaunchPath: string;
-  learningUrl: string;
 }
 
 export function createDiEntryPoints(webBaseUrl: string): DiEntryPoints {
-  const baseUrl = new URL(webBaseUrl);
+  new URL(webBaseUrl); // Validate the configured endpoint before exposing entry points.
   return {
     discussionLaunchPath: '/discussion-launch',
-    learningUrl: new URL('learning', baseUrl).toString(),
   };
 }
 
