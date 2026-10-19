@@ -17,7 +17,7 @@ export interface LiveEventInfo {
 
 export interface LiveCard {
   sessionId: string;
-  eventId: number;
+  eventId: number | null;
   eventTitle: string;
   presenterUserId: string;
   presenterName: string | null;
@@ -42,13 +42,13 @@ export function buildLiveCards(
   const cards: LiveCard[] = [];
   for (const session of sessions) {
     if (session.status !== 'live') continue;
-    const event = events.get(session.eventId);
-    if (!event?.visible) continue;
+    const event = session.eventId == null ? null : events.get(session.eventId);
+    if (session.eventId != null && !event?.visible) continue;
     const status = relay?.get(session.id) ?? null;
     cards.push({
       sessionId: session.id,
       eventId: session.eventId,
-      eventTitle: event.title,
+      eventTitle: event?.title ?? session.title ?? '',
       presenterUserId: session.presenterUserId,
       presenterName: displayName(session.presenterUserId),
       startedAt: session.startedAt,
@@ -56,7 +56,7 @@ export function buildLiveCards(
       viewerCount: status?.viewerCount ?? (relay == null ? null : 0),
       canEnd: viewer.isAdmin
         || session.presenterUserId === viewer.userId
-        || event.createdBy === viewer.userId,
+        || event?.createdBy === viewer.userId,
     });
   }
   return cards;

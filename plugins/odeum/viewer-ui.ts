@@ -86,8 +86,8 @@ export function mountViewer(
       if (!response.ok) {
         root.innerHTML = '';
         root.appendChild(el('p', 'gl-notice gl-notice-error', response.status === 503
-          ? 'ライブ発表の中継が設定されていないため視聴できません。'
-          : 'この発表は終了したか、視聴できません。'));
+          ? 'ライブ配信の中継が設定されていないため視聴できません。'
+          : 'この配信は終了したか、視聴できません。'));
         root.appendChild(leaveButton());
         return;
       }
@@ -116,7 +116,7 @@ export function mountViewer(
     root.innerHTML = '';
     const head = el('div', 'od-viewer-head');
     head.appendChild(el('strong', 'od-viewer-title', ticket.eventTitle));
-    const presence = el('span', 'gl-muted od-presence', '発表者の接続を待っています');
+    const presence = el('span', 'gl-muted od-presence', '配信者の接続を待っています');
     head.append(presence, leaveButton());
     root.appendChild(head);
 
@@ -203,7 +203,7 @@ export function mountViewer(
           composer.setReady(message.presenter_connected === true && message.reaction_version === 1);
           presence.textContent = message.presenter_connected
             ? `配信中 · 視聴者 ${message.viewer_count} 人`
-            : `発表者の接続待ち · 視聴者 ${message.viewer_count} 人`;
+            : `配信者の接続待ち · 視聴者 ${message.viewer_count} 人`;
           break;
         case 'reaction.burst': {
           crowdGood += message.good;

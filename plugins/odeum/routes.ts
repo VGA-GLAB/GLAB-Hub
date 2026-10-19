@@ -13,7 +13,7 @@
 import { Hono, getIdentity, getDisplayName, cacheDisplayName } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusContext } from '../../corpus/server/hub/sdk.ts';
 import QRCode from 'qrcode';
-import { z } from 'zod';
+import { startSchema } from './start-request.ts';
 import { getEventStore, type EventRow } from '../events/store.ts';
 import { canSee, parseAudience, resolveRoles } from '../roles/audience.ts';
 import { noStore } from '../shared.ts';
@@ -26,6 +26,7 @@ import {
   getOdeumSession,
   listLiveOdeumSessions,
   startOdeumSession,
+  startDirectSession,
 } from './session-store.ts';
 import {
   deriveInvitation,
@@ -44,7 +45,6 @@ const VIEWER_TICKET_TTL_SECONDS = 120;
 const SERVICE_TICKET_TTL_SECONDS = 60;
 const SERVICE_SUBJECT = 'glab-hub';
 
-const startSchema = z.object({ eventId: z.number().int().positive(), mode: z.literal('program').optional() }).strict();
 
 interface Viewer {
   userId: string;
@@ -87,6 +87,7 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
     const events = new Map<number, LiveEventInfo>();
     const store = getEventStore();
     for (const eventId of new Set(sessions.map((session) => session.eventId))) {
+      if (eventId == null) continue;
       const event = await store.get(eventId);
       if (event) {
         events.set(eventId, { title: event.title, visible: visible(event, viewer), createdBy: event.created_by });
@@ -116,17 +117,20 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
     const viewer = getIdentity(c);
     const parsed = startSchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json({ error: 'invalid_session' }, 400);
-    const event = await getEventStore().get(parsed.data.eventId);
-    if (!event || !visible(event, viewer)) return c.json({ error: 'event_not_found' }, 404);
-    if (!canStartPresentation(event, viewer)) return c.json({ error: 'forbidden' }, 403);
-
-    const started = startOdeumSession(ctx.db, { eventId: event.id, presenterUserId: viewer.userId });
+    const event = 'eventId' in parsed.data ? await getEventStore().get(parsed.data.eventId) : null;
+    if ('eventId' in parsed.data) {
+      if (!event || !visible(event, viewer)) return c.json({ error: 'event_not_found' }, 404);
+      if (!canStartPresentation(event, viewer)) return c.json({ error: 'forbidden' }, 403);
+    }
+    const started = 'title' in parsed.data
+      ? startDirectSession(ctx.db, { title: parsed.data.title, presenterUserId: viewer.userId })
+      : startOdeumSession(ctx.db, { eventId: parsed.data.eventId, presenterUserId: viewer.userId });
     if (started.kind === 'conflict') return c.json({ error: 'session_already_live' }, 409);
-    if (parsed.data.mode === 'program') return c.json({ session: started.session, resumed: started.kind === 'resumed' }, started.kind === 'created' ? 201 : 200);
+    if ('mode' in parsed.data && parsed.data.mode === 'program') return c.json({ session: started.session, resumed: started.kind === 'resumed' }, started.kind === 'created' ? 201 : 200);
     if (ctx.db.prepare('SELECT session_id FROM glab_odeum_programs WHERE session_id = ?').get(started.session.id))
       return c.json({ error: 'use_program_source_controls' }, 409);
     if (viewer.displayName) cacheDisplayName(ctx.db, viewer.userId, viewer.displayName);
-    const invitation = invitationFor(started.session.id);
+    const invitation = event ? invitationFor(started.session.id) : null;
     const ticket = signOdeumTicket(signer, {
       sub: viewer.userId,
       name: nameOf(viewer),
@@ -134,7 +138,7 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
       sid: started.session.id,
       ...(invitation ? { invite: inviteClaim(invitation) } : {}),
     }, { ttlSeconds: PRESENTER_TICKET_TTL_SECONDS });
-    ctx.logger.info(`odeum session ${started.kind}: ${started.session.id} (event ${event.id})`);
+    ctx.logger.info(`odeum session ${started.kind}: ${started.session.id} (event ${event?.id ?? 'none'})`);
     return c.json({
       session: started.session,
       resumed: started.kind === 'resumed',
@@ -148,7 +152,7 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
     const viewer = getIdentity(c);
     const session = getOdeumSession(ctx.db, c.req.param('id'));
     if (!session) return c.json({ error: 'not_found' }, 404);
-    const event = await getEventStore().get(session.eventId);
+    const event = session.eventId == null ? null : await getEventStore().get(session.eventId);
     if (!canEndPresentation(session, event, viewer)) return c.json({ error: 'forbidden' }, 403);
     const ended = endOdeumSession(ctx.db, session.id);
     if (ended) ctx.logger.info(`odeum session ended: ${session.id}`);
@@ -162,8 +166,8 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
     const viewer = getIdentity(c);
     const session = getOdeumSession(ctx.db, c.req.param('id'));
     if (!session || session.status !== 'live') return c.json({ error: 'session_not_live' }, 404);
-    const event = await getEventStore().get(session.eventId);
-    if (!event || !visible(event, viewer)) return c.json({ error: 'session_not_live' }, 404);
+    const event = session.eventId == null ? null : await getEventStore().get(session.eventId);
+    if (session.eventId != null && (!event || !visible(event, viewer))) return c.json({ error: 'session_not_live' }, 404);
     const name = nameOf(viewer);
     const ticket = signOdeumTicket(signer, {
       sub: viewer.userId,
@@ -175,7 +179,7 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
       wsUrl: new URL('v1/ws', config.relay.wsBase).toString(),
       ticket: ticket.token,
       expiresAt: ticket.claims.exp * 1000,
-      eventTitle: event.title,
+      eventTitle: event?.title ?? session.title,
       self: { sub: viewer.userId, name: ticket.claims.name },
     });
   });
@@ -189,6 +193,8 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
     const viewer = getIdentity(c);
     const session = getOdeumSession(ctx.db, c.req.param('id'));
     if (!session || session.status !== 'live') return c.json({ error: 'session_not_live' }, 404);
+    // Standalone streams are viewed through the authenticated GLab route only.
+    if (session.eventId == null) return c.json({ error: 'event_required_for_invitation' }, 403);
     const event = await getEventStore().get(session.eventId);
     // 招待は発表の運営者だけが見る (終了できる人と同じ範囲)。
     if (!canEndPresentation(session, event, viewer)) return c.json({ error: 'forbidden' }, 403);

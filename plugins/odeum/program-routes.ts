@@ -27,6 +27,7 @@ export function makeProgramRoutes(ctx: CorpusContext, config: OdeumConfig): Hono
     const actor = getIdentity(c);
     const session = getOdeumSession(ctx.db, c.req.param('id'));
     if (!session || session.status !== 'live') return c.json({ error: 'session_not_live' }, 404);
+    if (session.eventId == null) return c.json({ error: 'event_required_for_program' }, 409);
     const event = await getEventStore().get(session.eventId);
     if (!event || !canSee(parseAudience(event.audience_roles), resolveRoles(ctx.db, actor.userId), event.created_by === actor.userId, actor.isAdmin))
       return c.json({ error: 'session_not_live' }, 404);

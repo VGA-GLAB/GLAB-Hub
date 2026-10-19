@@ -1,4 +1,4 @@
-// 「いま発表中」カード (frontend)。 ダッシュボード上部と odeum パネルで共用する。
+// 「いま配信中」カード (frontend)。 ダッシュボード上部と odeum パネルで共用する。
 // live セッションが無いときは何も描かない (呼び出し側は null を受けて差し込まない)。
 
 import { el, fmtDateTime, type PanelContext } from '../panel-kit.ts';
@@ -8,7 +8,7 @@ export type LiveRelayState = 'connected' | 'waiting' | 'unknown';
 
 export interface LiveCardView {
   sessionId: string;
-  eventId: number;
+  eventId: number | null;
   eventTitle: string;
   presenterUserId: string;
   presenterName: string | null;
@@ -50,12 +50,12 @@ export function renderLiveCards(summary: LiveSummary, actions: LiveCardActions):
   if (summary.sessions.length === 0) return null;
   ensureOdeumStyles();
   const wrap = el('section', 'gl-section od-live');
-  wrap.appendChild(el('h3', 'gl-section-title', '🎤 いま発表中'));
+  wrap.appendChild(el('h3', 'gl-section-title', '🎤 配信'));
   for (const card of summary.sessions) {
     const box = el('div', `gl-notice od-live-card od-live-${card.relayState}`);
     box.appendChild(el('strong', 'od-live-title', card.eventTitle));
     const meta = [
-      `発表: ${card.presenterName ?? card.presenterUserId}`,
+      `配信: ${card.presenterName ?? card.presenterUserId}`,
       `${fmtDateTime(card.startedAt)} から`,
       RELAY_STATE_LABEL[card.relayState],
     ];
@@ -68,7 +68,7 @@ export function renderLiveCards(summary: LiveSummary, actions: LiveCardActions):
     watch.onclick = () => actions.onWatch(card);
     row.appendChild(watch);
     if (card.canEnd && actions.onEnd) {
-      const end = el('button', 'gl-btn ghost', '発表を終了');
+      const end = el('button', 'gl-btn ghost', '配信を終了');
       end.type = 'button';
       end.onclick = () => actions.onEnd?.(card);
       row.appendChild(end);
@@ -77,7 +77,7 @@ export function renderLiveCards(summary: LiveSummary, actions: LiveCardActions):
     wrap.appendChild(box);
   }
   if (!summary.enabled) {
-    wrap.appendChild(el('p', 'gl-muted', 'ライブ発表の中継が設定されていないため、視聴はできません。'));
+    wrap.appendChild(el('p', 'gl-muted', 'ライブ配信の中継が設定されていないため、視聴はできません。'));
   }
   return wrap;
 }

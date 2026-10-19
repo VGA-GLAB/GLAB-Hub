@@ -1,6 +1,6 @@
-// イベント行の「発表を始める」 / 「発表を終了」 (frontend)。
+// イベント行の「配信を始める」 / 「配信を終了」 (frontend)。
 // 開始できるのはイベント作成者か管理者だけ (サーバ側でも同じ判定をする)。
-// 開始すると odeum:// リンクを出し、 発表者アプリ (odeum-presenter) を起動させる。
+// 開始すると odeum:// リンクを出し、 配信者アプリ (odeum-presenter) を起動させる。
 
 import { el, type PanelContext } from '../panel-kit.ts';
 import { invitationToggle } from './invitation-view.ts';
@@ -17,7 +17,7 @@ export async function loadLiveByEvent(ctx: PanelContext): Promise<{ enabled: boo
   const summary = await loadLiveSummary(ctx);
   return {
     enabled: summary?.enabled ?? false,
-    byEvent: new Map((summary?.sessions ?? []).map((card) => [card.eventId, card])),
+    byEvent: new Map((summary?.sessions ?? []).flatMap((card) => card.eventId == null ? [] : [[card.eventId, card] as const])),
   };
 }
 
@@ -32,7 +32,7 @@ export function presentControls(
   if (!owner && !session) return null;
 
   const box = el('div', 'gl-row');
-  if (session) box.appendChild(el('span', 'gl-tag', '🎤 発表中'));
+  if (session) box.appendChild(el('span', 'gl-tag', session.relayState === 'connected' ? '🎤 配信中' : '🎤 配信準備済み'));
   if (session && live.enabled) box.appendChild(programControls(ctx, session.sessionId, owner));
   if (!owner || !live.enabled) return box;
 
@@ -53,11 +53,11 @@ export function presentControls(
     };
     box.appendChild(prepare);
   }
-  const start = el('button', 'gl-btn', session ? '発表者アプリを開き直す' : '発表を始める');
+  const start = el('button', 'gl-btn', session ? '配信者アプリを開き直す' : '配信を始める');
   start.type = 'button';
   start.onclick = () => {
     start.disabled = true;
-    message.textContent = '発表を準備中…';
+    message.textContent = '配信を準備中…';
     void ctx.hubApi('/api/x/odeum/sessions', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -65,24 +65,24 @@ export function presentControls(
     }).then(async (response) => {
       if (!response.ok) {
         message.textContent = response.status === 409
-          ? '別の人がこのイベントで発表中です。'
+          ? '別の人がこのイベントで配信中です。'
           : response.status === 403
-            ? 'このイベントの発表を始める権限がありません。'
-            : `発表を始められませんでした (${response.status})。`;
+            ? 'このイベントの配信を始める権限がありません。'
+            : `配信を始められませんでした (${response.status})。`;
         return;
       }
       const body = await response.json() as { presentUrl: string; session: { id: string } };
       message.textContent = '';
-      const link = el('a', 'gl-btn', '発表者アプリを起動');
+      const link = el('a', 'gl-btn', '配信者アプリを起動');
       link.href = body.presentUrl;
       box.replaceChild(link, start);
       box.appendChild(el('span', 'gl-muted', 'リンクは 5 分間有効です。'));
       if (!session) box.appendChild(invitationToggle(ctx, body.session.id));
       if (!session) box.appendChild(programControls(ctx, body.session.id, owner));
-      // 発表者アプリ (odeum://) を起動する。 ブラウザが確認を出す場合はリンクを押してもらう。
+      // 配信者アプリ (odeum://) を起動する。 ブラウザが確認を出す場合はリンクを押してもらう。
       window.location.href = body.presentUrl;
     }).catch(() => {
-      message.textContent = '発表を始められませんでした。';
+      message.textContent = '配信を始められませんでした。';
     }).finally(() => {
       start.disabled = false;
     });
@@ -91,7 +91,7 @@ export function presentControls(
 
   if (session) {
     box.appendChild(invitationToggle(ctx, session.sessionId));
-    const end = el('button', 'gl-btn ghost', '発表を終了');
+    const end = el('button', 'gl-btn ghost', '配信を終了');
     end.type = 'button';
     end.onclick = () => {
       end.disabled = true;

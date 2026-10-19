@@ -10,7 +10,8 @@ export type OdeumSessionStatus = 'live' | 'ended';
 
 export interface OdeumSessionRow {
   id: string;
-  eventId: number;
+  eventId: number | null;
+  title?: string;
   presenterUserId: string;
   status: OdeumSessionStatus;
   startedAt: number;
@@ -70,12 +71,16 @@ export function startOdeumSession(
 export function endOdeumSession(db: SqlDb, id: string, now = Date.now()): boolean {
   const result = db.prepare(`UPDATE glab_odeum_sessions
     SET status = 'ended', ended_at = ? WHERE id = ? AND status = 'live'`).run(now, id);
-  return Number(result.changes) > 0;
+  if (Number(result.changes) > 0) return true;
+  return Number(db.prepare(`UPDATE glab_odeum_direct_sessions
+    SET status = 'ended', ended_at = ? WHERE id = ? AND status = 'live'`).run(now, id).changes) > 0;
 }
 
 export function getOdeumSession(db: SqlDb, id: string): OdeumSessionRow | null {
   return (db.prepare(`SELECT ${COLUMNS} FROM glab_odeum_sessions WHERE id = ?`)
-    .get(id) as OdeumSessionRow | undefined) ?? null;
+    .get(id) as OdeumSessionRow | undefined) ??
+    (db.prepare(`SELECT ${DIRECT_COLUMNS} FROM glab_odeum_direct_sessions WHERE id = ?`)
+      .get(id) as OdeumSessionRow | undefined) ?? null;
 }
 
 export function getLiveSessionForEvent(db: SqlDb, eventId: number): OdeumSessionRow | null {
@@ -84,6 +89,40 @@ export function getLiveSessionForEvent(db: SqlDb, eventId: number): OdeumSession
 }
 
 export function listLiveOdeumSessions(db: SqlDb): OdeumSessionRow[] {
-  return db.prepare(`SELECT ${COLUMNS} FROM glab_odeum_sessions
+  const events = db.prepare(`SELECT ${COLUMNS} FROM glab_odeum_sessions
     WHERE status = 'live' ORDER BY started_at ASC`).all() as OdeumSessionRow[];
+  const direct = db.prepare(`SELECT ${DIRECT_COLUMNS} FROM glab_odeum_direct_sessions
+    WHERE status = 'live'`).all() as OdeumSessionRow[];
+  return [...events, ...direct].sort((a, b) => a.startedAt - b.startedAt);
+}
+
+const DIRECT_COLUMNS = `id, NULL AS eventId, title, presenter_user_id AS presenterUserId,
+  status, started_at AS startedAt, ended_at AS endedAt`;
+
+/** One live standalone stream per presenter makes retries/reopening idempotent. */
+export function startDirectSession(
+  db: SqlDb,
+  input: { title: string; presenterUserId: string; now?: number; id?: string },
+): StartResult {
+  const existing = (): OdeumSessionRow | undefined => db.prepare(
+    `SELECT ${DIRECT_COLUMNS} FROM glab_odeum_direct_sessions
+      WHERE presenter_user_id = ? AND status = 'live'`,
+  ).get(input.presenterUserId) as OdeumSessionRow | undefined;
+  const current = existing();
+  if (current) return { kind: 'resumed', session: current };
+  const session: OdeumSessionRow = {
+    id: input.id ?? randomUUID(), eventId: null, title: input.title.trim(),
+    presenterUserId: input.presenterUserId, status: 'live',
+    startedAt: input.now ?? Date.now(), endedAt: null,
+  };
+  try {
+    db.prepare(`INSERT INTO glab_odeum_direct_sessions
+      (id, title, presenter_user_id, status, started_at) VALUES (?, ?, ?, 'live', ?)`)
+      .run(session.id, session.title, session.presenterUserId, session.startedAt);
+  } catch (error) {
+    const winner = existing();
+    if (!winner) throw error;
+    return { kind: 'resumed', session: winner };
+  }
+  return { kind: 'created', session };
 }

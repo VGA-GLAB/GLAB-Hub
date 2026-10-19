@@ -377,6 +377,18 @@ function ensureCocoiruSchema(db: SqlDb): void {
  * 状態は live → ended の一方向。 1 イベントに live は同時に 1 件まで。
  */
 function ensureOdeumSchema(db: SqlDb): void {
+  // Standalone streams have no synthetic event. Keep the existing event table and
+  // program foreign keys intact; this additive table requires no data rewrite.
+  db.exec(`CREATE TABLE IF NOT EXISTS glab_odeum_direct_sessions (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL CHECK(length(trim(title)) BETWEEN 1 AND 120),
+    presenter_user_id TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('live', 'ended')),
+    started_at INTEGER NOT NULL,
+    ended_at INTEGER NULL
+  )`);
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS glab_odeum_direct_live_presenter
+    ON glab_odeum_direct_sessions(presenter_user_id) WHERE status = 'live'`);
   db.exec(`CREATE TABLE IF NOT EXISTS glab_odeum_sessions (
     id TEXT PRIMARY KEY,
     event_id INTEGER NOT NULL,
