@@ -22,6 +22,16 @@ export function mountHeaderStatus(container: HTMLElement): () => void {
   const available = statusItem('おれひま');
   available.value.textContent = '…';
   available.value.title = '確認中';
+  const availabilitySelect = el('select');
+  availabilitySelect.setAttribute('aria-label', 'おれひま');
+  for (const [value, label] of [['true', 'ひま'], ['false', 'むり']] as const) {
+    const option = el('option', undefined, label);
+    option.value = value;
+    availabilitySelect.appendChild(option);
+  }
+  availabilitySelect.hidden = true;
+  availabilitySelect.disabled = true;
+  available.box.appendChild(availabilitySelect);
   const place = statusItem('現在地');
   const locationSelect = el('select');
   locationSelect.setAttribute('aria-label', '現在地（本人申告）');
@@ -41,6 +51,7 @@ export function mountHeaderStatus(container: HTMLElement): () => void {
   let pending = false;
   let saving = false;
   let savedLocation: Location = 'unset';
+  let savedAvailability = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   /** @implements SPEC-GLAB-SHELL-009 */
@@ -49,16 +60,21 @@ export function mountHeaderStatus(container: HTMLElement): () => void {
     pending = true;
     refresh.disabled = true;
     locationSelect.disabled = true;
+    availabilitySelect.disabled = true;
     const init = { signal: controller.signal, cache: 'no-store' as const };
     await Promise.allSettled([
       apiJson<{ availableNow: boolean }>('/api/x/consult/availability', init).then((data) => {
         if (typeof data.availableNow !== 'boolean') throw new Error('Invalid availability');
-        available.value.textContent = data.availableNow ? 'ひま' : 'むり';
-        available.value.removeAttribute('title');
+        savedAvailability = data.availableNow;
+        availabilitySelect.value = String(data.availableNow);
+        availabilitySelect.hidden = false;
+        available.value.hidden = true;
         available.box.dataset.active = String(data.availableNow);
       }).catch(() => {
         available.value.textContent = '不明';
         available.value.title = '取得できません';
+        available.value.hidden = false;
+        availabilitySelect.hidden = true;
         delete available.box.dataset.active;
       }),
       apiJson<{ location: Location }>('/api/x/dashboard/location', init).then((data) => {
@@ -76,6 +92,7 @@ export function mountHeaderStatus(container: HTMLElement): () => void {
     pending = false;
     refresh.disabled = false;
     locationSelect.disabled = locationSelect.hidden;
+    availabilitySelect.disabled = availabilitySelect.hidden;
   }
   /** @implements SPEC-GLAB-SHELL-009 */
   async function schedule(): Promise<void> {
@@ -87,6 +104,8 @@ export function mountHeaderStatus(container: HTMLElement): () => void {
     if (pending || saving) return;
     saving = true;
     locationSelect.disabled = true;
+    availabilitySelect.disabled = true;
+    refresh.disabled = true;
     feedback.textContent = '';
     const next = locationSelect.value as Location;
     try {
@@ -101,6 +120,34 @@ export function mountHeaderStatus(container: HTMLElement): () => void {
     } finally {
       saving = false;
       locationSelect.disabled = false;
+      availabilitySelect.disabled = availabilitySelect.hidden;
+      refresh.disabled = false;
+    }
+  };
+  /** @implements SPEC-GLAB-SHELL-009 */
+  availabilitySelect.onchange = async () => {
+    if (pending || saving || controller.signal.aborted) return;
+    saving = true;
+    availabilitySelect.disabled = true;
+    locationSelect.disabled = true;
+    refresh.disabled = true;
+    feedback.textContent = '';
+    const next = availabilitySelect.value === 'true';
+    try {
+      await apiJson('/api/x/consult/availability', {
+        method: 'PUT', signal: controller.signal,
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ availableNow: next }),
+      });
+      savedAvailability = next;
+      available.box.dataset.active = String(next);
+    } catch {
+      availabilitySelect.value = String(savedAvailability);
+      feedback.textContent = 'おれひまを保存できませんでした';
+    } finally {
+      saving = false;
+      availabilitySelect.disabled = false;
+      locationSelect.disabled = locationSelect.hidden;
+      refresh.disabled = false;
     }
   };
   refresh.onclick = () => { void update(); };

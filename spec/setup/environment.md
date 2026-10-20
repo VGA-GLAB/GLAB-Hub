@@ -5,6 +5,8 @@ GLAB は 2 系統の設定を持つ：**hub** は開発時も Excubitor の Vaul
 
 ## Web hub（Excubitor spawn env）
 
+OsのLAN用HTTPS名が会場内IPへ解決される場合、AWSのGLabホストでは同じ名前をOsの既存VPNアドレスへ解決する。接続先の名前・TLSポートはOsの現行catalogとhealth、VPNアドレスは稼働拠点情報から確認する。URLはGLabのVault bindingに登録し、他のbindingを保持する。TLSの検証を無効にせず、OsのHTTP loopback待受を外部へ開かない。AWSだけの名前解決変更であり、スマホへ返す `lanUrl` は変更しない。
+
 | 変数 | 既定 | 必須（production） | 意味 |
 |---|---|---|---|
 | `CERNERE_BASE_URL` | `http://localhost:8080` | ○ | Cernere 認証（PASETO V4） |

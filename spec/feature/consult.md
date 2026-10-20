@@ -12,6 +12,7 @@ external API は service token を必須にし、応答に `cache-control: priva
 - **SPEC-CONSULT-PRESENCE-002**: Discord ID からの本人解決は `managed_project.resolve_user_by_claim` を `discord_id` claim に限定して行い、未連携は `null` として返す。
 - **SPEC-CONSULT-PRESENCE-003**: 利用可否は本人が解決された Cernere user ID に対し `managed_project.set_user_data` で `available_now` と `available_until` だけを更新する。
 - **SPEC-CONSULT-PRESENCE-004**: GLAB は起動時に `available_now` と `available_until` を部分 schema 更新で宣言し、最初の presence 操作はその宣言完了を待つ。宣言失敗はログに記録し、hub 全体の起動は継続する。
+- **SPEC-CONSULT-PRESENCE-005**: Webの本人用 `GET /availability` は `get_user_data` で認証済み本人の `available_now` / `available_until` だけを読み、名簿一覧・Discord claim・Os到達性に依存しない。未登録はfalse、期限なしはフラグ値、期限付きは現在時刻より後の場合だけtrue。不正な応答は503とする。Webの `PUT /availability` は `hours` 省略時に期限なしで保存し、本人が変更するまで保持する。従来のhours指定と外部サービス経路の期限必須契約は維持する。
 
 bot からの到達パスは `/api/x/consult/external/...` である（Corpus がモジュールを `/api/x/<moduleId>` に mount するため。projects と同じ事情で spec/interface/projects-registry.md に既出）。`GLAB_BASE_URL` には hub のルートだけを入れる。
 

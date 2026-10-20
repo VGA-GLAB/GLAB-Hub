@@ -19,6 +19,7 @@ import {
 } from './store.ts';
 import { listAvailable, resolveDiscordId, setAvailability, type AvailableMember } from './presence-client.ts';
 import { declarePresenceSchema } from './presence-schema.ts';
+import { getSelfAvailability } from './self-availability.ts';
 
 const consultSchema = z.object({ title: z.string().min(1).max(160), body: z.string().min(1).max(8_000) }).strict();
 const availabilitySchema = z.object({ availableNow: z.boolean(), hours: z.number().positive().max(24).optional() }).strict();
@@ -80,17 +81,19 @@ const consultModule: CorpusModule = {
       return c.json({ ok: true });
     });
     r.get('/availability', async (c) => {
+      noStore(c);
       try {
         const self = getIdentity(c).userId;
         await presenceSchemaReady;
-        const available = await listAvailable(client);
-        return c.json({ availableNow: available.some((member) => member.userId === self) });
+        return c.json({ availableNow: await getSelfAvailability(client, self, Date.now()) });
       } catch (error) { return c.json(unavailable(ctx, error), 503); }
     });
     r.put('/availability', async (c) => {
+      noStore(c);
       const parsed = availabilitySchema.safeParse(await c.req.json().catch(() => null));
-      if (!parsed.success || (parsed.data.availableNow && !parsed.data.hours)) return c.json({ error: 'invalid_availability' }, 400);
-      const until = parsed.data.availableNow ? new Date(Date.now() + parsed.data.hours! * 3_600_000).toISOString() : null;
+      if (!parsed.success) return c.json({ error: 'invalid_availability' }, 400);
+      const until = parsed.data.availableNow && parsed.data.hours !== undefined
+        ? new Date(Date.now() + parsed.data.hours * 3_600_000).toISOString() : null;
       try { await presenceSchemaReady; await setAvailability(client, getIdentity(c).userId, parsed.data.availableNow, until); return c.json({ ok: true, availableUntil: until }); }
       catch (error) { return c.json(unavailable(ctx, error), 503); }
     });

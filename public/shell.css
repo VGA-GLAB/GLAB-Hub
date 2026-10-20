@@ -58,7 +58,7 @@ a { color: var(--accent); }
   .header-status { grid-column: 1 / -1; display: grid; grid-template-columns: max-content minmax(0, max-content) max-content; gap: 4px; }
   .status-item { min-width: 0; padding: 4px; gap: 4px; }
   .status-label { flex-shrink: 0; }
-  .status-item select { min-height: 34px; }
+  .status-item select { min-height: 44px; }
   .status-refresh { min-height: 44px; padding: 5px; white-space: nowrap; }
   .status-error { grid-column: 1 / -1; }
   .status-error:empty { display: none; }
