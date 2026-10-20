@@ -62,7 +62,6 @@ function buildHeader(identity: Identity, onLogout: () => void, toggle: HTMLButto
   const header = el('header', 'topbar');
   header.appendChild(toggle);
   header.appendChild(el('span', 'brand', BRAND_TITLE));
-  header.appendChild(status);
   const account = el('div', 'header-account');
   account.appendChild(el('span', 'who', identity.displayName ?? identity.userId));
   account.appendChild(themeControl());
@@ -77,6 +76,7 @@ function buildHeader(identity: Identity, onLogout: () => void, toggle: HTMLButto
   };
   account.appendChild(logout);
   header.appendChild(account);
+  header.appendChild(status);
   return header;
 }
 

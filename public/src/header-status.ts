@@ -1,9 +1,6 @@
 import { apiJson } from '../../corpus/public/src/api.ts';
 import { el } from './dom.ts';
 
-const MEMBERSHIP_LABELS: Record<string, string> = {
-  active: '在校生', alumni: 'OB', invited: '招待中', suspended: '休止中',
-};
 const LOCATION_LABELS = { unset: '未設定', school: '学校', home: '自宅', away: '外出先' };
 type Location = keyof typeof LOCATION_LABELS;
 const REFRESH_MS = 30_000;
@@ -22,7 +19,6 @@ function statusItem(label: string): { box: HTMLElement; value: HTMLElement } {
  */
 export function mountHeaderStatus(container: HTMLElement): () => void {
   const controller = new AbortController();
-  const membership = statusItem('所属');
   const available = statusItem('おれひま');
   const place = statusItem('現在地');
   const locationSelect = el('select');
@@ -39,7 +35,7 @@ export function mountHeaderStatus(container: HTMLElement): () => void {
   refresh.setAttribute('aria-label', '自分の状態を更新');
   const feedback = el('span', 'status-error');
   feedback.setAttribute('role', 'status');
-  container.append(membership.box, available.box, place.box, refresh, feedback);
+  container.append(available.box, place.box, refresh, feedback);
   let pending = false;
   let saving = false;
   let savedLocation: Location = 'unset';
@@ -53,9 +49,6 @@ export function mountHeaderStatus(container: HTMLElement): () => void {
     locationSelect.disabled = true;
     const init = { signal: controller.signal, cache: 'no-store' as const };
     await Promise.allSettled([
-      apiJson<{ status: string | null }>('/api/x/dashboard/membership', init).then((data) => {
-        membership.value.textContent = data.status ? MEMBERSHIP_LABELS[data.status] ?? '未登録' : '未登録';
-      }).catch(() => { membership.value.textContent = '取得できません'; }),
       apiJson<{ availableNow: boolean }>('/api/x/consult/availability', init).then((data) => {
         if (typeof data.availableNow !== 'boolean') throw new Error('Invalid availability');
         available.value.textContent = data.availableNow ? '受付中' : 'オフ';
