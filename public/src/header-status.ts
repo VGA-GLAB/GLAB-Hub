@@ -20,6 +20,8 @@ function statusItem(label: string): { box: HTMLElement; value: HTMLElement } {
 export function mountHeaderStatus(container: HTMLElement): () => void {
   const controller = new AbortController();
   const available = statusItem('おれひま');
+  available.value.textContent = '…';
+  available.value.title = '確認中';
   const place = statusItem('現在地');
   const locationSelect = el('select');
   locationSelect.setAttribute('aria-label', '現在地（本人申告）');
@@ -51,10 +53,12 @@ export function mountHeaderStatus(container: HTMLElement): () => void {
     await Promise.allSettled([
       apiJson<{ availableNow: boolean }>('/api/x/consult/availability', init).then((data) => {
         if (typeof data.availableNow !== 'boolean') throw new Error('Invalid availability');
-        available.value.textContent = data.availableNow ? '受付中' : 'オフ';
+        available.value.textContent = data.availableNow ? 'ひま' : 'むり';
+        available.value.removeAttribute('title');
         available.box.dataset.active = String(data.availableNow);
       }).catch(() => {
-        available.value.textContent = '取得できません';
+        available.value.textContent = '不明';
+        available.value.title = '取得できません';
         delete available.box.dataset.active;
       }),
       apiJson<{ location: Location }>('/api/x/dashboard/location', init).then((data) => {

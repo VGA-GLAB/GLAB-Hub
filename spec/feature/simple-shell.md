@@ -17,7 +17,8 @@
   `active` は在校生、`alumni` は OB、`invited` は招待中、`suspended` は休止中、行がない場合は未登録。
   管理者限定の名簿一覧を開放しない。所属変更は既存名簿管理に任せる。
 - おれひまは既存 `GET /api/x/consult/availability` の期限を反映した `availableNow` を参照する。
-  受付中／オフを表示し、更新失敗をオフと混同しない。設定操作は既存の相談画面。
+  true は「ひま」、false は「むり」と表示する。読み込み中は「…」、取得失敗は「不明」とし、失敗を「むり」と混同しない。
+  スマホの状態欄は内容に必要な幅だけを取り、おれひま欄を余白いっぱいに引き伸ばさない。設定操作は既存の相談画面。
 - `GET/PUT /api/x/dashboard/location`: 本人申告の学校／自宅／外出先／未設定。
   保存先は GLab 所有の Cernere managed_project user_data `current_location` 列。
   `presence` モジュールの nullable text として追加宣言し、GLab DB・ブラウザには現在地を保存しない。
