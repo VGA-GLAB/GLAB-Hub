@@ -26,6 +26,15 @@ export interface SqlDb {
 }
 
 export const GLAB_SCHEMA = `
+CREATE TABLE IF NOT EXISTS glab_budget_item (
+  id TEXT PRIMARY KEY,
+  fiscal_year INTEGER NOT NULL,
+  label TEXT NOT NULL,
+  allocated_yen INTEGER NOT NULL CHECK (allocated_yen >= 0),
+  spent_yen INTEGER NOT NULL CHECK (spent_yen >= 0),
+  updated_by TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS glab_user (
   user_id             TEXT PRIMARY KEY,
   attendance_status   TEXT NOT NULL DEFAULT 'unknown'

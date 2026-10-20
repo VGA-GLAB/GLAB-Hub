@@ -2,11 +2,16 @@
 import { el, ensureStyles, type PanelContext } from '../panel-kit.ts';
 import { request, type Equipment, type Loan } from './api.ts';
 import { borrowForm } from './borrow-form.ts';
+import { mountBudget } from './budget-panel.ts';
+import { mountBooks, mountInventoryRegistration } from './holdings-panel.ts';
 
 export async function mount(container: HTMLElement, ctx: PanelContext): Promise<void> {
   ensureStyles();
   container.replaceChildren(el('h2', undefined, '本・機材'));
   const equipment = el('section', 'gl-col');
+  const budget = el('section', 'gl-col');
+  const books = el('section', 'gl-col');
+  const registration = el('section', 'gl-col');
   const loans = el('section', 'gl-col');
   const history = el('input'); history.type = 'checkbox';
   const historyLabel = el('label'); historyLabel.append(history, document.createTextNode(' 返却済みも表示'));
@@ -53,5 +58,9 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
       equipment.replaceChildren(el('p', 'gl-muted', error instanceof Error ? error.message : '機材を読み込めませんでした。'), retry);
     }
   }
-  await Promise.all([loadLoans(), loadEquipment()]);
+  container.append(books, registration, budget);
+  await Promise.all([loadLoans(), loadEquipment(), mountBooks(books, ctx), mountBudget(budget, ctx),
+    mountInventoryRegistration(registration, ctx, async () => {
+      await Promise.all([loadEquipment(), mountBooks(books, ctx)]);
+    })]);
 }

@@ -1,0 +1,11 @@
+{
+  "name": "club-resources",
+  "description": "Club budget records owned by GLab and delegated Bibliotheca book/equipment inventory and loans. Financial values never come from inferred inventory metadata.",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    { "pathPattern": "(^|/)plugins/library/" },
+    { "pathPattern": "(^|/)tests/(?:library|budget)[a-z0-9-]*\\.test\\.ts$" }
+  ],
+  "specRefs": ["spec/feature/club-budget.md", "spec/feature/bibliotheca-lending.md"]
+}

@@ -3,10 +3,13 @@ import type { CorpusModule } from '../../corpus/server/hub/sdk.ts';
 import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
 import { normalizeHttpBaseUrl } from '../shared.ts';
 import { libraryRoutes } from './routes.ts';
+import { ensureSchema } from '../data.ts';
+import { budgetRoutes } from './budget-routes.ts';
 
 const library: CorpusModule = {
   id: 'library', title: '本・機材', icon: '📚',
   setup(ctx) {
+    ensureSchema(ctx.db);
     const connector = new VersionedHttpServiceConnector({
       id: 'bibliotheca', title: '本・機材 (Bibliotheca)', scope: 'multi',
       baseUrl: normalizeHttpBaseUrl(ctx.env('BIBLIOTHECA_BASE_URL'), 'BIBLIOTHECA_BASE_URL') ?? '',
@@ -14,6 +17,7 @@ const library: CorpusModule = {
     });
     ctx.registerConnector(connector);
     ctx.registerRoute(libraryRoutes(connector, ctx.tokenProvider));
+    ctx.registerRoute(budgetRoutes(ctx.db));
     ctx.registerPanel({ title: '本・機材', icon: '📚' });
     if (!connector.baseUrl) ctx.logger.warn('Bibliotheca connection is not configured');
   },
