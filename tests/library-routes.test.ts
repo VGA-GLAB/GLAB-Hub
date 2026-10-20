@@ -51,12 +51,12 @@ test('token failure cannot downgrade to anonymous and return operations are not 
     { mode: 'test', getDownstreamToken: async () => null });
   assert.equal((await router.request('/loans/mine?all=1')).status, 503);
   assert.equal((await router.request('/loans/1/return', { method: 'POST' })).status, 404);
-  assert.equal((await router.request('/equipment', { method: 'POST' })).status, 503);
+  assert.equal((await router.request('/equipment', { method: 'POST' })).status, 404);
 });
 
 test('inventory registration preserves downstream administrator rejection', async () => {
   const router = app(async () => Response.json({ error: 'forbidden' }, { status: 403 }), true);
-  for (const path of ['/books', '/equipment']) {
+  for (const path of ['/books']) {
     assert.equal((await router.request(path, { method: 'POST', body: '{}' })).status, 403);
   }
 });

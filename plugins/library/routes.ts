@@ -15,7 +15,6 @@ export function libraryRoutes(connector: ServiceConnector, tokens: TokenProvider
   router.get('/books', c => proxy(c, connector, '/api/items/books', tokens));
   router.get('/me', c => proxy(c, connector, '/api/me', tokens));
   router.post('/books', c => proxy(c, connector, '/api/items/books', tokens));
-  router.post('/equipment', c => proxy(c, connector, '/api/items/equipment', tokens));
   router.get('/lookup', c => proxy(c, connector, '/api/items/lookup', tokens));
   router.get('/loans/mine', c => proxy(c, connector, '/api/loans/mine', tokens));
   router.post('/loans', c => proxy(c, connector, '/api/loans', tokens));

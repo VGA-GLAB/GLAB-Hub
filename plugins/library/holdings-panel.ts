@@ -28,25 +28,23 @@ export async function mountInventoryRegistration(container: HTMLElement, ctx: Pa
     const me = await request<{ isAdmin: boolean }>(ctx, '/me');
     if (!me.isAdmin) return;
     const form = el('form', 'gl-col');
-    const source = el('select', 'gl-select'); source.append(new Option('本', 'book'), new Option('機材', 'equipment'));
     const key = el('input', 'gl-input'); key.required = true; key.maxLength = 200;
     const caption = el('span', undefined, 'ISBN');
     const field = el('label', 'gl-col'); field.append(caption, key);
-    source.onchange = () => { caption.textContent = source.value === 'book' ? 'ISBN' : '機材名'; key.value = ''; };
     const submit = el('button', 'gl-btn', '台帳に登録'); submit.type = 'submit';
     const message = el('p'); message.setAttribute('role', 'status');
-    form.append(el('h3', undefined, '本・機材を登録'), source, field, submit, message);
+    form.append(el('h3', undefined, '本を登録'), field, submit, message,
+      el('p', 'gl-muted', '機材の追加は、Ccで執行役員から受けた指示に基づくデータ取り込みで行います。'));
     container.append(form);
     form.onsubmit = async event => {
-      event.preventDefault(); submit.disabled = true; source.disabled = true; key.disabled = true;
-      const book = source.value === 'book';
+      event.preventDefault(); submit.disabled = true; key.disabled = true;
       try {
-        await request(ctx, book ? '/books' : '/equipment', { method: 'POST',
+        await request(ctx, '/books', { method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(book ? { isbn: key.value.trim() } : { name: key.value.trim() }) });
+          body: JSON.stringify({ isbn: key.value.trim() }) });
         key.value = ''; message.textContent = '登録しました。'; await reload();
       } catch (error) { message.textContent = error instanceof Error ? error.message : '登録できませんでした。'; }
-      finally { submit.disabled = false; source.disabled = false; key.disabled = false; }
+      finally { submit.disabled = false; key.disabled = false; }
     };
   } catch {
     container.append(el('p', 'gl-muted', '台帳の登録権限を確認できませんでした。'));
