@@ -34,6 +34,7 @@
     "membership-roster"
   ],
   "specRefs": [
+    "spec/feature/self-permissions.md",
     "DESIGN 7. 認証",
     "spec/feature/first-access-registration.md",
     "spec/feature/forum-roles.md",

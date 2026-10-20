@@ -18,6 +18,7 @@ import { renderModulePanel, renderServicePanel } from './panels.ts';
 import { themeControl } from './theme.ts';
 import { setupNavigation } from './navigation.ts';
 import { mountHeaderStatus } from './header-status.ts';
+import { permissionSettingsLink } from './permissions.ts';
 
 /** ログイン直後に開くタブ (dashboard プラグインのモジュール id)。 */
 const LANDING_TAB_ID = 'dashboard';
@@ -63,6 +64,9 @@ function buildHeader(identity: Identity, onLogout: () => void, toggle: HTMLButto
   header.appendChild(toggle);
   header.appendChild(el('span', 'brand', BRAND_TITLE));
   const account = el('div', 'header-account');
+  void permissionSettingsLink().then(link => account.append(link)).catch(() => {
+    account.append(el('span', 'muted', 'Cr 設定未確認'));
+  });
   account.appendChild(el('span', 'who', identity.displayName ?? identity.userId));
   account.appendChild(themeControl());
   const logout = el('button', 'ghost', 'ログアウト');

@@ -3,6 +3,7 @@
 import { apiFetch, apiJson } from '../../corpus/public/src/api.ts';
 import type { HubOverview, ServiceInfo } from '../../corpus/public/src/types.ts';
 import { el } from './dom.ts';
+import { renderSelfPermissions } from './permissions.ts';
 
 const HEALTH_LABEL: Record<string, string> = {
   up: '稼働',
@@ -93,6 +94,9 @@ export async function renderOverview(container: HTMLElement): Promise<void> {
       '/api/hub/services',
     );
     container.innerHTML = '';
+    const permissions = el('section');
+    container.append(permissions);
+    void renderSelfPermissions(permissions);
     container.appendChild(
       el(
         'p',

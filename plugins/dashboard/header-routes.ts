@@ -4,6 +4,7 @@ import type { CernereProjectApi } from '../cernere/shared-owner.ts';
 import type { MemberStatus } from '../data.ts';
 import { noStore } from '../shared.ts';
 import { getMemberLocation, setMemberLocation, LOCATIONS } from './location-client.ts';
+import { getUserPermissions, canEditPresence } from '../cernere/user-permissions.ts';
 
 const locationInput = z.object({ location: z.enum(LOCATIONS) }).strict();
 
@@ -11,6 +12,22 @@ const locationInput = z.object({ location: z.enum(LOCATIONS) }).strict();
  * @implements SPEC-GLAB-SHELL-009
  */
 export function registerHeaderRoutes(router: Hono, ctx: CorpusContext, client: CernereProjectApi): void {
+  router.get('/permission-settings', c => {
+    noStore(c);
+    try {
+      const url = new URL(ctx.env('CERNERE_FRONTEND_URL') ?? '');
+      if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error('Invalid URL');
+      return c.json({ url: new URL('/data-optout', url).href });
+    } catch { return c.json({ error: 'settings_unavailable' }, 503); }
+  });
+  router.get('/permissions', async c => {
+    noStore(c);
+    const identity = getIdentity(c);
+    try {
+      const permissions = await getUserPermissions(client, identity.userId);
+      return c.json({ permissions, isAdmin: identity.isAdmin, canEditPresence: canEditPresence(permissions) });
+    } catch { return c.json({ error: 'permissions_unavailable' }, 503); }
+  });
   /** @implements SPEC-GLAB-SHELL-009 */
   router.get('/membership', (c) => {
     noStore(c);
@@ -34,6 +51,9 @@ export function registerHeaderRoutes(router: Hono, ctx: CorpusContext, client: C
     const parsed = locationInput.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json({ error: 'invalid_location' }, 400);
     try {
+      if (!canEditPresence(await getUserPermissions(client, getIdentity(c).userId))) {
+        return c.json({ error: 'presence_permission_required' }, 403);
+      }
       await setMemberLocation(client, getIdentity(c).userId, parsed.data.location);
       return c.json({ location: parsed.data.location });
     } catch {

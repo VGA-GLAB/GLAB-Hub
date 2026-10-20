@@ -1,5 +1,6 @@
 import { apiJson } from '../../corpus/public/src/api.ts';
 import { el } from './dom.ts';
+import type { SelfPermissions } from './permissions.ts';
 
 const LOCATION_LABELS = { unset: '未設定', school: '学校', home: '自宅', away: '外出先' };
 type Location = keyof typeof LOCATION_LABELS;
@@ -33,6 +34,8 @@ export function mountHeaderStatus(container: HTMLElement): () => void {
   availabilitySelect.disabled = true;
   available.box.appendChild(availabilitySelect);
   const place = statusItem('現在地');
+  available.box.hidden = true;
+  place.box.hidden = true;
   const locationSelect = el('select');
   locationSelect.setAttribute('aria-label', '現在地（本人申告）');
   for (const [value, label] of Object.entries(LOCATION_LABELS)) {
@@ -62,6 +65,23 @@ export function mountHeaderStatus(container: HTMLElement): () => void {
     locationSelect.disabled = true;
     availabilitySelect.disabled = true;
     const init = { signal: controller.signal, cache: 'no-store' as const };
+    available.box.hidden = true;
+    place.box.hidden = true;
+    try {
+      const permissions = await apiJson<SelfPermissions>('/api/x/dashboard/permissions', init);
+      if (permissions.canEditPresence !== true) {
+        feedback.textContent = '状態データの利用は Cr の権限設定で変更できます。';
+        pending = false; refresh.disabled = false;
+        return;
+      }
+      available.box.hidden = false;
+      place.box.hidden = false;
+      feedback.textContent = '';
+    } catch {
+      feedback.textContent = '権限を確認できません。Cr の設定・サービス状況を確認してください。';
+      pending = false; refresh.disabled = false;
+      return;
+    }
     await Promise.allSettled([
       apiJson<{ availableNow: boolean }>('/api/x/consult/availability', init).then((data) => {
         if (typeof data.availableNow !== 'boolean') throw new Error('Invalid availability');
@@ -101,7 +121,7 @@ export function mountHeaderStatus(container: HTMLElement): () => void {
   }
   /** @implements SPEC-GLAB-SHELL-009 */
   locationSelect.onchange = async () => {
-    if (pending || saving) return;
+    if (pending || saving || place.box.hidden) return;
     saving = true;
     locationSelect.disabled = true;
     availabilitySelect.disabled = true;
@@ -126,7 +146,7 @@ export function mountHeaderStatus(container: HTMLElement): () => void {
   };
   /** @implements SPEC-GLAB-SHELL-009 */
   availabilitySelect.onchange = async () => {
-    if (pending || saving || controller.signal.aborted) return;
+    if (pending || saving || controller.signal.aborted || available.box.hidden) return;
     saving = true;
     availabilitySelect.disabled = true;
     locationSelect.disabled = true;
