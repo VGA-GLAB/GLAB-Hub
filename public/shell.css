@@ -1,3 +1,5 @@
+/* Disable double-tap page zoom while preserving scrolling and pinch zoom. */
+html { touch-action: manipulation; }
 body { font-size: 14px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
 button, select, input, textarea { font: inherit; }
 button { color: var(--fg); background: var(--bg-2); border-color: var(--line); }
