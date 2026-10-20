@@ -67,7 +67,7 @@ describe('consult presence Cernere contract', () => {
     assert.equal(declarations.length, 1);
   });
 
-  it('declares only the two owned presence columns', async () => {
+  it('declares the shared GLab-owned presence columns', async () => {
     const stub = new PresenceClientStub({});
     await declarePresenceSchema(asProjectClient(stub), assert.fail);
     assert.deepEqual(stub.calls[0], {

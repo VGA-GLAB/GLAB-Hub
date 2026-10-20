@@ -43,7 +43,8 @@ const consultModule: CorpusModule = {
     const client = createCernereProjectClient(ctx);
     // presence 列の正本は GLab 側。起動時に Cernere へ宣言する (失敗しても起動は継続)。
     // 最初の presence 要求は宣言完了後に流し、DDL 作成との競合を防ぐ。
-    const presenceSchemaReady = declarePresenceSchema(client, (m) => ctx.logger.error(m));
+    const presenceSchemaReady = declarePresenceSchema(client, (m) => ctx.logger.error(m))
+      .catch(() => { /* Startup stays available; each presence operation retries declaration. */ });
     const r = new Hono();
     r.post('/consults', async (c) => {
       const parsed = consultSchema.safeParse(await c.req.json().catch(() => null));
