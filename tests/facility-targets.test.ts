@@ -6,6 +6,18 @@ import { parseFacilityGateways, relatedGateways, facilityChallenge } from '../pl
 const key = generateKeyPairSync('ed25519').publicKey.export({ type: 'spki', format: 'pem' });
 const config = { organizationId: 'org-a', facilityId: 'f', name: 'Venue', lanId: 'lan', url: 'https://lan.example',
   publicKeyPem: key, challengeSecret: randomBytes(32).toString('base64url') };
+it('allows only the owner of a personal facility without organization membership', () => {
+  const { organizationId: _organizationId, ...personal } = config;
+  const gateways = parseFacilityGateways(JSON.stringify([{ ...personal, ownerUserId: 'owner' }]));
+  assert.equal(relatedGateways(gateways, [], 'owner').length, 1);
+  assert.equal(relatedGateways(gateways, ['org-a'], 'another-member').length, 0);
+  assert.throws(() => parseFacilityGateways(JSON.stringify([personal])));
+  assert.throws(() => parseFacilityGateways(JSON.stringify([{ ...config, ownerUserId: 'owner' }])));
+  for (const ownerUserId of [null, '', ' owner ', 123]) {
+    assert.throws(() => parseFacilityGateways(JSON.stringify([{ ...personal, ownerUserId }])));
+  }
+  assert.throws(() => parseFacilityGateways(JSON.stringify([{ ...personal, ownerUserId: 'owner', allowedUserIds: ['another-member'] }])));
+});
 it('selects only gateways belonging to authenticated organizations', () => {
   const gateways = parseFacilityGateways(JSON.stringify([config]));
   assert.equal(relatedGateways(gateways, ['org-b'], 'user').length, 0);

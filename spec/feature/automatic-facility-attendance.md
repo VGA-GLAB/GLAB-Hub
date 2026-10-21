@@ -2,6 +2,8 @@
 
 ## Facility arrival
 
+A personal facility uses `ownerUserId` instead of `organizationId` and permits exactly that authenticated Cernere user, even without organization memberships. Exactly one ownership field is required. Personal facilities cannot specify `allowedUserIds`; mixed or malformed ownership fails configuration validation. Personal-only target discovery and personal proof submission do not require an organization lookup. Keep real owner IDs in Vault, not in repository examples.
+
 Private gateways can additionally specify `allowedUserIds` with exact Cernere user IDs. Both target discovery and proof submission require organization membership AND a listed user; administrators have no bypass. Omission preserves organization-wide eligibility, an empty array denies all users, and malformed values reject startup configuration. Do not expose this list in browser target responses. This restricts attendance eligibility, not physical door access.
 
 Opening attendance runs browser-to-Os POST checks for gateways in the authenticated user's organizations. Each gateway has a three-second connection/body deadline, with at most eight concurrent requests. A timeout is treated as outside LAN for eligibility. It does not prove physical absence. Authentication errors and failure to save a verified proof remain distinct from LAN timeout.

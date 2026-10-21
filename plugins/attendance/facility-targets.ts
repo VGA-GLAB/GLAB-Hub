@@ -1,7 +1,9 @@
 import { createHmac, createPublicKey, randomUUID } from 'node:crypto';
 
 export interface FacilityGateway {
-  organizationId: string;
+  organizationId?: string;
+  /** Personal facilities have exactly one owner instead of an organization. */
+  ownerUserId?: string;
   facilityId: string;
   name: string;
   lanId: string;
@@ -22,10 +24,18 @@ export function parseFacilityGateways(raw: string | undefined): FacilityGateway[
   return rows.map((row: unknown) => {
     if (!row || typeof row !== 'object') throw new Error('Invalid facility gateway');
     const item = row as Record<string, unknown>;
-    for (const key of ['organizationId', 'facilityId', 'name', 'lanId', 'url', 'publicKeyPem', 'challengeSecret']) {
+    for (const key of ['facilityId', 'name', 'lanId', 'url', 'publicKeyPem', 'challengeSecret']) {
       if (typeof item[key] !== 'string' || !(item[key] as string).trim()) throw new Error('Incomplete facility gateway');
     }
     const gateway = item as unknown as FacilityGateway;
+    const personal = Object.hasOwn(item, 'ownerUserId');
+    const organization = Object.hasOwn(item, 'organizationId');
+    const principal = personal ? item.ownerUserId : item.organizationId;
+    if (personal === organization || typeof principal !== 'string' || !principal.trim()
+      || principal !== principal.trim() || principal.length > 512
+      || (personal && Object.hasOwn(item, 'allowedUserIds'))) {
+      throw new Error('Invalid facility ownership configuration');
+    }
     if ('allowedUserIds' in item && (!Array.isArray(item.allowedUserIds)
       || item.allowedUserIds.length > 1000
       || item.allowedUserIds.some(id => typeof id !== 'string' || !id.trim() || id !== id.trim() || id.length > 512))) {
@@ -44,8 +54,10 @@ export function parseFacilityGateways(raw: string | undefined): FacilityGateway[
 
 export function relatedGateways(gateways: readonly FacilityGateway[], organizationIds: readonly string[], userId: string): FacilityGateway[] {
   const allowed = new Set(organizationIds);
-  return gateways.filter(gateway => allowed.has(gateway.organizationId)
-    && (gateway.allowedUserIds === undefined || gateway.allowedUserIds.includes(userId)));
+  return gateways.filter(gateway => gateway.ownerUserId !== undefined
+    ? gateway.ownerUserId === userId
+    : gateway.organizationId !== undefined && allowed.has(gateway.organizationId)
+      && (gateway.allowedUserIds === undefined || gateway.allowedUserIds.includes(userId)));
 }
 
 /** A single-use, attendance-only capability. No reusable Cernere token leaves GLab. */
