@@ -53,11 +53,12 @@ export function glabConfigured(cfg: BotConfig): boolean {
 export async function glabExternal<T>(
   cfg: BotConfig,
   path: string,
-  options: { method?: string; body?: unknown } = {},
+  options: { method?: string; body?: unknown; module?: 'consult' | 'access' } = {},
 ): Promise<GlabResult<T>> {
   const credential = await credentialProvider(cfg)();
   if (credential.kind === 'none') return { ok: false, status: null };
-  const url = `${cfg.glabBaseUrl.replace(/\/+$/, '')}${CONSULT_API_BASE}${path}`;
+  const base = options.module === 'access' ? '/api/x/access' : CONSULT_API_BASE;
+  const url = `${cfg.glabBaseUrl.replace(/\/+$/, '')}${base}${path}`;
   const hasBody = options.body !== undefined;
   const response = await fetch(url, {
     method: options.method ?? 'GET',

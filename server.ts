@@ -19,6 +19,7 @@ import { resolveRuntimePaths } from './startup/runtime-paths.ts';
 import { closeEventStore, initializeEventStore } from './plugins/events/store.ts';
 import { cernereClientOwner } from './plugins/cernere/shared-owner.ts';
 import { createShutdown } from './plugins/cernere/shutdown.ts';
+import { memberAccessPolicy } from './plugins/access/policy.ts';
 import {
   closeFacilityStore,
   initializeFacilityStore,
@@ -107,7 +108,7 @@ try {
   // GLAB の設定は Ex が注入する。Corpus CLI の env 上書きも適用しない。
   if (!stopping) {
     const { startCorpus } = await import('./corpus/server/index.ts');
-    const runtime = await startCorpus();
+    const runtime = await startCorpus({ accessPolicy: memberAccessPolicy });
     // 起動中に停止信号が来ていたら shutdown は済んでいるので、起動し終えた Corpus をここで閉じる。
     if (stopping) await runtime.close();
     else corpusRuntime = runtime;

@@ -24,6 +24,7 @@ import { postToChannel } from '../channels.ts';
 import { createConsultThread, ensureConsultForum, resolveConsultThread } from '../forum.ts';
 import { glabConfigured, glabExternal } from '../glab-api.ts';
 import { postDailyEngagementIfDue } from './daily-engagement.ts';
+import { notifyAdmissions } from './admissions.ts';
 
 /** 1 tick で流す感想リレーの最大件数。 */
 const REVIEW_RELAY_BATCH = 10;
@@ -34,6 +35,8 @@ const DISCORD_MESSAGE_MAX = 2_000;
 export function startScheduler(client: Client, db: SqlDb, cfg: BotConfig): () => void {
   const runTick = async (): Promise<void> => {
     try {
+      try { await notifyAdmissions(client, db, cfg); }
+      catch { console.error('[glab-bot] admission notification incomplete; inspect queued/sending records before retry'); }
       // 日次通知は内部で失敗を隔離するため、他の通知源より先に独立して試行できる。
       await postDailyEngagementIfDue(client, db, cfg);
       const events = getEventStore();

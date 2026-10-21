@@ -47,6 +47,22 @@ export function approveEventAttendance(db: SqlDb, eventId: number, startsAt: num
 }
 
 export const GLAB_SCHEMA = `
+CREATE TABLE IF NOT EXISTS glab_admission_sync (
+  id INTEGER PRIMARY KEY CHECK(id = 1),
+  cursor TEXT,
+  enabled_at INTEGER NOT NULL
+);
+INSERT INTO glab_admission_sync(id, enabled_at) VALUES (1, CAST(strftime('%s','now') AS INTEGER) * 1000) ON CONFLICT(id) DO NOTHING;
+CREATE TABLE IF NOT EXISTS glab_admission (
+  user_id TEXT PRIMARY KEY,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+  requested_at INTEGER NOT NULL,
+  decided_by TEXT,
+  decided_at INTEGER,
+  revision INTEGER NOT NULL DEFAULT 0,
+  notification_state TEXT NOT NULL DEFAULT 'pending' CHECK(notification_state IN ('pending','sending','sent')),
+  notification_id TEXT
+);
 CREATE TABLE IF NOT EXISTS glab_event_attendance_approval (
   event_id INTEGER NOT NULL,
   occurrence_start INTEGER NOT NULL,

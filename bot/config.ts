@@ -15,6 +15,7 @@ const BOT_DIR = sourceDirOf(import.meta.url);
 type LlmBackend = 'claude-cli' | 'anthropic' | 'mock';
 
 export interface BotConfig {
+  admissionNotification?: { channelId: string; mentionUserId: string; publicUrl: string };
   discordToken: string;
   discordClientId: string;
   guildId: string;
@@ -107,6 +108,11 @@ export function loadConfig(): BotConfig {
       daily: pick('GLAB_DAILY_CHANNEL_ID', eventChannel),
     },
     glabBaseUrl: pick('GLAB_BASE_URL'),
+    admissionNotification: {
+      channelId: pick('GLAB_ADMISSION_CHANNEL_ID'),
+      mentionUserId: pick('GLAB_ADMISSION_MENTION_USER_ID'),
+      publicUrl: pick('GLAB_PUBLIC_URL'),
+    },
     glabServiceToken: pick('GLAB_PROJECTS_SERVICE_TOKEN'),
     cernere: {
       baseUrl: pick('CERNERE_BASE_URL'),

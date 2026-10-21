@@ -62,7 +62,7 @@ services:
       # (bot の相談通知巡回 → consult、Calliope → projects) が plugin の service 認可に届く前に 401 になっていた。
       # Corpus #2460 の外部経路 opt-in で、これらのモジュールの /api/x/<module>/external/* だけ
       # Cernere service token (aud = CORPUS_CERNERE_STORAGE_SLUG) を service 主体として通す。scope は plugin が照合する。
-      CORPUS_EXTERNAL_SERVICE_AUTH_MODULES: consult,projects
+      CORPUS_EXTERNAL_SERVICE_AUTH_MODULES: consult,projects,access
       CORPUS_EXTERNAL_SERVICE_TOKEN_HEADERS: x-glab-service-token,x-projecthub-service-token
       CORPUS_CERNERE_STORAGE_SLUG: glab
     required_env: [CERNERE_BASE_URL, CERNERE_FRONTEND_URL, CORPUS_PUBLIC_URL, CORPUS_TOKEN_MODE, GLAB_OMNIPOTENS_REVIEW_ROOT, GLAB_DATABASE_URL]
@@ -107,7 +107,7 @@ services:
       GLAB_OMNIPOTENS_REVIEW_ROOT: ${ARS_ROOT}/Omnipotents/Review
       GLAB_SERVICE_TOKEN_AUDIENCE: glab
       CALLIOPE_PROJECT_KEY: calliope
-      CORPUS_EXTERNAL_SERVICE_AUTH_MODULES: consult,projects
+      CORPUS_EXTERNAL_SERVICE_AUTH_MODULES: consult,projects,access
       CORPUS_EXTERNAL_SERVICE_TOKEN_HEADERS: x-glab-service-token,x-projecthub-service-token
       CORPUS_CERNERE_STORAGE_SLUG: glab
     required_env: [CERNERE_BASE_URL, CERNERE_FRONTEND_URL, CORPUS_PUBLIC_URL, CORPUS_TOKEN_MODE, GLAB_OMNIPOTENS_REVIEW_ROOT, GLAB_DATABASE_URL]
@@ -144,6 +144,9 @@ services:
     env:
       # hub の external API の到達先 (hub catalog の CORPUS_PUBLIC_URL と同じ)。
       GLAB_BASE_URL: http://localhost:5187
+      GLAB_ADMISSION_CHANNEL_ID: '1562453852257517618'
+      GLAB_ADMISSION_MENTION_USER_ID: '905235114026467350'
+      GLAB_PUBLIC_URL: https://glab.ai-run-do.com
       # hub と共有する GLAB 所有 DB (hub catalog の GLAB_DATABASE_URL と同じ開発用 localhost 値)。
       GLAB_DATABASE_URL: postgresql://glab_user:glab@localhost:5432/glab
     required_env: [CERNERE_BASE_URL, GLAB_BASE_URL]

@@ -17,6 +17,7 @@ import { el } from './dom.ts';
 import { mountGlabLogin } from './login.tsx';
 import { renderShell } from './shell.ts';
 import { initTheme, themeControl } from './theme.ts';
+import { renderAdmissionPending } from './admission.ts';
 
 initTheme();
 
@@ -47,6 +48,11 @@ async function boot(): Promise<void> {
   clearLegacyToken();
   try {
     const identity = await apiJson<Identity>('/api/me');
+    const admission = await apiJson<{ status: string }>('/api/x/access/self');
+    if (admission.status !== 'approved') {
+      await renderAdmissionPending(app, admission.status);
+      return;
+    }
     const { modules } = await apiJson<{ modules: ModuleInfo[] }>('/api/hub/modules');
     const { services } = await apiJson<{ services: ServiceInfo[] }>(
       '/api/hub/services',
