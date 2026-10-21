@@ -3,7 +3,7 @@ import { cernereClientOwner, type CernereProjectApi } from './shared-owner.ts';
 
 export function createCernereProjectClient(ctx: CorpusContext): CernereProjectApi {
   return cernereClientOwner.get({
-    projectKey: ctx.env('CORPUS_SERVICE_ID')?.trim() || 'EducationLab',
+    projectKey: ctx.env('CORPUS_SERVICE_ID')?.trim() || 'glab',
     cernereBaseUrl: requireEnv(ctx, 'CERNERE_BASE_URL'),
     clientId: requireEnv(ctx, 'CERNERE_PROJECT_CLIENT_ID'),
     clientSecret: requireEnv(ctx, 'CERNERE_PROJECT_CLIENT_SECRET'),

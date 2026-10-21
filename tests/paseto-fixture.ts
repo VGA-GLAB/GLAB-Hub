@@ -36,7 +36,7 @@ export function serviceClaims(overrides: Record<string, unknown> = {}, nowMs = D
   return {
     kind: 'service',
     sub: 'some-caller',
-    aud: 'educationlab',
+    aud: 'glab',
     scope: ['glab-external:write'],
     iat: new Date(nowMs).toISOString(),
     exp: new Date(nowMs + 15 * 60_000).toISOString(),

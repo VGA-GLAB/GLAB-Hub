@@ -31,10 +31,10 @@ import {
 export const GLAB_EXTERNAL_SCOPE = 'glab-external:write';
 
 /**
- * GLAB の Cernere managed project (`EducationLab`) の storage_slug。
+ * GLAB の Cernere managed project (`glab`) の storage_slug。
  * Cernere は key を小文字化して slug を払い出す (server/src/project/storage-slug.ts)。
  */
-const DEFAULT_SERVICE_TOKEN_AUDIENCE = 'educationlab';
+const DEFAULT_SERVICE_TOKEN_AUDIENCE = 'glab';
 
 export interface ServiceTokenOptions {
   /** Cernere service token の検証器。 未設定 (null) なら v4.public 値も固定トークン照合に回る (= 不一致で 401)。 */

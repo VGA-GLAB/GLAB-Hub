@@ -59,11 +59,11 @@ process.env.CORPUS_AUTH_MODE = 'composite';
 
 // GLAB サーバ自身のサービス識別 (Corpus マニフェスト /.well-known/
 // corpus-service.json の cernereProjectKey に使われる)。
-// Cernere 側の managed project は `EducationLab` (Cernere migration 027 /
-// server/service/education-lab/schema.json)。実認証の credential は Excubitor が
+// Cernere 側の managed project は `glab` (Cernere migration 075 /
+// server/service/glab/schema.json)。実認証の credential は Excubitor が
 // excubitor.catalog.yaml の cernere_launch_credentials.target_project (= 同じ key) で
 // 起動直前に発行するので、ここと catalog の値は必ず一致させる。
-process.env.CORPUS_SERVICE_ID ??= 'EducationLab';
+process.env.CORPUS_SERVICE_ID = 'glab';
 // hub の名乗り。 マニフェストの displayName と、 ステータスタブの自己コネクタ
 // (Corpus SelfConnector) の表示名の両方に使われる。画面用ブランド表記
 // (`public/src/branding.ts`) とは別の、サービスを識別する名称。

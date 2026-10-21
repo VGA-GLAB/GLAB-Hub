@@ -5,7 +5,7 @@
 // (projects と同じ事情 — spec/interface/projects-registry.md)。 GLAB_BASE_URL には
 // hub のルート (例 `https://glab.example`) を入れる。
 //
-// 認可 (認証集約 P4): Cernere service token (target_project_key = EducationLab、
+// 認可 (認証集約 P4): Cernere service token (target_project_key = glab、
 // scope glab-external:write) を X-Glab-Service-Token で送る。 Authorization は Corpus
 // requireAuth のユーザ token と取り合いになるため使わない。 発行に失敗したときだけ
 // 従来の GLAB_PROJECTS_SERVICE_TOKEN を同じヘッダで送る (P5 で撤去)。
@@ -19,7 +19,7 @@ import type { BotConfig } from './config.ts';
 
 const CONSULT_API_BASE = '/api/x/consult';
 /** GLAB hub の Cernere managed project key (excubitor.catalog.yaml の cernere_launch_credentials と同じ)。 */
-const GLAB_PROJECT_KEY = 'EducationLab';
+const GLAB_PROJECT_KEY = 'glab';
 
 type GlabResult<T> = { ok: true; data: T } | { ok: false; status: number | null };
 

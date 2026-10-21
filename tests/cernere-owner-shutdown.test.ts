@@ -5,7 +5,7 @@ import { createShutdown } from '../plugins/cernere/shutdown.ts';
 
 test('six plugin acquisitions share one facade and shutdown makes it terminal', async () => {
   const owner = new CernereClientOwner();
-  const config = { cernereBaseUrl: 'https://cernere.test/', clientId: 'glab', clientSecret: 'secret', projectKey: 'EducationLab' };
+  const config = { cernereBaseUrl: 'https://cernere.test/', clientId: 'glab', clientSecret: 'secret', projectKey: 'glab' };
   const clients = Array.from({ length: 6 }, () => owner.get(config));
   assert.ok(clients.every((client) => client === clients[0]));
   owner.closeAll(); owner.closeAll();
@@ -15,12 +15,12 @@ test('six plugin acquisitions share one facade and shutdown makes it terminal', 
 
 test('revoking a leaked credential stops requests through facades handed out earlier', async () => {
   const owner = new CernereClientOwner();
-  const config = { cernereBaseUrl: 'https://cernere.test/', clientId: 'glab', clientSecret: 'secret', projectKey: 'EducationLab' };
+  const config = { cernereBaseUrl: 'https://cernere.test/', clientId: 'glab', clientSecret: 'secret', projectKey: 'glab' };
   const client = owner.get(config);
   owner.revoke(config);
   // 失効前に配った facade からも到達できない。revoke 自体は冪等。
   await assert.rejects(client.call('presence', 'read', {}), /closed/);
-  await assert.rejects(client.getUserData('u1', 'EducationLab', ['a']), /closed/);
+  await assert.rejects(client.getUserData('u1', 'glab', ['a']), /closed/);
   owner.revoke(config);
   // 失効後の再取得は新しい client を作り直す。
   assert.notEqual(owner.get(config), client);

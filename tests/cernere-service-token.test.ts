@@ -19,7 +19,7 @@ const CREDENTIALS = {
   cernereBaseUrl: 'http://cernere.test/',
   clientId: 'client-id',
   clientSecret: 'client-secret',
-  targetProjectKey: 'EducationLab',
+  targetProjectKey: 'glab',
 };
 
 function issuer(responses: Array<() => Response | Promise<Response>>, requests: Array<{ url: string; body: unknown }>) {
@@ -41,7 +41,7 @@ describe('CernereServiceTokenSource', () => {
     assert.deepEqual(await source.getToken(), { ok: true, token: 'mock-issued' });
     assert.deepEqual(requests, [{
       url: 'http://cernere.test/api/auth/service-token',
-      body: { client_id: 'client-id', client_secret: 'client-secret', target_project_key: 'EducationLab' },
+      body: { client_id: 'client-id', client_secret: 'client-secret', target_project_key: 'glab' },
     }]);
   });
 
@@ -153,7 +153,7 @@ describe('bot GLAB external client', () => {
     } as BotConfig;
   }
 
-  it('sends a Cernere service token for EducationLab in X-Glab-Service-Token', async () => {
+  it('sends a Cernere service token for glab in X-Glab-Service-Token', async () => {
     const calls: Array<{ url: string; headers: Record<string, string>; body: unknown }> = [];
     globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({
@@ -171,7 +171,7 @@ describe('bot GLAB external client', () => {
 
     assert.deepEqual(result, { ok: true, data: { consults: [] } });
     assert.equal(calls.filter((c) => c.url.endsWith('/api/auth/service-token')).length, 1);
-    assert.deepEqual(calls[0]?.body, { client_id: 'client-id', client_secret: 'client-secret', target_project_key: 'EducationLab' });
+    assert.deepEqual(calls[0]?.body, { client_id: 'client-id', client_secret: 'client-secret', target_project_key: 'glab' });
     const hubCall = calls[1];
     assert.equal(hubCall?.url, 'http://glab.test/api/x/consult/external/consults/pending');
     assert.equal(hubCall?.headers['x-glab-service-token'], 'v4.public.bot');

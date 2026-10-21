@@ -99,7 +99,7 @@ const signer = makeSigner('v1');
 function verifierWith(response: () => Promise<Response>, calls?: string[]): CernereServiceTokenVerifier {
   return new CernereServiceTokenVerifier({
     cernereBaseUrl: 'http://cernere.test/',
-    audience: 'educationlab',
+    audience: 'glab',
     fetch: (async (url: string | URL | Request) => {
       calls?.push(String(url));
       return response();
@@ -243,14 +243,14 @@ describe('service token decisions', () => {
   it('decideServiceClaims checks kind, sub, scope shape, aud, exp and the required scope', () => {
     const base = serviceClaims({}, now);
     const scope = 'glab-external:write';
-    assert.equal(decideServiceClaims(base, 'educationlab', scope, now), 'ok');
-    assert.equal(decideServiceClaims(base, 'educationlab', 'calliope-api:access', now), 'insufficient_scope');
+    assert.equal(decideServiceClaims(base, 'glab', scope, now), 'ok');
+    assert.equal(decideServiceClaims(base, 'glab', 'calliope-api:access', now), 'insufficient_scope');
     assert.equal(decideServiceClaims(base, 'volputas', scope, now), 'invalid');
     assert.equal(decideServiceClaims(base, '', scope, now), 'invalid');
-    assert.equal(decideServiceClaims({ ...base, kind: 'user_for_project' }, 'educationlab', scope, now), 'invalid');
-    assert.equal(decideServiceClaims({ ...base, scope }, 'educationlab', scope, now), 'invalid');
-    assert.equal(decideServiceClaims({ ...base, sub: '' }, 'educationlab', scope, now), 'invalid');
-    assert.equal(decideServiceClaims(base, 'educationlab', scope, now + 16 * 60_000), 'invalid');
+    assert.equal(decideServiceClaims({ ...base, kind: 'user_for_project' }, 'glab', scope, now), 'invalid');
+    assert.equal(decideServiceClaims({ ...base, scope }, 'glab', scope, now), 'invalid');
+    assert.equal(decideServiceClaims({ ...base, sub: '' }, 'glab', scope, now), 'invalid');
+    assert.equal(decideServiceClaims(base, 'glab', scope, now + 16 * 60_000), 'invalid');
   });
 
   it('decideServiceAuth prefers the service-token verdict and otherwise compares the fixed token', () => {
