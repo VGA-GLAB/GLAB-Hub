@@ -30,6 +30,8 @@ import { handleGpsCheckin } from './gps-checkin.ts';
 import { locationStatementFromHealth } from './location-statement.ts';
 import { DirectoryGpsPhotoFiles, type GpsPhotoFileStore } from './gps-photo-files.ts';
 import { registerGpsPhotoRoutes } from './gps-photo-routes.ts';
+import { registerAutomaticAttendance } from './automatic-routes.ts';
+import { registerEventAttendance } from './event-approval-routes.ts';
 
 const CHECKIN_FRESHNESS_MS = 120_000;
 const RECENT_ATTENDANCE_DAYS = 30;
@@ -152,6 +154,8 @@ export function makeRoutes(
 ): Hono {
   const db = ctx.db;
   const router = new Hono();
+  registerAutomaticAttendance(router, ctx);
+  registerEventAttendance(router, ctx);
 
   router.get('/availability', async (c) => {
     const event = await activeEventView(db, getIdentity(c));
@@ -194,10 +198,8 @@ export function makeRoutes(
       return c.json({ error: 'replay_detected' }, 409);
     }
 
-    // 出席そのものはイベントに依存しない。 進行中イベントがあれば紐付けるだけで、
-    // 役職限定で「見えない」イベントは紐付けない (出席は成立させる)。 イベントストア
-    // (Postgres) が引けない場合も紐付けを諦めるだけで、 出席記録は必ず成立させる。
-    const event = await visibleActiveEvent(db, identity).catch(() => null);
+    // Facility arrival never confirms event attendance; only the organizer can approve it.
+    const event = null;
     const created = recordAttendance(db, {
       userId: identity.userId,
       date: dateInJst(verified.payload.issuedAt),
@@ -207,7 +209,7 @@ export function makeRoutes(
       // 従来どおり passkey として記録する (遡って書き換えはしない)。
       source: verified.payload.method ?? 'passkey',
       assurance: verified.payload.assurance ?? null,
-      eventId: event?.id ?? null,
+      eventId: null,
       detail: { lanId: verified.payload.lanId },
     });
     if (!created) return c.json({ ok: true, alreadyCheckedIn: true });

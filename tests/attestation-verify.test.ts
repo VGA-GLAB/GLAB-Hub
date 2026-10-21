@@ -33,6 +33,12 @@ test('an unknown gateway is rejected', () => {
   assert.equal(result.ok === false && result.reason, 'unknown_gateway');
 });
 
+test('another facility or a non-attendance purpose is rejected even with a valid signature', () => {
+  assert.equal(verifyAttestation(makeAttestation({ placeId: 'other-facility' }), opts).ok, false);
+  assert.equal(verifyAttestation(makeAttestation({ purpose: 'mfa' }), opts).ok, false);
+  assert.equal(verifyAttestation(makeAttestation({ purpose: 'location' }), opts).ok, false);
+});
+
 test('a signature from another key and a tampered payload are rejected', () => {
   const other = generateKeyPairSync('ed25519').privateKey;
   assert.equal(verifyAttestation(makeAttestation({}, other), opts).ok, false);

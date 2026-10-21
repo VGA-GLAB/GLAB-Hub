@@ -25,7 +25,37 @@ export interface SqlDb {
   close?(): void;
 }
 
+export interface EventAttendanceApproval {
+  event_id: number; occurrence_start: number; user_id: string; requested_at: number;
+  approved_by: string | null; approved_at: number | null;
+}
+
+export function requestEventAttendance(db: SqlDb, eventId: number, startsAt: number, userId: string, now: number): void {
+  db.prepare(`INSERT INTO glab_event_attendance_approval (event_id, occurrence_start, user_id, requested_at)
+    VALUES (?, ?, ?, ?) ON CONFLICT(event_id, occurrence_start, user_id) DO NOTHING`).run(eventId, startsAt, userId, now);
+}
+
+export function eventAttendanceApprovals(db: SqlDb, eventId: number, startsAt: number): EventAttendanceApproval[] {
+  return db.prepare('SELECT * FROM glab_event_attendance_approval WHERE event_id = ? AND occurrence_start = ? ORDER BY requested_at')
+    .all(eventId, startsAt) as EventAttendanceApproval[];
+}
+
+export function approveEventAttendance(db: SqlDb, eventId: number, startsAt: number, userId: string, organizer: string, now: number): boolean {
+  return Number(db.prepare(`UPDATE glab_event_attendance_approval SET approved_by = ?, approved_at = ?
+    WHERE event_id = ? AND occurrence_start = ? AND user_id = ? AND approved_at IS NULL`)
+    .run(organizer, now, eventId, startsAt, userId).changes) > 0;
+}
+
 export const GLAB_SCHEMA = `
+CREATE TABLE IF NOT EXISTS glab_event_attendance_approval (
+  event_id INTEGER NOT NULL,
+  occurrence_start INTEGER NOT NULL,
+  user_id TEXT NOT NULL,
+  requested_at INTEGER NOT NULL,
+  approved_by TEXT,
+  approved_at INTEGER,
+  PRIMARY KEY(event_id, occurrence_start, user_id)
+);
 CREATE TABLE IF NOT EXISTS glab_budget_item (
   id TEXT PRIMARY KEY,
   fiscal_year INTEGER NOT NULL,

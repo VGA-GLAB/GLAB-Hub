@@ -52,6 +52,7 @@ export function verifyAttestation(raw: string, options: VerifyAttestationOptions
 
   const gateway = options.findGateway(payload.lanId);
   if (!gateway) return { ok: false, reason: 'unknown_gateway' };
+  if (gateway.facilityId !== payload.placeId) return { ok: false, reason: 'attestation_invalid' };
 
   try {
     const publicKey = createPublicKey(gateway.publicKeyPem);
@@ -74,6 +75,7 @@ function isBase64Url(value: string): boolean {
 
 function parsePayload(json: string): AttestationPayload {
   const value = JSON.parse(json) as Record<string, unknown>;
+  if (value.purpose !== undefined && value.purpose !== 'attendance') throw new Error('wrong purpose');
   if (
     typeof value.sub !== 'string' || !value.sub ||
     typeof value.placeId !== 'string' || !value.placeId ||

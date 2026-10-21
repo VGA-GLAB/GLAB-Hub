@@ -6,7 +6,7 @@ import type { VersionedHttpServiceConnector } from '../plugins/service-health-co
 
 // makeRoutes はハンドラ内で ctx.db / connector / event store を遅延参照するだけなので、
 // ルーティング (存在するルートかどうか) の検証には最小スタブで足りる。
-const stubCtx = { db: {} } as unknown as CorpusContext;
+const stubCtx = { db: {}, env: () => undefined } as unknown as CorpusContext;
 const stubConnector = {} as unknown as VersionedHttpServiceConnector;
 
 function app() {

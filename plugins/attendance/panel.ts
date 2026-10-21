@@ -10,6 +10,8 @@ import {
 import { canReachLocalOstiarius } from './local-ostiarius.ts';
 import { gpsCheckinSection } from './gps-checkin-panel.ts';
 import { appendGpsPhoto } from './gps-photo-view.ts';
+import { automaticFacilitySection } from './automatic-panel.ts';
+import { eventApprovalSection } from './event-approval-panel.ts';
 
 interface AttendanceRecord {
   id: string;
@@ -69,6 +71,8 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
     refresh.onclick = () => void render();
     head.append(refresh);
     container.append(head);
+    container.append(await automaticFacilitySection(ctx));
+    container.append(await eventApprovalSection(ctx, render));
 
     const availabilityResponse = await ctx.api('/availability');
     if (!availabilityResponse.ok) {
@@ -84,7 +88,7 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
     }
 
     const todayResponse = await ctx.api('/today');
-    const roster = section('今日の出席簿');
+    const roster = section('今日の施設到着');
     if (!todayResponse.ok) {
       roster.body.append(errorNotice('今日の出席簿を取得できませんでした。'));
     } else {
@@ -94,7 +98,7 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
     container.append(roster.wrap);
 
     const mineResponse = await ctx.api('/mine');
-    const mine = section('直近30日の出席履歴');
+    const mine = section('直近30日の施設到着履歴');
     if (!mineResponse.ok) {
       mine.body.append(errorNotice('出席履歴を取得できませんでした。'));
     } else {
@@ -116,7 +120,7 @@ function checkinSection(
   ctx: PanelContext,
   rerender: () => Promise<void>,
 ): HTMLElement {
-  const checkin = section('イベント出席');
+  const checkin = section('施設への到着確認（手動）');
   const message = el('p', 'gl-muted');
   if (!availability.event) {
     checkin.body.append(el('strong', undefined, '進行中のイベントはありません'));
