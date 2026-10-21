@@ -2,6 +2,8 @@
 
 ## Facility arrival
 
+Private gateways can additionally specify `allowedUserIds` with exact Cernere user IDs. Both target discovery and proof submission require organization membership AND a listed user; administrators have no bypass. Omission preserves organization-wide eligibility, an empty array denies all users, and malformed values reject startup configuration. Do not expose this list in browser target responses. This restricts attendance eligibility, not physical door access.
+
 Opening attendance runs browser-to-Os POST checks for gateways in the authenticated user's organizations. Each gateway has a three-second connection/body deadline, with at most eight concurrent requests. A timeout is treated as outside LAN for eligibility. It does not prove physical absence. Authentication errors and failure to save a verified proof remain distinct from LAN timeout.
 
 GLab issues a 60-second attendance-only HMAC capability binding user, facility, LAN gateway and a unique nonce. Os checks the actual connection against its enrolled interface and returns an Ed25519 proof. GLab rechecks current membership, gateway/facility binding, subject, signature, freshness and nonce before writing the existing unique user/date/facility ledger. No general user access token is sent to facility gateways. Reopening the tab is idempotent at the ledger.

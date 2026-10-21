@@ -8,6 +8,8 @@ export interface FacilityGateway {
   url: string;
   publicKeyPem: string;
   challengeSecret: string;
+  /** Optional additional restriction; an empty list denies everyone. */
+  allowedUserIds?: string[];
 }
 
 /** Trusted deployment configuration; never accept gateway addresses/keys from a browser. */
@@ -24,6 +26,11 @@ export function parseFacilityGateways(raw: string | undefined): FacilityGateway[
       if (typeof item[key] !== 'string' || !(item[key] as string).trim()) throw new Error('Incomplete facility gateway');
     }
     const gateway = item as unknown as FacilityGateway;
+    if ('allowedUserIds' in item && (!Array.isArray(item.allowedUserIds)
+      || item.allowedUserIds.length > 1000
+      || item.allowedUserIds.some(id => typeof id !== 'string' || !id.trim() || id !== id.trim() || id.length > 512))) {
+      throw new Error('Invalid facility user restriction');
+    }
     const url = new URL(gateway.url);
     if (url.protocol !== 'https:' || url.origin !== gateway.url || url.username || url.password
       || gateway.challengeSecret.length < 32 || ids.has(gateway.lanId)
@@ -35,9 +42,10 @@ export function parseFacilityGateways(raw: string | undefined): FacilityGateway[
   });
 }
 
-export function relatedGateways(gateways: readonly FacilityGateway[], organizationIds: readonly string[]): FacilityGateway[] {
+export function relatedGateways(gateways: readonly FacilityGateway[], organizationIds: readonly string[], userId: string): FacilityGateway[] {
   const allowed = new Set(organizationIds);
-  return gateways.filter(gateway => allowed.has(gateway.organizationId));
+  return gateways.filter(gateway => allowed.has(gateway.organizationId)
+    && (gateway.allowedUserIds === undefined || gateway.allowedUserIds.includes(userId)));
 }
 
 /** A single-use, attendance-only capability. No reusable Cernere token leaves GLab. */

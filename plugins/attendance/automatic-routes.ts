@@ -11,7 +11,7 @@ export function registerAutomaticAttendance(router: Hono, ctx: CorpusContext): v
     if (!gateways.length) return c.json({ configured: false, targets: [] });
     try {
       const organizations = (await bookingGroups(c, ctx)).filter(group => group.kind === 'organization').map(group => group.id);
-      const targets = relatedGateways(gateways, organizations).map(gateway => ({
+      const targets = relatedGateways(gateways, organizations, getIdentity(c).userId).map(gateway => ({
         facilityId: gateway.facilityId, lanId: gateway.lanId, name: gateway.name, url: gateway.url,
         challenge: facilityChallenge(gateway, getIdentity(c).userId, Date.now()),
       }));
@@ -35,7 +35,7 @@ export function registerAutomaticAttendance(router: Hono, ctx: CorpusContext): v
     let organizations: string[];
     try { organizations = (await bookingGroups(c, ctx)).filter(group => group.kind === 'organization').map(group => group.id); }
     catch { return c.json({ error: 'facility_memberships_unavailable' }, 503); }
-    if (!relatedGateways(gateways, organizations).some(gateway => gateway.lanId === verified.payload.lanId)) {
+    if (!relatedGateways(gateways, organizations, identity.userId).some(gateway => gateway.lanId === verified.payload.lanId)) {
       return c.json({ error: 'facility_not_in_organization' }, 403);
     }
     if (!reserveAttendanceNonce(ctx.db, verified.payload.nonce)) return c.json({ error: 'replay_detected' }, 409);
