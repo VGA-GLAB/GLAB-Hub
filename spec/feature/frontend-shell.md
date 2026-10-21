@@ -1,5 +1,9 @@
 # GLAB frontend shell
 
+利用者向け名称は `GLab` に統一する。ページタイトル、ログイン・ヘッダの
+`BRAND_TITLE`、自己サービスの `CORPUS_DISPLAY_NAME` に同じ名称を用いる。
+認証用の managed project key は表示名から導出せず、既存の認証設定を保持する。
+
 ドメイン: `platform-shell` (`spec/domains/platform-shell.domain.json`)。
 GLAB は Corpus の認証・hub API・宣言的 renderer を再利用しつつ、ブランド表示と
 frontend の外殻を `public/` に所有する。実装関数は以下の clause ID を
