@@ -268,7 +268,7 @@ describe('progress relay', () => {
 describe('progress module contract', () => {
   const source = (path: string): Promise<string> => readFile(path, 'utf8');
 
-  it('is registered in the plugin pack and the panel build', async () => {
+  it('is excluded from the plugin pack and the panel build', async () => {
     const [packText, packageText] = await Promise.all([
       source('plugins/pack.json'),
       source('package.json'),
@@ -276,8 +276,8 @@ describe('progress module contract', () => {
     const pack = JSON.parse(packText) as { modules?: string[] };
     const pkg = JSON.parse(packageText) as { scripts?: Record<string, string> };
 
-    assert.equal(pack.modules?.filter((module) => module === 'progress').length, 1);
-    assert.match(pkg.scripts?.['build:panels'] ?? '', /plugins\/progress\/panel\.ts/);
+    assert.equal(pack.modules?.filter((module) => module === 'progress').length, 0);
+    assert.doesNotMatch(pkg.scripts?.['build:panels'] ?? '', /plugins\/progress\/panel\.ts/);
   });
 
   it('adds Calliope to the built-in status overview by registering a connector', async () => {

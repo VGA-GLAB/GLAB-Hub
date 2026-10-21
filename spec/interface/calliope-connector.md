@@ -1,5 +1,11 @@
 # interface/ — Calliope コネクタ（進捗）
 
+## GLab での提供状態
+
+2026-10-21 の利用者指示により、`progress` をプラグインパックから外した。
+GLab は進捗パネル、Calliope の接続状況、進捗 API 中継を登録しない。
+以下は非稼働のコネクタ実装の契約として残す。
+
 進捗（`progress`）モジュールは connector（id `calliope`、`scope: 'multi'`、
 `baseUrl = CALLIOPE_BASE_URL`）越しに Calliope の `GET /api/glab/progress` を read するだけの
 表示面。エンジンは Calliope 側（Calliope docs/design/glab-pm.md §H4/H5）。sprint health /
