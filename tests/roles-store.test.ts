@@ -25,18 +25,18 @@ describe('glab_role_def / glab_member_role store', () => {
   it('ensureSchema seeds the default role definitions in sort order', () => {
     assert.deepEqual(
       listRoleDefs(temp.db).map((def) => def.key),
-      ['lead', 'planner', 'programmer', 'designer', 'student'],
+      ['lead', 'planner', 'programmer', 'designer', 'student', 'instructor'],
     );
     assert.equal(listRoleDefs(temp.db)[0]?.label, '運営');
   });
 
   it('upserts a definition instead of adding a duplicate key', () => {
     upsertRoleDef(temp.db, { key: 'sound', label: 'サウンド', sort: 5 });
-    assert.equal(listRoleDefs(temp.db).length, 6);
+    assert.equal(listRoleDefs(temp.db).length, 7);
 
     upsertRoleDef(temp.db, { key: 'sound', label: 'サウンド班', sort: 9 });
     const defs = listRoleDefs(temp.db);
-    assert.equal(defs.length, 6);
+    assert.equal(defs.length, 7);
     assert.equal(defs.find((def) => def.key === 'sound')?.label, 'サウンド班');
     assert.equal(defs.at(-1)?.key, 'sound');
   });
@@ -65,6 +65,6 @@ describe('glab_role_def / glab_member_role store', () => {
 
     deleteRoleDef(temp.db, 'sound');
     assert.equal(listRoleDefs(temp.db).some((def) => def.key === 'sound'), false);
-    assert.equal(listRoleDefs(temp.db).length, 5);
+    assert.equal(listRoleDefs(temp.db).length, 6);
   });
 });

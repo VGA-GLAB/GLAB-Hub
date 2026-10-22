@@ -47,6 +47,24 @@ export function approveEventAttendance(db: SqlDb, eventId: number, startsAt: num
 }
 
 export const GLAB_SCHEMA = `
+CREATE TABLE IF NOT EXISTS glab_quest (
+  id TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  contact TEXT NOT NULL,
+  project_id TEXT,
+  category TEXT NOT NULL CHECK(category IN ('team','urgent','personal')),
+  status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','pending','published','withdrawn')),
+  revision INTEGER NOT NULL DEFAULT 0,
+  approved_by TEXT,
+  approved_role TEXT,
+  approved_at INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS glab_quest_owner ON glab_quest(owner_id, updated_at);
+CREATE INDEX IF NOT EXISTS glab_quest_publication ON glab_quest(status, updated_at);
 CREATE TABLE IF NOT EXISTS glab_admission_sync (
   id INTEGER PRIMARY KEY CHECK(id = 1),
   cursor TEXT,
@@ -462,6 +480,7 @@ function ensureOdeumSchema(db: SqlDb): void {
 }
 
 const DEFAULT_ROLE_DEFS = [
+  { key: 'instructor', label: '講師', sort: 5 },
   { key: 'lead', label: '運営', sort: 0 },
   { key: 'planner', label: '企画', sort: 1 },
   { key: 'programmer', label: 'プログラマ', sort: 2 },

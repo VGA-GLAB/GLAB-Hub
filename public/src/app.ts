@@ -39,6 +39,9 @@ function showLogin(message: string): void {
   const box = el('div', 'login');
   const mount = el('div', 'login-ui');
   box.appendChild(mount);
+  const quests = el('a', 'glab-public-quests', 'クエストボードを見る（登録不要）');
+  quests.href = '/public/quests';
+  box.appendChild(quests);
   app.appendChild(box);
   unmountLogin = mountGlabLogin(mount, message);
 }

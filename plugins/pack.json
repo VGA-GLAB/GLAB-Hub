@@ -3,6 +3,7 @@
   "description": "GLAB 運営プラグインパック — ダッシュボード / 個人データ + 出席 / 施設 / イベント / 就活 / 部員名簿 / 企業 / Voluptasレビュー / Di / プロジェクト / トレンド (Td)",
   "modules": [
     "access",
+    "quests",
     "dashboard",
     "attendance",
     "di",

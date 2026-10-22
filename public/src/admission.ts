@@ -6,6 +6,9 @@ export async function renderAdmissionPending(app: HTMLElement, status: string): 
   app.replaceChildren(el('h1', undefined, 'GLab'), el('h2', undefined,
     status === 'rejected' ? 'GLabの利用は許可されていません' : '管理者の承認を待っています'));
   app.append(el('p', undefined, 'サービス状況は確認できます。部員向けページは承認後に利用できます。'));
+  const quests = el('a', undefined, 'クエストボードを見る（登録不要）');
+  quests.href = '/public/quests';
+  app.append(quests);
   const refresh = el('button', undefined, '承認状況を確認');
   refresh.onclick = () => location.reload();
   const logout = el('button', undefined, 'ログアウト');

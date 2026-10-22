@@ -53,7 +53,7 @@ test('launch configuration uses injected env and bypasses standalone secret boot
   assert.match(launcher, /const \{ startCorpus \} = await import\('\.\/corpus\/server\/index\.ts'\)/);
   // The host must install the membership gate when starting Corpus.
   assert.match(launcher, /import \{ memberAccessPolicy \} from '\.\/plugins\/access\/policy\.ts'/);
-  assert.match(launcher, /await startCorpus\(\{\s*accessPolicy:\s*memberAccessPolicy\s*\}\)/);
+  assert.match(launcher, /await startCorpus\(\{\s*accessPolicy:\s*memberAccessPolicy,\s*publicReadRoutes:\s*createPublicQuestRoutes\s*\}\)/);
   assert.match(launcher, /await closeCorpus\(\);\s*await close\(\);/);
   assert.ok(launcher.indexOf('requireInjectedEnvironment(process.env)') < launcher.indexOf('await initializeEventStore'));
   assert.match(launcher, /installLogging\(\)/);
