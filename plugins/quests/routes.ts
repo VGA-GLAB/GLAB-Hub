@@ -5,9 +5,10 @@ import { z } from 'zod';
 import { readAdmission } from '../access/store.ts';
 import { resolveRoles } from '../roles/audience.ts';
 import { QUEST_TEMPLATES } from './model.ts';
-import { changeOwnQuest, createQuest, decideQuest, editQuest, listOwnQuests, listPendingQuests } from './store.ts';
+import { changeOwnQuest, createQuest, decideQuest, editQuest, listOwnQuests, listPendingQuests, listPublicQuests } from './store.ts';
 
-const input = z.object({ title: z.string().trim().min(1).max(120), description: z.string().trim().max(5000),
+const input = z.object({ title: z.string().trim().min(1).max(120), description: z.string().trim().min(1).max(5000),
+  period: z.string().trim().min(1).max(1000), conditions: z.string().trim().min(1).max(2000), contactType: z.enum(['text','discord']),
   contact: z.string().trim().max(500), projectId: z.string().min(1).max(200).nullable(), category: z.enum(['team','urgent','personal']) }).strict();
 const revision = z.object({ revision: z.number().int().nonnegative() }).strict();
 const edit = input.extend({ revision: z.number().int().nonnegative() });
@@ -24,6 +25,7 @@ export function createQuestRoutes(db: CorpusDb): Hono {
   const projectAllowed = (user: string, projectId: string | null): boolean => projectId === null || Boolean(db.prepare(
     "SELECT 1 FROM glab_project_member m JOIN glab_project p ON p.id=m.project_id WHERE m.user_id=? AND m.project_id=? AND p.status='active'"
   ).get(user, projectId));
+  router.get('/published', c => c.json({ quests:listPublicQuests(db) }));
   router.get('/mine', c => {
     const user = getIdentity(c).userId;
     const roles = resolveRoles(db,user);
@@ -32,7 +34,7 @@ export function createQuestRoutes(db: CorpusDb): Hono {
   });
   router.post('/', async c => {
     const parsed = input.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: 'invalid_quest' },400);
+    if (!parsed.success || (parsed.data.contactType==='discord' && !/^[0-9]{17,20}$/.test(parsed.data.contact))) return c.json({ error: 'invalid_quest' },400);
     const user = getIdentity(c).userId;
     if (!projectAllowed(user,parsed.data.projectId)) return c.json({ error: 'project_membership_required' },403);
     const id = randomUUID();
@@ -41,7 +43,7 @@ export function createQuestRoutes(db: CorpusDb): Hono {
   });
   router.put('/:id', async c => {
     const parsed = edit.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: 'invalid_quest' },400);
+    if (!parsed.success || (parsed.data.contactType==='discord' && !/^[0-9]{17,20}$/.test(parsed.data.contact))) return c.json({ error: 'invalid_quest' },400);
     const user = getIdentity(c).userId;
     if (!projectAllowed(user,parsed.data.projectId)) return c.json({ error: 'project_membership_required' },403);
     return editQuest(db,c.req.param('id'),user,parsed.data.revision,parsed.data,Date.now())

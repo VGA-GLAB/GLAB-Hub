@@ -10,8 +10,25 @@ export function questEditor(initial: QuestInput, projects: Array<{id:string;name
     label.style.width='100%';label.append(control);form.append(label);return control;
   };
   const title=field('募集タイトル',false,initial.title,120);title.required=true;
-  const description=field('依頼内容・期間・条件（報酬やクレジットを含む）',true,initial.description,5000);
-  const contact=field('公開する連絡先（Discord名・メール・URLなど）',false,initial.contact,500);
+  const description=field('内容（必須）',true,initial.description,5000);description.required=true;
+  const period=field('期間・締切（必須）',true,initial.period,1000);period.required=true;
+  period.placeholder='例：11月末まで／毎週土曜日、3か月間';
+  const conditions=field('条件（必須）',true,initial.conditions,2000);conditions.required=true;
+  conditions.placeholder='必要なスキル、報酬の有無、成果物の利用範囲など';
+  const contactType=el('select','gl-select');
+  for(const [value,label] of [['text','その他の連絡先'],['discord','Discord']] as const){const option=el('option',undefined,label);option.value=value;contactType.append(option);}
+  contactType.value=initial.contactType;
+  const contactTypeLabel=el('label','gl-col','連絡方法');contactTypeLabel.append(contactType);form.append(contactTypeLabel);
+  const contact=field('連絡先（DiscordはユーザーID）',false,initial.contact,500);
+  contact.required=true;
+  const contactHelp=el('p','gl-muted');form.append(contactHelp);
+  const updateContact=():void=>{
+    const discord=contactType.value==='discord';
+    contact.placeholder=discord?'DiscordユーザーID（数字）':'メール・URLなど';
+    if(contact instanceof HTMLInputElement){contact.pattern=discord?'[0-9]{17,20}':'';contact.inputMode=discord?'numeric':'text';}
+    contactHelp.textContent=discord?'ユーザー名ではなくユーザーIDを入力してください。プロフィールを開くQRを表示します。DMの可否は受信設定によります。':'';
+  };
+  contactType.addEventListener('change',updateContact);updateContact();
   const category=el('select','gl-select');
   for(const [value,label] of [['team','チーム募集'],['urgent','急募・ピンポイント'],['personal','個人制作']] as const) {
     const option=el('option',undefined,label);option.value=value;category.append(option);
@@ -28,7 +45,7 @@ export function questEditor(initial: QuestInput, projects: Array<{id:string;name
   const message=el('p','gl-notice');message.setAttribute('role','status');form.append(button,message);
   form.addEventListener('submit',event=>{
     event.preventDefault();button.disabled=true;
-    void save({title:title.value,description:description.value,contact:contact.value,category:category.value as QuestInput['category'],projectId:project.value || null})
+    void save({title:title.value,description:description.value,period:period.value,conditions:conditions.value,contactType:contactType.value as QuestInput['contactType'],contact:contact.value,category:category.value as QuestInput['category'],projectId:project.value || null})
       .catch(error=>{message.textContent=error instanceof Error ? error.message : '保存できませんでした。';})
       .finally(()=>{button.disabled=false;});
   });

@@ -7,8 +7,32 @@ import { createQuest, editQuest, changeOwnQuest, decideQuest, listPublicQuests, 
 import { createQuestRoutes } from '../plugins/quests/routes.ts';
 import { recordRegistration, decideAdmission } from '../plugins/access/store.ts';
 import { renderQuestBoard } from '../plugins/quests/public-page.ts';
+import { discordContactMarkup } from '../plugins/quests/discord-contact.ts';
 
-const input={title:'Motion',description:'Need a walk animation',contact:'Contact requester',category:'urgent' as const,projectId:null};
+const input={period:'November',conditions:'Paid, credit included',contactType:'text' as const,title:'Motion',description:'Need a walk animation',contact:'Contact requester',category:'urgent' as const,projectId:null};
+test('request requires separate details and Discord numeric ID at the API boundary',async()=>{
+  const db=openDb(':memory:');
+  try{
+    ensureSchema(db);ensureSchema(db);
+    const app=new Hono();
+    app.use('*',async(c,next)=>{c.set('auth',{userId:'owner',externalId:'owner',role:'admin',projectKey:null,isAdmin:true,displayName:null});await next();});
+    app.route('/',createQuestRoutes(db));
+    const post=(value:unknown)=>app.request('/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)});
+    for(const field of ['description','period','conditions']) assert.equal((await post({...input,[field]:'   '})).status,400);
+    assert.equal((await post({...input,contactType:'discord',contact:'username'})).status,400);
+    assert.equal((await post({...input,contactType:'discord',contact:'123456789012345678'})).status,201);
+    createQuest(db,'old','owner',{...input,period:''},1);
+    assert.equal(changeOwnQuest(db,'old','owner',0,'submit',2),false);
+  }finally{db.close();}
+});
+
+test('Discord QR links only to validated profile IDs and contains no remote QR source',()=>{
+  const markup=discordContactMarkup('123456789012345678');
+  assert.ok(markup.includes('https://discord.com/users/123456789012345678'));
+  assert.ok(markup.includes('<svg'));
+  assert.ok(!markup.includes('<img'));
+  assert.equal(discordContactMarkup('123" onload="evil'), '');
+});
 test('only approved revisions are public; edit and withdrawal hide contact immediately',()=>{
   const db=openDb(':memory:');
   try{
@@ -53,7 +77,7 @@ test('approval requires a current lead or instructor role, including for admins'
 });
 
 test('public poster escapes user content without scripts or private identity',()=>{
-  const html=renderQuestBoard([{id:'q',title:'<script>alert(1)</script>',description:'<img src=x onerror=alert(1)>',contact:'<a href="javascript:evil">contact</a>',category:'team',approved_role:'lead',approved_at:100}]);
+  const html=renderQuestBoard([{period:'November',conditions:'Paid',contact_type:'text',id:'q',title:'<script>alert(1)</script>',description:'<img src=x onerror=alert(1)>',contact:'<a href="javascript:evil">contact</a>',category:'team',approved_role:'lead',approved_at:100}]);
   assert.ok(html.includes('&lt;script&gt;'));
   assert.ok(!html.includes('<script>'));
   assert.ok(!html.includes('<img src=x'));

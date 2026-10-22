@@ -10,7 +10,7 @@ export function createPublicQuestRoutes(db: CorpusDb): Hono {
     c.header('Referrer-Policy','no-referrer');
     c.header('X-Content-Type-Options','nosniff');
     c.header('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'self'; form-action 'none'");
-    return c.html(renderQuestBoard(listPublicQuests(db)));
+    return c.html(renderQuestBoard(listPublicQuests(db), c.req.query('embed')==='1'));
   });
   return router;
 }

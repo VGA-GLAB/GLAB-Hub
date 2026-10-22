@@ -336,6 +336,11 @@ export interface ReviewRelayRow {
 /** スキーマ初期化 (冪等)。 plugins は ctx.db で、 bot は自前接続で 1 度呼ぶ。 */
 export function ensureSchema(db: SqlDb): void {
   db.exec(GLAB_SCHEMA);
+  ensureColumns(db, 'glab_quest', [
+    ['period', "TEXT NOT NULL DEFAULT ''"],
+    ['conditions', "TEXT NOT NULL DEFAULT ''"],
+    ['contact_type', "TEXT NOT NULL DEFAULT 'text'"],
+  ]);
   ensureJobOwnerSchema(db);
   ensureDailyEngagementSchema(db);
   ensureAttendanceSourceValues(db);
