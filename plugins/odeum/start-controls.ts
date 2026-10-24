@@ -1,8 +1,9 @@
+import { startScreenPresentation } from './presenter-ui.ts';
 import { el, fmtDateTime, type PanelContext } from '../panel-kit.ts';
 
 interface EventOption { id: number; title: string; createdBy: string; startsAt: number; }
 
-/** Optional event selection and native-app launch; no browser capture starts here. */
+/** Optional event selection with browser screen capture on the submitting PC. */
 export function streamStartControls(ctx: PanelContext, enabled: boolean): HTMLElement {
   const form = el('form', 'gl-section');
   const eventLabel = el('label', undefined, '関連イベント（任意）');
@@ -22,15 +23,14 @@ export function streamStartControls(ctx: PanelContext, enabled: boolean): HTMLEl
     titleLabel.hidden = eventSelect.value !== '';
     title.required = eventSelect.value === '';
   };
-  const start = el('button', 'gl-btn', 'このPCで配信を始める');
+  const start = el('button', 'gl-btn', '配信開始');
   start.type = 'submit';
   start.disabled = !enabled;
   const message = el('p', 'gl-muted');
   message.setAttribute('role', 'status');
-  const launch = el('div');
-  form.append(eventLabel, titleLabel, start, message, launch);
+  form.append(eventLabel, titleLabel, start, message);
   form.appendChild(el('p', 'gl-muted',
-    'このPCにOdeumアプリが必要です。ブラウザの確認を許可してください。開かない場合はアプリの導入・関連付けを確認してください。'));
+    'このPCの共有する画面を選んで配信します。共有する音声の有無は、画面選択時に確認してください。'));
   if (!enabled) message.textContent = '配信の中継設定がないため開始できません。';
   void loadEvents();
 
@@ -62,44 +62,8 @@ export function streamStartControls(ctx: PanelContext, enabled: boolean): HTMLEl
       message.textContent = '配信名を入力してください。';
       return;
     }
-    start.disabled = true;
-    eventSelect.disabled = true;
-    title.disabled = true;
-    launch.replaceChildren();
-    message.textContent = '配信を準備中…';
     const input = eventSelect.value ? { eventId: Number(eventSelect.value) } : { title: title.value.trim() };
-    void ctx.hubApi('/api/x/odeum/sessions', {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input),
-    }).then(async (response) => {
-      if (!response.ok) {
-        message.textContent = response.status === 409
-          ? 'このイベントは別の配信または合成番組で使用中です。イベント画面を確認してください。'
-          : response.status === 403 || response.status === 404
-            ? '選んだイベントで配信を開始できません。権限やイベントを確認してください。'
-            : '配信を準備できませんでした。設定や接続を確認してください。';
-        return;
-      }
-      const body = await response.json() as { presentUrl: string; expiresAt: number; resumed: boolean };
-      if (!form.isConnected) return;
-      const link = el('a', 'gl-btn', 'Odeumアプリを開く');
-      link.href = body.presentUrl;
-      link.onclick = (click) => {
-        if (Date.now() < body.expiresAt) return;
-        click.preventDefault();
-        message.textContent = 'リンクの期限が切れました。開始ボタンをもう一度押してください。';
-      };
-      launch.appendChild(link);
-      message.textContent = body.resumed
-        ? '準備済みの配信を開き直します。接続状態は「更新」で確認してください。'
-        : '配信を準備しました。アプリを開き、接続状態は「更新」で確認してください。';
-      window.location.href = body.presentUrl;
-    }).catch(() => {
-      message.textContent = '開始結果を取得できませんでした。同じ条件で押し直すと準備済みの配信を開き直します。';
-    }).finally(() => {
-      start.disabled = !enabled;
-      eventSelect.disabled = false;
-      title.disabled = false;
-    });
+    startScreenPresentation(ctx, input);
   };
   return form;
 }

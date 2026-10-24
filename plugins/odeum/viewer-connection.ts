@@ -1,7 +1,6 @@
 // 視聴者の中継接続: WebSocket シグナリング + 受信専用 (recvonly) WebRTC。
 //
-// welcome を受けたら recvonly の映像/音声 transceiver で offer を作って送る。
-// 中継が offer を送ってきた場合も answer で応じる。 メディア以外の受信は
+// welcome で ICE を設定し、中継が送る offer に answer で応じる。 メディア以外の受信は
 // コールバックで画面へ渡す。 チケットは URL にだけ載せ、 ログには出さない。
 
 import type { ClientMessage, ServerMessage, StampKind, SubmissionCategory } from './viewer-protocol.ts';
@@ -18,6 +17,9 @@ export class OdeumViewerConnection {
   private peer: RTCPeerConnection | null = null;
   private closed = false;
   private reactionsReady = false;
+  private incoming: Promise<void> = Promise.resolve();
+  private candidates: RTCIceCandidateInit[] = [];
+  private readonly stream = new MediaStream();
 
   constructor(wsUrl: string, ticket: string, private readonly handlers: ViewerConnectionHandlers) {
     const url = new URL(wsUrl);
@@ -25,7 +27,7 @@ export class OdeumViewerConnection {
     this.socket = new WebSocket(url.toString());
     this.socket.onmessage = (event) => {
       const message = parseServerMessage(event.data);
-      if (message) void this.receive(message);
+      if (message) this.incoming = this.incoming.then(() => this.receive(message)).catch(() => this.finish());
     };
     this.socket.onclose = () => this.finish();
     this.socket.onerror = () => this.finish();
@@ -60,6 +62,8 @@ export class OdeumViewerConnection {
     this.closed = true;
     this.peer?.close();
     this.peer = null;
+    this.candidates = [];
+    this.stream.getTracks().forEach((track) => track.stop());
     if (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING) {
       this.socket.close();
     }
@@ -72,28 +76,32 @@ export class OdeumViewerConnection {
   }
 
   private finish(): void {
-    this.reactionsReady = false;
     if (this.closed) return;
-    this.closed = true;
-    this.peer?.close();
-    this.peer = null;
+    this.close();
     this.handlers.onClose();
   }
 
   private async receive(message: ServerMessage): Promise<void> {
+    if (this.closed) return;
     if (message.type === 'presence') {
       this.reactionsReady = message.presenter_connected === true && message.reaction_version === 1;
     }
     try {
       if (message.type === 'welcome') {
-        await this.startPeer(message.ice_servers ?? []);
+        this.createPeer(message.ice_servers ?? []);
       } else if (message.type === 'sdp') {
         await this.applyDescription(message.sdp);
       } else if (message.type === 'candidate') {
-        await this.peer?.addIceCandidate({ candidate: message.candidate, sdpMid: message.mid ?? null });
+        const candidate = { candidate: message.candidate, sdpMid: message.mid ?? null };
+        if (this.peer?.remoteDescription) await this.peer.addIceCandidate(candidate);
+        else {
+          if (this.candidates.length >= 128) throw new Error('Too many ICE candidates');
+          this.candidates.push(candidate);
+        }
       }
     } catch {
-      // ネゴシエーション失敗は映像が出ないだけで、 リアクションは続けられる。
+      this.finish();
+      return;
     }
     this.handlers.onMessage(message);
   }
@@ -107,31 +115,30 @@ export class OdeumViewerConnection {
       }
     };
     peer.ontrack = (event) => {
-      const stream = event.streams[0] ?? new MediaStream([event.track]);
-      this.handlers.onStream(stream);
+      // Native relay tracks may have no msid. Keep audio and video in one stream.
+      for (const old of this.stream.getTracks().filter((track) => track.kind === event.track.kind)) {
+        this.stream.removeTrack(old);
+        old.stop();
+      }
+      this.stream.addTrack(event.track);
+      this.handlers.onStream(this.stream);
+    };
+    peer.onconnectionstatechange = () => {
+      if (peer.connectionState === 'failed') this.finish();
     };
     this.peer = peer;
     return peer;
   }
 
-  private async startPeer(iceServers: RTCIceServer[]): Promise<void> {
-    const peer = this.createPeer(iceServers);
-    peer.addTransceiver('video', { direction: 'recvonly' });
-    peer.addTransceiver('audio', { direction: 'recvonly' });
-    const offer = await peer.createOffer();
-    await peer.setLocalDescription(offer);
-    this.send({ type: 'sdp', sdp: { type: 'offer', sdp: offer.sdp ?? '' } });
-  }
-
   private async applyDescription(description: { type: 'offer' | 'answer'; sdp: string }): Promise<void> {
-    if (description.type === 'answer') {
-      await this.peer?.setRemoteDescription(description);
-      return;
-    }
+    if (description.type !== 'offer' || !this.peer) throw new Error('Expected relay offer after welcome');
     // 中継側からの offer (再ネゴシエーション含む)。 受信専用で answer を返す。
-    const peer = this.peer ?? this.createPeer([]);
+    const peer = this.peer;
     await peer.setRemoteDescription(description);
+    if (this.closed) return;
+    for (const candidate of this.candidates.splice(0)) await peer.addIceCandidate(candidate);
     const answer = await peer.createAnswer();
+    if (this.closed) return;
     await peer.setLocalDescription(answer);
     this.send({ type: 'sdp', sdp: { type: 'answer', sdp: answer.sdp ?? '' } });
   }

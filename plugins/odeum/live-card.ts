@@ -87,6 +87,7 @@ export async function endSession(ctx: PanelContext, sessionId: string): Promise<
     const response = await ctx.hubApi(`/api/x/odeum/sessions/${encodeURIComponent(sessionId)}/end`, {
       method: 'POST',
     });
+    if (response.ok) window.dispatchEvent(new CustomEvent('odeum-session-ended', { detail: sessionId }));
     return response.ok;
   } catch {
     return false;

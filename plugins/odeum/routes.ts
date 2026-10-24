@@ -143,6 +143,8 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
       session: started.session,
       resumed: started.kind === 'resumed',
       presentUrl: presentUrl(config.relay.wsBase, ticket.token),
+      wsUrl: new URL('v1/ws', config.relay.wsBase).toString(),
+      ticket: ticket.token,
       expiresAt: ticket.claims.exp * 1000,
     }, started.kind === 'created' ? 201 : 200);
   });

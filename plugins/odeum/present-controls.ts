@@ -1,11 +1,12 @@
 // イベント行の「配信を始める」 / 「配信を終了」 (frontend)。
 // 開始できるのはイベント作成者か管理者だけ (サーバ側でも同じ判定をする)。
-// 開始すると odeum:// リンクを出し、 配信者アプリ (odeum-presenter) を起動させる。
+// 配信開始でブラウザの画面選択を開き、Odeumへ送信する。
 
 import { el, type PanelContext } from '../panel-kit.ts';
 import { invitationToggle } from './invitation-view.ts';
 import { endSession, loadLiveSummary, type LiveCardView } from './live-card.ts';
 import { programControls } from './program-controls.ts';
+import { startScreenPresentation } from './presenter-ui.ts';
 
 export interface PresentableEvent {
   id: number;
@@ -53,40 +54,9 @@ export function presentControls(
     };
     box.appendChild(prepare);
   }
-  const start = el('button', 'gl-btn', session ? '配信者アプリを開き直す' : '配信を始める');
+  const start = el('button', 'gl-btn', '配信開始');
   start.type = 'button';
-  start.onclick = () => {
-    start.disabled = true;
-    message.textContent = '配信を準備中…';
-    void ctx.hubApi('/api/x/odeum/sessions', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ eventId: event.id }),
-    }).then(async (response) => {
-      if (!response.ok) {
-        message.textContent = response.status === 409
-          ? '別の人がこのイベントで配信中です。'
-          : response.status === 403
-            ? 'このイベントの配信を始める権限がありません。'
-            : `配信を始められませんでした (${response.status})。`;
-        return;
-      }
-      const body = await response.json() as { presentUrl: string; session: { id: string } };
-      message.textContent = '';
-      const link = el('a', 'gl-btn', '配信者アプリを起動');
-      link.href = body.presentUrl;
-      box.replaceChild(link, start);
-      box.appendChild(el('span', 'gl-muted', 'リンクは 5 分間有効です。'));
-      if (!session) box.appendChild(invitationToggle(ctx, body.session.id));
-      if (!session) box.appendChild(programControls(ctx, body.session.id, owner));
-      // 配信者アプリ (odeum://) を起動する。 ブラウザが確認を出す場合はリンクを押してもらう。
-      window.location.href = body.presentUrl;
-    }).catch(() => {
-      message.textContent = '配信を始められませんでした。';
-    }).finally(() => {
-      start.disabled = false;
-    });
-  };
+  start.onclick = () => startScreenPresentation(ctx, { eventId: event.id });
   box.appendChild(start);
 
   if (session) {

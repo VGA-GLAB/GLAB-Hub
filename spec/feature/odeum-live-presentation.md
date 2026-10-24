@@ -8,6 +8,9 @@ design: spec/plan/2026-10-04-odeum-live-presentation-design.md
 
 # Odeum ライブ発表 (`odeum` プラグイン)
 
+2026-10-24: イベントの「配信開始」からブラウザで画面を選び、WebRTC + TURN で送信する変更は
+[`odeum-browser-screen.md`](odeum-browser-screen.md) を参照。以下のネイティブ起動リンクは互換用に保持する。
+
 スマホのツッコミ・質問／感想の投稿者選択表示は
 [`odeum-sender-reactions.md`](odeum-sender-reactions.md) を参照。
 
