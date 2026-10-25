@@ -12,6 +12,7 @@ import {
   type PanelContext,
 } from '../panel-kit.ts';
 import { parseReviewList } from '../volputas/contracts.ts';
+import { showcaseSection } from './showcase-panel.ts';
 import { PROJECT_REVIEW_COMMENT_MAX, digestComment } from '../volputas/review-digest.ts';
 
 type ProjectStatus = 'active' | 'paused' | 'closed';
@@ -72,6 +73,7 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
     refresh.onclick = () => void render();
     head.appendChild(refresh);
     container.appendChild(head);
+    container.appendChild(showcaseSection(ctx));
 
     if (ctx.identity.isAdmin) {
       container.appendChild(createProjectSection(ctx, render));

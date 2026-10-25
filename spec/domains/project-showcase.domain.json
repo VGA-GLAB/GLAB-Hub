@@ -21,6 +21,7 @@
     "service-auth"
   ],
   "specRefs": [
+    "spec/feature/work-showcase.md",
     "spec/interface/projects-registry.md"
   ],
   "rationale": "GLAB DESIGN.md 2〜7 章と plugins/pack.json のモジュール構成から、責務境界ごとに手で定義した。"

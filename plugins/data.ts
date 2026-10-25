@@ -47,6 +47,22 @@ export function approveEventAttendance(db: SqlDb, eventId: number, startsAt: num
 }
 
 export const GLAB_SCHEMA = `
+CREATE TABLE IF NOT EXISTS glab_work_binary (
+  project_id TEXT PRIMARY KEY REFERENCES glab_project(id),
+  name TEXT NOT NULL,
+  content BLOB NOT NULL
+);
+CREATE TABLE IF NOT EXISTS glab_work_showcase (
+  project_id TEXT PRIMARY KEY REFERENCES glab_project(id),
+  introduction TEXT NOT NULL DEFAULT '',
+  graduation_year INTEGER,
+  published INTEGER NOT NULL DEFAULT 0 CHECK (published IN (0, 1))
+);
+CREATE TABLE IF NOT EXISTS glab_work_profile (
+  project_id TEXT NOT NULL REFERENCES glab_project(id),
+  user_id TEXT NOT NULL,
+  PRIMARY KEY (project_id, user_id)
+);
 CREATE TABLE IF NOT EXISTS glab_quest (
   id TEXT PRIMARY KEY,
   owner_id TEXT NOT NULL,

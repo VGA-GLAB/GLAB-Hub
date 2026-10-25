@@ -43,6 +43,7 @@ import {
   type ProjectWithMembers,
 } from '../data.ts';
 import { GitHubClient, parseRepoUrl } from './github-client.ts';
+import { registerShowcaseRoutes } from './showcase-routes.ts';
 import { requireExternalServiceAuth } from './service-auth.ts';
 import { serviceToken } from '../shared.ts';
 import {
@@ -260,6 +261,7 @@ const projectsModule: CorpusModule = {
     ensureSchema(ctx.db);
     const routes = new Hono();
     makePanelRoutes(routes, ctx, new GitHubClient(ctx.env('GLAB_GITHUB_TOKEN')));
+    registerShowcaseRoutes(routes, ctx);
     makeExternalRoutes(routes, ctx);
     ctx.registerRoute(routes);
     ctx.registerPanel({ title: 'プロジェクト', icon: '🎮' });
