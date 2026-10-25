@@ -55,7 +55,7 @@ global と設定済み guild へ同期する。同期前の残存 command は停
 
 - Corpus 本体（`corpus/`）の改変
 - 施設マスタの編集（Aedilis の領分）
-- 名前・役職・学科の自前保管（Cernere `vantan_user` が単一情報源）
+- 名前・役職・学科の自前保管（Cernere `glab` の profile 列が単一情報源）
 - token / API キーの平文保存（暗号化 config を使う）
 
 ## テスト方針

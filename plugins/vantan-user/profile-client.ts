@@ -2,14 +2,14 @@ import type { CernereProjectApi as CernereProjectClient } from '../cernere/share
 import type { VantanUserInput, VantanUserProfile } from './profile-schema.ts';
 import { translateVantanProfile } from './profile-schema.ts';
 
-const VANTAN_PROJECT_KEY = 'vantan_user';
-const VANTAN_COLUMNS = ['name', 'role_title', 'department_name'] as const;
+const PROFILE_PROJECT_KEY = 'glab';
+const PROFILE_COLUMNS = ['name', 'role_title', 'department_name'] as const;
 
 export async function getVantanUserProfile(
   client: CernereProjectClient,
   userId: string,
 ): Promise<VantanUserProfile> {
-  const raw = await client.getUserData(userId, VANTAN_PROJECT_KEY, [...VANTAN_COLUMNS]);
+  const raw = await client.getUserData(userId, PROFILE_PROJECT_KEY, [...PROFILE_COLUMNS]);
   return translateVantanProfile(raw);
 }
 
@@ -18,7 +18,7 @@ export async function setVantanUserProfile(
   userId: string,
   profile: VantanUserInput,
 ): Promise<void> {
-  await client.setUserData(userId, VANTAN_PROJECT_KEY, {
+  await client.setUserData(userId, PROFILE_PROJECT_KEY, {
     name: profile.name,
     role_title: profile.roleTitle,
     department_name: profile.departmentName,

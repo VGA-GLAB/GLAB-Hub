@@ -22,7 +22,7 @@ import { getEventStore } from '../../plugins/events/store.ts';
 import { formatEventCard, formatJobCard, formatReviewCard } from '../format.ts';
 import { postToChannel } from '../channels.ts';
 import { createConsultThread, ensureConsultForum, resolveConsultThread } from '../forum.ts';
-import { glabConfigured, glabExternal } from '../glab-api.ts';
+import { consultsPendingPost, consultsPendingResolveNotice, markConsultPosted, markConsultResolvedPosted } from '../../plugins/consult/store.ts';
 import { postDailyEngagementIfDue } from './daily-engagement.ts';
 import { notifyAdmissions } from './admissions.ts';
 
@@ -71,8 +71,8 @@ export function startScheduler(client: Client, db: SqlDb, cfg: BotConfig): () =>
         if (messageId) markProjectReleaseNotified(db, release.project_id, release.release_id);
       }
       await relayQueuedReviews(client, db, cfg);
-      await postPendingConsults(client, cfg);
-      await resolvePostedConsults(client, cfg);
+      await postPendingConsults(client, db, cfg);
+      await resolvePostedConsults(client, db, cfg);
       await postForumThreads(client, db, cfg);
     } catch (e) {
       console.error('[glab-bot] scheduler tick error:', e);
@@ -102,32 +102,32 @@ export function startScheduler(client: Client, db: SqlDb, cfg: BotConfig): () =>
   return () => clearInterval(timer);
 }
 
-interface PendingConsult {
-  id: string;
-  title: string;
-  body: string;
-  invited: Array<{ discordId: string | null }>;
+function invitedDiscordIds(value: string | null): string[] {
+  if (!value) return [];
+  const parsed: unknown = JSON.parse(value);
+  if (!Array.isArray(parsed)) throw new Error('Invalid consult invitation list');
+  return parsed.flatMap((member: unknown) => {
+    if (!member || typeof member !== 'object' || !('discordId' in member)) return [];
+    return typeof member.discordId === 'string' ? [member.discordId] : [];
+  });
 }
 
 /**
  * 未投稿の相談を相談フォーラムへ立てる。 1 件の失敗で他の相談 (と後続の通知) を
  * 巻き添えにしないよう、 相談ごとに握りつぶして次 tick の再試行に委ねる。
  */
-async function postPendingConsults(client: Client, cfg: BotConfig): Promise<void> {
-  if (!glabConfigured(cfg)) return;
-  const pending = await glabExternal<{ consults: PendingConsult[] }>(cfg, '/external/consults/pending');
+async function postPendingConsults(client: Client, db: SqlDb, cfg: BotConfig): Promise<void> {
+  const pending = consultsPendingPost(db);
   // 相談が無い間は、 フォーラム解決 (未設定なら新規作成) まで踏み込まない。
-  if (!pending.ok || pending.data.consults.length === 0) return;
+  if (pending.length === 0) return;
   const forum = await ensureConsultForum(client, cfg);
   if (!forum) return;
-  for (const consult of pending.data.consults) {
+  for (const consult of pending) {
     try {
-      const mentions = consult.invited.flatMap((member) => member.discordId ? [member.discordId] : []);
+      const mentions = invitedDiscordIds(consult.invited_json);
       const posted = await createConsultThread(forum, { title: consult.title, body: consult.body, mentions });
-      const acked = await glabExternal(cfg, `/external/consults/${encodeURIComponent(consult.id)}/posted`, {
-        method: 'POST', body: { threadId: posted.threadId, messageId: posted.messageId },
-      });
-      if (!acked.ok) {
+      const acked = markConsultPosted(db, consult.id, posted.threadId, Date.now());
+      if (!acked) {
         console.error(
           `[glab-bot] 相談 ${consult.id} のスレッド ${posted.threadId} は作成できたが posted 記録に失敗 — 次 tick で重複投稿の恐れ`,
         );
@@ -157,23 +157,17 @@ async function postForumThreads(client: Client, db: SqlDb, cfg: BotConfig): Prom
  * hub 側は ack (resolved-posted) を受けた相談を以後返さないので、 同じスレッドを
  * 毎 tick 触り続けることはない。 スレッドが消えている場合も ack して打ち切る。
  */
-async function resolvePostedConsults(client: Client, cfg: BotConfig): Promise<void> {
-  if (!glabConfigured(cfg)) return;
-  const resolved = await glabExternal<{ consults: Array<{ id: string; threadId: string | null }> }>(
-    cfg,
-    '/external/consults/resolved',
-  );
-  if (!resolved.ok || resolved.data.consults.length === 0) return;
+async function resolvePostedConsults(client: Client, db: SqlDb, cfg: BotConfig): Promise<void> {
+  const resolved = consultsPendingResolveNotice(db);
+  if (resolved.length === 0) return;
   const forum = await ensureConsultForum(client, cfg);
   if (!forum) return;
-  for (const consult of resolved.data.consults) {
-    if (!consult.threadId) continue;
+  for (const consult of resolved) {
+    if (!consult.thread_id) continue;
     try {
-      const thread = await forum.threads.fetch(consult.threadId).catch(() => null);
+      const thread = await forum.threads.fetch(consult.thread_id).catch(() => null);
       if (thread) await resolveConsultThread(thread, forum);
-      await glabExternal(cfg, `/external/consults/${encodeURIComponent(consult.id)}/resolved-posted`, {
-        method: 'POST', body: {},
-      });
+      markConsultResolvedPosted(db, consult.id, Date.now());
     } catch (e) {
       console.error(`[glab-bot] 相談 ${consult.id} のスレッド解決処理に失敗:`, e);
     }

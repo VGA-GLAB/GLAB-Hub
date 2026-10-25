@@ -121,10 +121,7 @@ services:
       interval_sec: 30
 
   # GLAB の Discord 通知 bot (bot/)。通知専用で、利用者操作の command は持たない (CLAUDE.md「Discord 入力境界」)。
-  # 相談通知の巡回で hub の external API (/api/x/consult/external/*) を呼ぶため、Cernere service token
-  # (scope glab-external:write) を自分の client credentials で取得する。hub (glab) と credential を
-  # 共有すると起動ごとの再発行で片方が失効するので、bot 専用の Cernere project glab-bot を使う
-  # (Cernere migration 059、認証集約 P4。neco 判断 2026-10-05)。
+  # 相談通知も他の通知と同じ共有DB経由。Bot専用のCr登録・起動credentialは不要。
   # Discord token などの secret は従来どおり bot の暗号化 config (@ludiars/encrypted-config) に置く。
   - code: glab-bot
     name: GLAB Discord 通知 bot
@@ -139,7 +136,7 @@ services:
     command: node --env-file-if-exists=.env dist/index.js
     build_command: npm run build
     allow_hot_reload: false
-    depends_on: [glab, cernere]
+    depends_on: [glab]
     autostart: false
     env:
       # hub の external API の到達先 (hub catalog の CORPUS_PUBLIC_URL と同じ)。
@@ -149,6 +146,3 @@ services:
       GLAB_PUBLIC_URL: https://glab.ai-run-do.com
       # hub と共有する GLAB 所有 DB (hub catalog の GLAB_DATABASE_URL と同じ開発用 localhost 値)。
       GLAB_DATABASE_URL: postgresql://glab_user:glab@localhost:5432/glab
-    required_env: [CERNERE_BASE_URL, GLAB_BASE_URL]
-    cernere_launch_credentials:
-      target_project: glab-bot

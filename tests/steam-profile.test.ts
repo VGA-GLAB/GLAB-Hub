@@ -56,7 +56,7 @@ test('Cr reads and writes only the three Volputas columns, including revocation 
 test('old registration payloads leave Steam settings untouched', async () => {
   const { client, writes } = fakeClient();
   await saveRegistration(client, 'owner', registrationInputSchema.parse(requiredProfile));
-  assert.deepEqual(writes, [['owner', 'vantan_user', {
+  assert.deepEqual(writes, [['owner', 'glab', {
     name: 'Player', role_title: 'Student', department_name: 'Games',
   }]]);
 });
@@ -65,7 +65,7 @@ test('optional Steam saves before the registration gate, and a failure cannot co
   const { client, writes } = fakeClient();
   const input = registrationInputSchema.parse({ ...requiredProfile, steamProfile: privateProfile });
   await saveRegistration(client, 'owner', input);
-  assert.deepEqual(writes.map((row) => row[1]), ['volputas', 'vantan_user']);
+  assert.deepEqual(writes.map((row) => row[1]), ['volputas', 'glab']);
   writes.length = 0;
   client.setUserData = async (_userId, project) => {
     writes.push([project]);

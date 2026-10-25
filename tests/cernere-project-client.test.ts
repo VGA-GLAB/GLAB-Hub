@@ -72,7 +72,7 @@ describe('CernereProjectClient', () => {
     client = null;
   });
 
-  it('reads the shared vantan_user profile through project_credentials WS', async () => {
+  it('reads the GLab profile through project_credentials WS', async () => {
     const sockets: FakeWebSocket[] = [];
     client = new CernereProjectClient({
       cernereBaseUrl: 'https://cernere.example.com/',
@@ -97,7 +97,7 @@ describe('CernereProjectClient', () => {
     const request = JSON.parse(socket.sent[0]!) as Record<string, unknown>;
     assert.deepEqual(request.payload, {
       userId: 'user-1',
-      targetProjectKey: 'vantan_user',
+      targetProjectKey: 'glab',
       columns: ['name', 'role_title', 'department_name'],
     });
     socket.respond({ name: 'Neco', role_title: '顧問', department_name: 'ゲーム学科' });
@@ -109,7 +109,7 @@ describe('CernereProjectClient', () => {
     });
   });
 
-  it('writes only the three registration fields to vantan_user', async () => {
+  it('writes only the three registration fields to glab', async () => {
     const sockets: FakeWebSocket[] = [];
     client = new CernereProjectClient({
       cernereBaseUrl: 'http://127.0.0.1:8080',
@@ -136,7 +136,7 @@ describe('CernereProjectClient', () => {
     assert.equal(request.action, 'set_user_data');
     assert.deepEqual(request.payload, {
       userId: 'user-2',
-      targetProjectKey: 'vantan_user',
+      targetProjectKey: 'glab',
       data: {
         name: '山田 花子',
         role_title: '学生',
