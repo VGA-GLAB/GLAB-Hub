@@ -2,10 +2,10 @@
 //
 // Cocoiru の常駐プラグインは GLAB URL から `<GLAB>/api/x/cocoiru` と groupId "glab" を導出して
 // ここへ話す。 API 契約は spec/feature/cocoiru-backend.md が正本で、 Cocoiru 側が既に話している
-// 形なので変えない。 Web 画面 (panel) は持たない。 個人情報は保存しない。
+// 形なので変えない。Web は在席一覧を読むだけ。個人情報は保存しない。
 
 import { randomBytes, randomUUID } from 'node:crypto';
-import { Hono, getIdentity } from '../../corpus/server/hub/sdk.ts';
+import { Hono, getIdentity, getDisplayName } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusContext, CorpusModule } from '../../corpus/server/hub/sdk.ts';
 import { z } from 'zod';
 import { ensureSchema } from '../data.ts';
@@ -71,10 +71,15 @@ function inboxView(row: CocoiruCallRow): Record<string, unknown> {
 }
 
 const cocoiruModule: CorpusModule = {
-  id: 'cocoiru', title: 'Cocoiru', icon: '🏠',
+  id: 'cocoiru', title: 'アクティブなメンバー', icon: '🏠',
   setup(ctx: CorpusContext) {
     ensureSchema(ctx.db);
     const r = new Hono();
+    r.get('/active-members', c => {
+      noStore(c);
+      return c.json({ members: listAvailableUserIds(ctx.db, Date.now(), AVAILABLE_LIMIT)
+        .map(userId => ({ userId, name: getDisplayName(ctx.db, userId) })) });
+    });
     r.use('/resident/:groupId/*', async (c, next) => {
       if (c.req.param('groupId') !== GROUP_ID) return c.json({ error: 'unknown_group' }, 404);
       noStore(c);
@@ -151,6 +156,7 @@ const cocoiruModule: CorpusModule = {
     });
 
     ctx.registerRoute(r);
+    ctx.registerPanel({ title: 'アクティブなメンバー', icon: '🏠' });
   },
 };
 

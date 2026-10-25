@@ -19,6 +19,7 @@ import { themeControl } from './theme.ts';
 import { setupNavigation } from './navigation.ts';
 import { mountHeaderStatus } from './header-status.ts';
 import { permissionSettingsLink } from './permissions.ts';
+import { mountTeamNavigation } from './team-navigation.ts';
 
 /** ログイン直後に開くタブ (dashboard プラグインのモジュール id)。 */
 const LANDING_TAB_ID = 'dashboard';
@@ -44,7 +45,7 @@ function buildTabs(
   return [
     ...ordered.map((m) => ({
       id: m.id,
-      label: m.title,
+      label: ({ di: 'AI議論', cocoiru: 'アクティブなメンバー' } as Record<string, string>)[m.id] ?? m.title,
       render: () => void renderModulePanel(main, m, identity),
     })),
     { id: '__overview', label: 'サービス状況', render: () => void renderOverview(main) },
@@ -110,14 +111,16 @@ export function renderShell(
   layout.appendChild(nav);
   layout.appendChild(main);
   app.appendChild(layout);
-  nav.appendChild(el('div', 'nav-caption', 'WORKSPACE'));
   const navigation = setupNavigation(layout, nav, main, toggle);
+  const disposeTeams = mountTeamNavigation(nav, main, () => { navigation.close(); clearTrackedPanel(); });
+  nav.appendChild(el('div', 'nav-caption', 'WORKSPACE'));
   const disposeStatus = mountHeaderStatus(status);
 
   const tabs = buildTabs(main, identity, modules, services);
   const buttons = new Map<string, HTMLButtonElement>();
   /** @implements SPEC-GLAB-SHELL-003 */
   function activate(id: string): void {
+    nav.querySelectorAll('button.tab').forEach(button => { button.classList.remove('active'); button.removeAttribute('aria-current'); });
     for (const [tid, btn] of buttons) {
       btn.classList.toggle('active', tid === id);
       if (tid === id) btn.setAttribute('aria-current', 'page');
@@ -128,12 +131,18 @@ export function renderShell(
     clearTrackedPanel();
     tabs.find((t) => t.id === id)?.render();
   }
+  const schedule = el('details', 'nav-group') as HTMLDetailsElement;
+  schedule.append(el('summary', undefined, 'イベント・施設・会議'));
+  let scheduleAdded = false;
   for (const tab of tabs) {
     const btn = el('button', 'tab', tab.label);
     /** @implements SPEC-GLAB-SHELL-003 */
     btn.onclick = () => activate(tab.id);
     buttons.set(tab.id, btn);
-    nav.appendChild(btn);
+    if (tab.id === 'events' || tab.id === 'facility') {
+      if (!scheduleAdded) { nav.append(schedule); scheduleAdded = true; }
+      schedule.append(btn);
+    } else nav.appendChild(btn);
   }
   // ダッシュボードが読み込まれていればそこから始める。 プラグインが無効な
   // 構成でも画面が空にならないよう、 従来のステータスへ落とす。
@@ -141,6 +150,7 @@ export function renderShell(
   initHmr();
   const disposeResumeRecovery = installHubResumeRecovery(app, isHmrConnectionStale);
   return () => {
+    disposeTeams();
     disposeResumeRecovery();
     document.removeEventListener('glab:public-name', onPublicName);
     navigation.dispose(); disposeStatus();

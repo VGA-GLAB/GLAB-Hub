@@ -50,7 +50,8 @@ export function setupNavigation(
       close();
     }
     if (event.key !== 'Tab') return;
-    const items = [...nav.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
+    const items = [...nav.querySelectorAll<HTMLElement>('button:not(:disabled), summary')]
+      .filter(item => item.getClientRects().length > 0);
     const first = items[0];
     const last = items[items.length - 1];
     if (event.shiftKey && document.activeElement === first) {

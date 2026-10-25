@@ -43,6 +43,7 @@ import {
   type ProjectWithMembers,
 } from '../data.ts';
 import { GitHubClient, parseRepoUrl } from './github-client.ts';
+import { registerTeamRoutes } from './team-routes.ts';
 import { registerShowcaseRoutes } from './showcase-routes.ts';
 import { requireExternalServiceAuth } from './service-auth.ts';
 import { serviceToken } from '../shared.ts';
@@ -110,6 +111,7 @@ function mergePatch(
 }
 
 function makePanelRoutes(r: Hono, ctx: CorpusContext, github: GitHubClient): void {
+  registerTeamRoutes(r, ctx);
   const db = ctx.db;
   const analysisRoot = ctx.env('GLAB_OMNIPOTENS_REVIEW_ROOT');
 
