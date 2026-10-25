@@ -9,6 +9,7 @@ import type {
 import { proxy } from '../shared.ts';
 import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
 import { createCernereProjectClient } from '../cernere/create-client.ts';
+import { makeCallRoutes } from './call-routes.ts';
 import {
   getStudentCareer,
   setCareerCompanies,
@@ -40,6 +41,7 @@ const tirociniumModule: CorpusModule = {
     const cernere = createCernereProjectClient(ctx);
 
     const routes = new Hono();
+    routes.route('/calls', makeCallRoutes(ctx, tirocinium));
     routes.get('/companies', (c) => proxy(
       c,
       tirocinium,

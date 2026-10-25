@@ -21,6 +21,7 @@ import { cernereClientOwner } from './plugins/cernere/shared-owner.ts';
 import { createShutdown } from './plugins/cernere/shutdown.ts';
 import { memberAccessPolicy } from './plugins/access/policy.ts';
 import { createPublicQuestRoutes } from './plugins/quests/public-routes.ts';
+import { closeTirociniumCalls } from './plugins/tirocinium/call-routes.ts';
 import {
   closeFacilityStore,
   initializeFacilityStore,
@@ -98,6 +99,7 @@ const shutdown = createShutdown(() => cernereClientOwner.closeAll(), [
 const onSignal = (): void => {
   if (stopping) return;
   stopping = true;
+  closeTirociniumCalls();
   void shutdown().then(() => process.exit(0), () => process.exit(1));
 };
 process.on('SIGINT', onSignal);

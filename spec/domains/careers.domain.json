@@ -27,6 +27,7 @@
     "company-search"
   ],
   "specRefs": [
+    "spec/feature/tirocinium-call.md",
     "spec/feature/jobs.md",
     "spec/data/glab-job.md",
     "spec/feature/discord-job.md"

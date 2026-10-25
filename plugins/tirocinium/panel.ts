@@ -5,6 +5,7 @@ import {
   section,
   type PanelContext,
 } from '../panel-kit.ts';
+import { mountCall } from './call-ui.ts';
 
 interface Company {
   id: string;
@@ -69,6 +70,7 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
 
   container.innerHTML = '';
   container.appendChild(el('h2', undefined, '🏢 企業'));
+  mountCall(container, ctx);
   container.appendChild(el(
     'p',
     'gl-muted',
