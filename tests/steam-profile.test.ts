@@ -6,7 +6,7 @@ import { registrationInputSchema, saveRegistration } from '../plugins/vantan-use
 import type { CernereProjectApi } from '../plugins/cernere/shared-owner.ts';
 
 const privateProfile = { steamId: null, playedGamesPublic: false, steamIdPublic: false };
-const requiredProfile = { name: 'Player', roleTitle: 'Student', departmentName: 'Games' };
+const requiredProfile = { name: 'Player', roleTitle: 'Student', departmentName: 'Games', memberType: 'student', grade: 2 };
 const id = '76561198000000001';
 function fakeClient(): { client: CernereProjectApi; writes: unknown[][] } {
   const writes: unknown[][] = [];
@@ -53,11 +53,11 @@ test('Cr reads and writes only the three Volputas columns, including revocation 
   }]]);
 });
 
-test('old registration payloads leave Steam settings untouched', async () => {
+test('registration without Steam fields leaves Steam settings untouched', async () => {
   const { client, writes } = fakeClient();
   await saveRegistration(client, 'owner', registrationInputSchema.parse(requiredProfile));
   assert.deepEqual(writes, [['owner', 'glab', {
-    name: 'Player', role_title: 'Student', department_name: 'Games',
+    name: 'Player', role_title: 'Student', department_name: 'Games', member_type: 'student', nickname: '', grade: 2, company: null,
   }]]);
 });
 

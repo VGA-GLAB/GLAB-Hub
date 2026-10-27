@@ -5,7 +5,7 @@ import { steamProfileInputSchema } from './steam-profile-schema.ts';
 import { setSteamProfile } from './steam-profile-client.ts';
 import type { z } from 'zod';
 
-export const registrationInputSchema = vantanUserInputSchema.extend({
+export const registrationInputSchema = vantanUserInputSchema.safeExtend({
   steamProfile: steamProfileInputSchema.optional(),
 });
 

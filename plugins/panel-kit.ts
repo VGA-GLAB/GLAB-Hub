@@ -140,7 +140,7 @@ function renderProfileViaCernere(container: HTMLElement): void {
   gate.appendChild(el(
     'p',
     'gl-muted',
-    'GLAB を使うには、名前・役職・学科の登録が必要です。登録は Cernere のログイン画面で行います。'
+    'GLAB を使うには、在校生／OBを選び、名前・役職を登録してください。在校生は学科・学年も必要です。ニックネームとOBの会社は任意です。登録は Cernere のログイン画面で行います。'
       + 'ログインし直すと入力画面が表示されます。',
   ));
   const message = el('p', 'gl-muted');

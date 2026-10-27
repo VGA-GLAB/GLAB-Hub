@@ -3,7 +3,7 @@ import type { VantanUserInput, VantanUserProfile } from './profile-schema.ts';
 import { translateVantanProfile } from './profile-schema.ts';
 
 const PROFILE_PROJECT_KEY = 'glab';
-const PROFILE_COLUMNS = ['name', 'role_title', 'department_name'] as const;
+const PROFILE_COLUMNS = ['name', 'role_title', 'department_name', 'member_type', 'nickname', 'grade', 'company'] as const;
 
 export async function getVantanUserProfile(
   client: CernereProjectClient,
@@ -21,6 +21,10 @@ export async function setVantanUserProfile(
   await client.setUserData(userId, PROFILE_PROJECT_KEY, {
     name: profile.name,
     role_title: profile.roleTitle,
-    department_name: profile.departmentName,
+    department_name: profile.memberType === 'student' ? profile.departmentName : null,
+    member_type: profile.memberType,
+    nickname: profile.nickname,
+    grade: profile.memberType === 'student' ? profile.grade : null,
+    company: profile.memberType === 'alumni' ? profile.company : null,
   });
 }

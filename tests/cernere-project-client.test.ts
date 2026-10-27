@@ -98,18 +98,18 @@ describe('CernereProjectClient', () => {
     assert.deepEqual(request.payload, {
       userId: 'user-1',
       targetProjectKey: 'glab',
-      columns: ['name', 'role_title', 'department_name'],
+      columns: ['name', 'role_title', 'department_name', 'member_type', 'nickname', 'grade', 'company'],
     });
     socket.respond({ name: 'Neco', role_title: '顧問', department_name: 'ゲーム学科' });
 
     assert.deepEqual(await resultPromise, {
       name: 'Neco',
       roleTitle: '顧問',
-      departmentName: 'ゲーム学科',
+      departmentName: 'ゲーム学科', memberType: null, nickname: '', grade: null, company: '',
     });
   });
 
-  it('writes only the three registration fields to glab', async () => {
+  it('writes the membership-specific registration fields to glab', async () => {
     const sockets: FakeWebSocket[] = [];
     client = new CernereProjectClient({
       cernereBaseUrl: 'http://127.0.0.1:8080',
@@ -126,7 +126,7 @@ describe('CernereProjectClient', () => {
     const writePromise = setVantanUserProfile(client, 'user-2', {
       name: '山田 花子',
       roleTitle: '学生',
-      departmentName: 'CG学科',
+      departmentName: 'CG学科', memberType: 'student', nickname: '', grade: 2, company: '',
     });
     await waitFor(() => sockets.length === 1);
     const socket = sockets[0]!;
@@ -140,7 +140,7 @@ describe('CernereProjectClient', () => {
       data: {
         name: '山田 花子',
         role_title: '学生',
-        department_name: 'CG学科',
+        department_name: 'CG学科', member_type: 'student', nickname: '', grade: 2, company: null,
       },
     });
     socket.respond({ ok: true, updated: ['name', 'role_title', 'department_name'] });
@@ -162,7 +162,7 @@ describe('vantan_user profile validation', () => {
     assert.deepEqual(translateVantanProfile({ name: null }), {
       name: '',
       roleTitle: '',
-      departmentName: '',
+      departmentName: '', memberType: null, nickname: '', grade: null, company: '',
     });
   });
 
