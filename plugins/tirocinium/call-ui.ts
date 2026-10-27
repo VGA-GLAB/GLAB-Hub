@@ -1,5 +1,18 @@
 import { el, section, type PanelContext } from '../panel-kit.ts';
 import { CallAudio } from './call-audio.ts';
+import { MAX_MATERIAL_BYTES, materialMime, type CallMaterial } from './call-material.ts';
+
+/** The picked file as the call-start material, or null when none was picked. */
+async function readMaterial(file: File | undefined, kind: string): Promise<CallMaterial | null> {
+  if (!file) return null;
+  const mime = materialMime(file);
+  if (!mime) throw new Error('資料はPDF・テキスト・画像のファイルで提出してください。');
+  if (file.size > MAX_MATERIAL_BYTES) throw new Error('資料は5MBまでです。');
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return { kind: kind === 'portfolio' ? 'portfolio' : 'es', mime, data_base64: btoa(binary) };
+}
 
 /** Explicit start, no automatic reconnect, one bounded sequential upload pipeline. */
 export function mountCall(container: HTMLElement, ctx: PanelContext): void {
@@ -12,7 +25,18 @@ export function mountCall(container: HTMLElement, ctx: PanelContext): void {
   const end = el('button', 'gl-btn ghost', '通話を終了');
   for (const button of [start, mute, interrupt, end]) button.type = 'button';
   const text = el('p'); text.setAttribute('aria-live', 'polite');
-  card.body.append(status, start, mute, interrupt, end, text);
+  // Optional ES / portfolio. Read by the interviewer before the call (Tr glab-material-interview.md).
+  const materialKind = el('select') as HTMLSelectElement;
+  materialKind.setAttribute('aria-label', '提出する資料の種類');
+  for (const [value, label] of [['es', 'ES'], ['portfolio', 'ポートフォリオ']] as const) {
+    const option = el('option', '', label) as HTMLOptionElement; option.value = value; materialKind.append(option);
+  }
+  const materialFile = el('input') as HTMLInputElement;
+  materialFile.type = 'file';
+  materialFile.accept = '.pdf,.txt,.md,.png,.jpg,.jpeg,application/pdf,text/plain,text/markdown,image/png,image/jpeg';
+  materialFile.setAttribute('aria-label', '提出する資料のファイル');
+  const materialNote = el('p', 'gl-muted', 'ESかポートフォリオを提出すると、面接官が内容を読んでから質問します（任意・PDF/テキスト/画像、5MBまで）。資料は面接の間だけ使い、保存しません。');
+  card.body.append(materialNote, materialKind, materialFile, status, start, mute, interrupt, end, text);
   container.append(card.wrap);
   let audio: CallAudio | null = null;
   let callId: string | null = null;
@@ -28,6 +52,7 @@ export function mountCall(container: HTMLElement, ctx: PanelContext): void {
   let ignoredTurn = -1;
   const controls = (): void => {
     start.disabled = running;
+    materialKind.disabled = materialFile.disabled = running;
     mute.disabled = interrupt.disabled = !running || !callId;
     end.disabled = !running;
   };
@@ -133,11 +158,23 @@ export function mountCall(container: HTMLElement, ctx: PanelContext): void {
           if (activeGeneration === generation && audio === capture) void stop('マイクが停止したため通話を終了しました。');
         });
         if (stopped || activeGeneration !== generation) { await capture.stop(); return; }
-        status.textContent = 'Tirociniumへ接続しています…';
+        const material = await readMaterial(materialFile.files?.[0], materialKind.value);
+        if (stopped || activeGeneration !== generation) { await capture.stop(); return; }
+        status.textContent = material ? '面接官が資料を読んでいます…（1分ほどかかります）' : 'Tirociniumへ接続しています…';
         // Keep this request alive until the created id is received so cancellation
         // can DELETE it; the bridge also owns a no-stream timeout.
-        const response = await ctx.api('/calls', { method: 'POST' });
-        if (!response.ok) throw new Error('通話を開始できません。Tirociniumの接続設定や空き状況を確認してください。');
+        const response = await ctx.api('/calls', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(material ? { material } : {}),
+        });
+        if (!response.ok) {
+          const failure = await response.json().catch(() => null) as { error?: unknown } | null;
+          if (failure?.error === 'material_rejected' || failure?.error === 'material_too_large') {
+            throw new Error('資料の形式か大きさに対応していません。PDF・テキスト・画像の5MBまでで提出してください。');
+          }
+          if (failure?.error === 'material_unavailable') throw new Error('資料を読み込めませんでした。資料なしで始めるか、時間をおいてもう一度お試しください。');
+          throw new Error('通話を開始できません。Tirociniumの接続設定や空き状況を確認してください。');
+        }
         const result = await response.json() as { call_id?: unknown };
         if (typeof result.call_id !== 'string') throw new Error('通話の応答が不正です。');
         if (stopped || activeGeneration !== generation) {

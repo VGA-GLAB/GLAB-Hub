@@ -4,6 +4,7 @@ import { Hono, getIdentity } from '../../corpus/server/hub/sdk.ts';
 import type { Context, CorpusContext, ServiceConnector } from '../../corpus/server/hub/sdk.ts';
 import { authorizedConnectorFetch, noStore, normalizeHttpBaseUrl } from '../shared.ts';
 import { parseCallInput } from './call-input.ts';
+import { MAX_START_BODY_BYTES, parseCallStart } from './call-material.ts';
 
 type Call = {
   userId: string; sessionId: string; ws: WebSocket; timer: ReturnType<typeof setTimeout>;
@@ -14,6 +15,24 @@ type Call = {
 const encoder = new TextEncoder();
 const MAX_BUFFER = 4 * 1024 * 1024;
 const activeCalls = new Set<() => void>();
+/** Tr reads the submitted material with claude on the HQ PC before the call starts. */
+const MATERIAL_TIMEOUT_MS = 150_000;
+
+/** Read a request body up to `max` bytes (chunked bodies included). null when larger or unreadable. */
+async function readBounded(c: Context, max: number): Promise<string | null> {
+  const reader = c.req.raw.body?.getReader();
+  if (!reader) return '';
+  const chunks: Uint8Array[] = []; let size = 0;
+  try {
+    for (;;) {
+      const chunk = await reader.read(); if (chunk.done) break;
+      size += chunk.value.byteLength;
+      if (size > max) { await reader.cancel(); return null; }
+      chunks.push(chunk.value);
+    }
+    return Buffer.concat(chunks).toString('utf8');
+  } catch { return null; } finally { reader.releaseLock(); }
+}
 
 export function closeTirociniumCalls(): void {
   for (const dispose of activeCalls) dispose();
@@ -24,9 +43,9 @@ export function makeCallRoutes(ctx: CorpusContext, connector: ServiceConnector):
   const routes = new Hono();
   const calls = new Map<string, Call>();
   const starting = new Set<string>();
-  const downstream = (c: Context, path: string, init: RequestInit): Promise<Response> =>
+  const downstream = (c: Context, path: string, init: RequestInit, timeoutMs = 15_000): Promise<Response> =>
     authorizedConnectorFetch(c, connector, path, ctx.tokenProvider, 'tirocinium', {
-      ...init, signal: AbortSignal.timeout(15_000),
+      ...init, signal: AbortSignal.timeout(timeoutMs),
     });
   const owned = (c: Context): Call | undefined => {
     const call = calls.get(c.req.param('id') ?? '');
@@ -36,6 +55,12 @@ export function makeCallRoutes(ctx: CorpusContext, connector: ServiceConnector):
 
   routes.post('/', async (c) => {
     const userId = getIdentity(c).userId;
+    const rawBody = await readBounded(c, MAX_START_BODY_BYTES);
+    if (rawBody === null) return c.json({ error: 'material_too_large' }, 413);
+    let parsedBody: unknown = null;
+    try { parsedBody = rawBody.trim() ? JSON.parse(rawBody) : null; } catch { return c.json({ error: 'invalid_call_start' }, 400); }
+    const startRequest = parseCallStart(parsedBody);
+    if (!startRequest) return c.json({ error: 'invalid_call_start' }, 400);
     if (starting.has(userId) || [...calls.values()].some((call) => call.userId === userId)) {
       return c.json({ error: 'call_already_active' }, 409);
     }
@@ -43,6 +68,7 @@ export function makeCallRoutes(ctx: CorpusContext, connector: ServiceConnector):
     starting.add(userId);
     let sessionId: string | null = null;
     let ws: WebSocket | null = null;
+    let failure: 'material_rejected' | 'material_unavailable' | null = null;
     try {
       const base = normalizeHttpBaseUrl(connector.baseUrl, 'TIROCINIUM_URL');
       if (!base) return c.json({ error: 'tirocinium_unconfigured' }, 503);
@@ -56,6 +82,18 @@ export function makeCallRoutes(ctx: CorpusContext, connector: ServiceConnector):
       }
       sessionId = result.session_id;
       if (c.req.raw.signal.aborted) throw new Error('request_aborted');
+      if (startRequest.material) {
+        // Forwarded once, not kept: Tr digests it in memory and deletes the file (glab-material-interview.md).
+        const submitted = await downstream(c, `/api/v1/sessions/${sessionId}/materials`, {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(startRequest.material),
+        }, MATERIAL_TIMEOUT_MS);
+        if (!submitted.ok) {
+          failure = submitted.status === 413 || submitted.status === 415 ? 'material_rejected' : 'material_unavailable';
+          throw new Error('material_failed');
+        }
+        if (c.req.raw.signal.aborted) throw new Error('request_aborted');
+      }
       const response = await downstream(c, `/api/v1/sessions/${sessionId}/call-ticket`, { method: 'POST' });
       if (!response.ok) throw new Error('ticket_failed');
       const auth = await response.json() as { ticket?: unknown };
@@ -127,7 +165,8 @@ export function makeCallRoutes(ctx: CorpusContext, connector: ServiceConnector):
         try { await downstream(c, `/api/v1/sessions/${sessionId}/end`, { method: 'POST' }); }
         catch { ctx.logger.warn('Tr failed call cleanup unavailable'); }
       }
-      return c.json({ error: 'call_unavailable' }, 503);
+      if (failure === 'material_rejected') return c.json({ error: failure }, 422);
+      return c.json({ error: failure ?? 'call_unavailable' }, 503);
     } finally { starting.delete(userId); }
   });
 
