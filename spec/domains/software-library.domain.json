@@ -1,0 +1,8 @@
+{
+  "name": "software-library",
+  "description": "GLab software distribution metadata and user acquisition navigation, with admin publication and no artifact execution.",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [{ "pathPattern": "(^|/)plugins/software-library/" }],
+  "specRefs": ["spec/feature/software-library.md"]
+}

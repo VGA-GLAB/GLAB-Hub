@@ -146,7 +146,8 @@ export function renderShell(
   }
   // ダッシュボードが読み込まれていればそこから始める。 プラグインが無効な
   // 構成でも画面が空にならないよう、 従来のステータスへ落とす。
-  activate(tabs.some((t) => t.id === LANDING_TAB_ID) ? LANDING_TAB_ID : '__overview');
+  const requestedLibrary = window.location.hash === '#software-library' && tabs.some(tab => tab.id === 'software-library');
+  activate(requestedLibrary ? 'software-library' : tabs.some((t) => t.id === LANDING_TAB_ID) ? LANDING_TAB_ID : '__overview');
   initHmr();
   const disposeResumeRecovery = installHubResumeRecovery(app, isHmrConnectionStale);
   return () => {
