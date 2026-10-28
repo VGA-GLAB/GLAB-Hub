@@ -33,6 +33,9 @@ services:
     autostart: false
     env:
       CORPUS_PUBLIC_URL: http://localhost:5187
+      # Public leaf-certificate fingerprint; the private signing key stays in the release operator's CNG store.
+      GLAB_LIBRARY_CERT_SHA256: 7a6a1ac99b1ac4204f422c0f0da1500bc76fceeac7366688a0f50ec8efcd7aab
+      GLAB_LIBRARY_RELEASE_ROOT: ${ARS_ROOT}/GLAB/data/library-releases
       CORPUS_TOKEN_MODE: cernere-project-token
       # ログインはパスキー一本 (Cernere のログイン画面へ移る)。旧 composite (email/password) は Cernere で廃止済み。
       CORPUS_AUTH_UI_MODE: passkey
@@ -101,6 +104,8 @@ services:
     env:
       GLAB_PORT: "5188"
       CORPUS_PUBLIC_URL: http://localhost:5188
+      GLAB_LIBRARY_CERT_SHA256: 7a6a1ac99b1ac4204f422c0f0da1500bc76fceeac7366688a0f50ec8efcd7aab
+      GLAB_LIBRARY_RELEASE_ROOT: ${ARS_ROOT}/GLAB/data/library-releases
       CORPUS_TOKEN_MODE: cernere-project-token
       # ログインはパスキー一本 (Cernere のログイン画面へ移る)。旧 composite (email/password) は Cernere で廃止済み。
       CORPUS_AUTH_UI_MODE: passkey

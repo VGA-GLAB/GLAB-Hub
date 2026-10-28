@@ -87,3 +87,19 @@ Type checks and selected bundles passed using the installed Corpus/dependencies
 through a read-only resolver; this is not a full production build. Certificate
 scripts passed PowerShell parsing; persistent certificate-store provisioning
 has not run. Testing claims were released. No production artifact published.
+
+## Publisher provisioning, 2026-10-28
+
+After code merge, the release operator's normal Windows account (`raury`) created
+the GLab code-signing certificate with the reviewed provisioning script. RSA-3072,
+code-signing EKU, non-CA and CNG ExportPolicy=None were read back. The private key
+was neither exported nor placed in the repository/server. Public certificate is
+in GLAB/data/library-signing/glab-publisher.cer; expires 2027-10-28 UTC. Public
+SHA-256 pin is `7a6a1ac99b1ac4204f422c0f0da1500bc76fceeac7366688a0f50ec8efcd7aab`.
+The catalog now provisions this public pin and a non-static release-data root.
+This does not publish an artifact, deploy to AWS, or claim live download success.
+
+Reflection attempt: Excubitor glab-test startup failed at Cernere launch credential
+issuance. cernere-test accepted start but subsequently returned to stopped; a
+dependent GLab attempt failed again. No further restarts or credential changes
+were made. All testing claims were released. Runtime verification remains open.
