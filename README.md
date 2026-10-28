@@ -30,7 +30,7 @@ GLAB を操作しない。デスクトップでは Cocoiru の常駐アプリ (L
 | 在席共有 | Web hub `consult` → 「おれひま」在席共有 |
 | Cocoiru バックエンド | Web hub `cocoiru` → デスクトップ常駐アプリ Cocoiru の在席 lease・呼び出し・タスケテ・Discord ロビー secret（画面なし、[spec](spec/feature/cocoiru-backend.md)） |
 | 技術リンク | Web hub `tech-links` → 技術リンクの共有・タグ・コメント |
-| ライブラリ取得 | Web hub `software-library` → Cocoiru・制作向けの公開配布情報を検索し、対応OS・バージョン・用途を確認して取得先を開く。管理者が登録・公開 ([spec](spec/feature/software-library.md)) |
+| ライブラリ取得 | Web hub `software-library` は一覧・用途・対応OS・バージョンの閲覧のみ。Cocoiruからの署名付きダウンロードは準備中 ([spec](spec/feature/software-library.md)) |
 | トレンド | Web hub `tendentia` → Tendentia (Td) のトレンドマップ (最初はゲーム) |
 | 個人データ | Web hub `vantan-user` + Cernere（個人情報の登録・編集、末尾にCernereへのリンク） |
 

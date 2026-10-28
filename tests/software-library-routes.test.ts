@@ -35,7 +35,13 @@ it('isolates drafts and management from ordinary users and requires complete pub
     admin = false;
     const listed = await app.request('/entries');
     assert.equal(listed.headers.get('cache-control'), 'private, no-store');
-    assert.equal((await listed.json()).entries.length, 1);
+    const entries = (await listed.json()).entries;
+    assert.equal(entries.length, 1);
+    assert.deepEqual(Object.keys(entries[0]).sort(), ['id', 'name', 'description', 'kind', 'platform', 'version', 'license', 'published'].sort());
+    assert.equal(JSON.stringify(entries).includes('https://example.org'), false);
+    admin = true;
+    // Admins browsing the catalog receive the same read-only projection.
+    assert.deepEqual((await (await app.request('/entries')).json()).entries, entries);
     admin = true;
     assert.equal((await save({ ...release, published: false })).status, 200);
     assert.deepEqual((await (await app.request('/entries')).json()).entries, []);

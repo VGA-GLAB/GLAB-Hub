@@ -1,8 +1,8 @@
 {
   "name": "software-library",
-  "description": "GLab software distribution metadata and user acquisition navigation, with admin publication and no artifact execution.",
+  "description": "GLab software distribution metadata and read-only web catalog; signed native delivery remains gated on client identity and certificate provisioning.",
   "presetRules": [],
   "templateRules": [],
   "membership": [{ "pathPattern": "(^|/)plugins/software-library/" }],
-  "specRefs": ["spec/feature/software-library.md"]
+  "specRefs": ["spec/feature/software-library.md", "spec/feature/cocoiru-secure-distribution.md"]
 }

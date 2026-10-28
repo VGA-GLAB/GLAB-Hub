@@ -6,6 +6,7 @@ import { BodyTooLargeError, readBodyWithinLimit } from '../vantan-user/bounded-b
 import { libraryId, libraryInput } from './schema.ts';
 import { distributionUrl } from './distribution-url.ts';
 import { listLibraries, saveLibrary } from './store.ts';
+import { librarySummary } from './types.ts';
 
 const softwareLibrary: CorpusModule = {
   id: 'software-library', title: 'ライブラリ取得', icon: '📦',
@@ -17,7 +18,7 @@ const softwareLibrary: CorpusModule = {
       if (!getUserToken(c)) return c.json({ error: 'user_login_required' }, 401);
       await next();
     });
-    routes.get('/entries', c => c.json({ entries: listLibraries(ctx.db, false) }));
+    routes.get('/entries', c => c.json({ entries: listLibraries(ctx.db, false).map(librarySummary) }));
     routes.get('/manage', requireAdmin, c => c.json({ entries: listLibraries(ctx.db, true) }));
     routes.put('/entries/:id', requireAdmin, async c => {
       const id = libraryId.safeParse(c.req.param('id'));
