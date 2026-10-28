@@ -53,7 +53,12 @@ test('launch configuration uses injected env and bypasses standalone secret boot
   assert.match(launcher, /const \{ startCorpus \} = await import\('\.\/corpus\/server\/index\.ts'\)/);
   // The host must install the membership gate when starting Corpus.
   assert.match(launcher, /import \{ memberAccessPolicy \} from '\.\/plugins\/access\/policy\.ts'/);
-  assert.match(launcher, /await startCorpus\(\{\s*accessPolicy:\s*memberAccessPolicy,\s*publicReadRoutes:\s*createPublicQuestRoutes\s*\}\)/);
+  assert.match(launcher, /import \{ createGlabPublicRoutes \} from '\.\/plugins\/public-routes\.ts'/);
+  assert.match(launcher, /await startCorpus\(\{\s*accessPolicy:\s*memberAccessPolicy,\s*publicReadRoutes:\s*db => createGlabPublicRoutes\(db, resolve\(ROOT, 'public\/legal'\)\),?\s*\}\)/);
+  // The public router retains quests while adding the fixed legal document routes.
+  const publicRoutes = read('plugins/public-routes.ts');
+  assert.match(publicRoutes, /router\.route\('\/', createPublicLegalRoutes\(legalDirectory\)\)/);
+  assert.match(publicRoutes, /router\.route\('\/', createPublicQuestRoutes\(db\)\)/);
   assert.match(launcher, /await closeCorpus\(\);\s*await close\(\);/);
   assert.ok(launcher.indexOf('requireInjectedEnvironment(process.env)') < launcher.indexOf('await initializeEventStore'));
   assert.match(launcher, /installLogging\(\)/);

@@ -20,7 +20,7 @@ import { closeEventStore, initializeEventStore } from './plugins/events/store.ts
 import { cernereClientOwner } from './plugins/cernere/shared-owner.ts';
 import { createShutdown } from './plugins/cernere/shutdown.ts';
 import { memberAccessPolicy } from './plugins/access/policy.ts';
-import { createPublicQuestRoutes } from './plugins/quests/public-routes.ts';
+import { createGlabPublicRoutes } from './plugins/public-routes.ts';
 import { closeTirociniumCalls } from './plugins/tirocinium/call-routes.ts';
 import {
   closeFacilityStore,
@@ -111,7 +111,10 @@ try {
   // GLAB の設定は Ex が注入する。Corpus CLI の env 上書きも適用しない。
   if (!stopping) {
     const { startCorpus } = await import('./corpus/server/index.ts');
-    const runtime = await startCorpus({ accessPolicy: memberAccessPolicy, publicReadRoutes: createPublicQuestRoutes });
+    const runtime = await startCorpus({
+      accessPolicy: memberAccessPolicy,
+      publicReadRoutes: db => createGlabPublicRoutes(db, resolve(ROOT, 'public/legal')),
+    });
     // 起動中に停止信号が来ていたら shutdown は済んでいるので、起動し終えた Corpus をここで閉じる。
     if (stopping) await runtime.close();
     else corpusRuntime = runtime;
