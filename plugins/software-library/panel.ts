@@ -6,7 +6,7 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
   ensureStyles();
   const root = el('section'); container.replaceChildren(root);
   root.append(el('h2', undefined, 'ライブラリ取得'),
-    el('p', 'gl-muted', 'Cocoiru・GLabで使うライブラリの一覧です。Webでは閲覧のみ行えます。ダウンロードはCocoiruから行う予定です。現在、署名付き配布を準備しています。'));
+    el('p', 'gl-muted', 'Cocoiru・GLabで使うライブラリの一覧です。Webでは閲覧のみ行えます。署名付きファイルのダウンロードは、ログインしたCocoiruから操作してください。'));
   const search = el('input', 'gl-input'); search.type = 'search'; search.placeholder = '名前・用途で探す'; search.setAttribute('aria-label', 'ライブラリを検索');
   const choice = (label: string, values: Record<string, string>): HTMLSelectElement => {
     const select = el('select', 'gl-select'); select.setAttribute('aria-label', label);
@@ -35,7 +35,7 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
       const card = el('article', 'gl-notice');
       card.append(el('h3', undefined, entry.name), el('p', 'gl-muted', `${KIND_LABELS[entry.kind]} · ${PLATFORM_LABELS[entry.platform]} · ${entry.version}`),
         el('p', undefined, entry.description), el('p', 'gl-muted', `ライセンス：${entry.license}`));
-      card.append(el('p', 'gl-muted', 'Cocoiru向けの署名付き配布を準備中です。'));
+      card.append(el('p', 'gl-muted', '取得はCocoiruから操作してください。配布ファイルが未登録の場合は取得できません。'));
       cards.append(card);
     }
   };

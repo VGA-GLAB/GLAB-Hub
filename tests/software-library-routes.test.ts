@@ -17,18 +17,20 @@ it('isolates drafts and management from ordinary users and requires complete pub
     await next();
   });
   try {
-    await softwareLibrary.setup({ db, registerRoute: (routes: Hono) => app.route('/', routes), registerPanel: () => {} } as unknown as CorpusContext);
+    await softwareLibrary.setup({ db, env: () => undefined, logger: { warn: () => {} }, registerRoute: (routes: Hono) => app.route('/', routes), registerPanel: () => {} } as unknown as CorpusContext);
     const input = { name: 'Runtime', description: 'Cocoiru runtime', kind: 'runtime', platform: 'windows', version: '', license: '', downloadUrl: '', sha256: '', published: false };
     const save = (data: unknown) => app.request('/entries/runtime', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) });
     assert.equal((await app.request('/entries')).status, 401);
+    assert.equal((await app.request('/download/runtime', { method: 'POST' })).status, 401);
     signedIn = true;
+    assert.equal((await app.request('/download/runtime', { method: 'POST' })).status, 503);
     assert.equal((await app.request('/manage')).status, 403);
     assert.equal((await save(input)).status, 403);
     admin = true;
     assert.equal((await save(input)).status, 200);
     assert.deepEqual((await (await app.request('/entries')).json()).entries, []);
     assert.equal((await save({ ...input, published: true })).status, 400);
-    const release = { ...input, published: true, version: '1.0', license: 'MIT', downloadUrl: 'https://example.org/runtime.zip' };
+    const release = { ...input, published: true, version: '1.0', license: 'MIT', sha256: 'a'.repeat(64), downloadUrl: '' };
     assert.equal((await save({ ...release, downloadUrl: 'https://example.org/runtime.zip?token=private' })).status, 400);
     assert.equal((await save({ ...release, unknown: 'not accepted' })).status, 400);
     assert.equal((await save(release)).status, 200);

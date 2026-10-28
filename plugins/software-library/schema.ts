@@ -16,6 +16,6 @@ export const libraryInput = z.object({
 }).strict().superRefine((value, ctx) => {
   if (value.downloadUrl && !distributionUrl(value.downloadUrl))
     ctx.addIssue({ code: 'custom', path: ['downloadUrl'], message: 'Use a public HTTPS link without credentials, query or fragment' });
-  if (value.published && (!value.downloadUrl || !value.version || !value.license))
-    ctx.addIssue({ code: 'custom', message: 'Publication requires download URL, version and license' });
+  if (value.published && (!value.version || !value.license || !value.sha256))
+    ctx.addIssue({ code: 'custom', message: 'Publication requires version, license and signed payload hash' });
 });

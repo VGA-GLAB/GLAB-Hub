@@ -2,6 +2,12 @@
 
 ## Request and implementation boundary
 
+**Superseded design decision, 2026-10-28:** neco selected download access for
+logged-in users, without device enrollment. Implementation and operational
+limits are now specified by `library-delivery-v1.md`. The proposal below is
+retained as design history; its native-attestation, grant and load-time items
+are not claims about the implemented download-only feature.
+
 neco, 2026-10-28: Web is browsing-only; Cocoiru downloads libraries. GLab
 provides certificates and signs plugins. Login should securely deliver the
 material needed for decryption. Existing reflection/test authorization remains

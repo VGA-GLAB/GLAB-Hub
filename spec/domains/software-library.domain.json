@@ -1,8 +1,8 @@
 {
   "name": "software-library",
-  "description": "GLab software distribution metadata and read-only web catalog; signed native delivery remains gated on client identity and certificate provisioning.",
+  "description": "Read-only web metadata and authenticated encrypted delivery of operator-signed library packages, with separately provisioned certificate trust.",
   "presetRules": [],
   "templateRules": [],
   "membership": [{ "pathPattern": "(^|/)plugins/software-library/" }],
-  "specRefs": ["spec/feature/software-library.md", "spec/feature/cocoiru-secure-distribution.md"]
+  "specRefs": ["spec/feature/software-library.md", "spec/feature/cocoiru-secure-distribution.md", "spec/feature/library-delivery-v1.md"]
 }

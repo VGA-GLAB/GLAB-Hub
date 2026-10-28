@@ -90,6 +90,12 @@ and native verification remain open.
 
 ## Secure distribution revision
 
+The decision is resolved: authenticated users may download without device
+registration. See `library-delivery-v1.md` for implemented signing/encrypted
+delivery, operational prerequisites and limits. Published catalog metadata now
+requires version/license/SHA-256; distribution URL is optional legacy metadata.
+Web remains browsing-only. Native delivery configuration is fail-closed.
+
 See `cocoiru-secure-distribution.md` for the native identity prerequisite, proposed
 certificate/key lifecycle and acceptance conditions. Crypto/authentication is
 not implemented through a home-grown substitute. This change adds no dependency

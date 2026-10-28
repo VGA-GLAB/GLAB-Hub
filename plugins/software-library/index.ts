@@ -7,6 +7,7 @@ import { libraryId, libraryInput } from './schema.ts';
 import { distributionUrl } from './distribution-url.ts';
 import { listLibraries, saveLibrary } from './store.ts';
 import { librarySummary } from './types.ts';
+import { downloadRoutes } from './download-routes.ts';
 
 const softwareLibrary: CorpusModule = {
   id: 'software-library', title: 'ライブラリ取得', icon: '📦',
@@ -33,7 +34,7 @@ const softwareLibrary: CorpusModule = {
           error instanceof BodyTooLargeError ? 413 : 400);
       }
       const parsed = libraryInput.safeParse(input);
-      if (!parsed.success) return c.json({ error: 'invalid_library', message: '入力と配布先を確認してください。公開にはバージョン・ライセンス・HTTPSの取得先が必要です。' }, 400);
+      if (!parsed.success) return c.json({ error: 'invalid_library', message: '公開にはバージョン・ライセンス・署名対象ファイルのSHA-256が必要です。' }, 400);
       const existing = listLibraries(ctx.db, true);
       if (!existing.some(entry => entry.id === id.data) && existing.length >= 200)
         return c.json({ error: 'catalog_full' }, 409);
@@ -44,6 +45,7 @@ const softwareLibrary: CorpusModule = {
       saveLibrary(ctx.db, entry, new Date().toISOString());
       return c.json({ entry });
     });
+    routes.route('/', downloadRoutes(ctx));
     ctx.registerRoute(routes);
     ctx.registerPanel({ title: 'ライブラリ取得', icon: '📦' });
   },
