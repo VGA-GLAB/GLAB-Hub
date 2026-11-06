@@ -35,7 +35,7 @@ Cocoiru の常駐プラグインは設定された GLAB URL から次を導出�
 | `GET /inbox` | — | 自分宛ての未失効 call を `createdAt` 昇順で最大 20 件。各要素 `{id, title, body, expiresAt, kind, senderId, createdAt}` |
 | `DELETE /inbox/:id` | — | 自分宛てのその call だけ削除 (他人宛ては消さない)。`{ok: true}` |
 | `POST /tasukete` | `{text(1..500、trim 後空不可)}` | 送信者が 60 秒以内に tasukete を送っていれば 429。送信者以外の有効 lease 全員へ kind=`tasukete`、title=`タスケテ`、body=text、期限 = now + 5 分の call を一括作成。0 人なら 409。`201 {sent: n}` |
-| `GET /discord-lobby` | — | 1 行だけの secret (無ければ `randomBytes(32)` の hex を作って保存。同時初回でも 1 つに収束) を `{secret}` で返す |
+| `GET /discord-lobby` | — | モジュール初期化で作成済みの1行だけの secret を読んで `{secret}` で返す。欠落時503で、GETから再作成しない |
 
 ## テーブル (SQLite、`data/corpus.db`)
 
@@ -49,6 +49,7 @@ Cocoiru の常駐プラグインは設定された GLAB URL から次を導出�
 - 在席 lease: 30 秒。Cocoiru は定期的に `PUT /availability` で更新する。期限切れ行は次の `PUT /availability` で削除。
 - call / tasukete: 5 分。受信者の `DELETE /inbox/:id` か、期限切れ後の `PUT /availability` で削除。
 - ロビー secret: 無期限 (1 行のみ)。
+- ロビー secret の確保は `setup` の schema 確立直後。既存 `randomBytes(32)` と単発 INSERT ON CONFLICT を維持し、GET は現在行の読取だけを行う。
 
 ## 個人情報
 

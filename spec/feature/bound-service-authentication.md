@@ -223,20 +223,20 @@ remain necessary after the shared guard; a permit is not data authorization.
 
 The following is a finite implementation inventory, not an allowlist. It was
 compared with the22modules in plugins/pack.json and the actual route registrations.
-Already-classified attendance, budget, profile, roster, role, showcase, forum and
-consult operations are excluded. Unknown methods/paths continue to be refused.
+Already-classified attendance, budget, profile, roster, role, showcase, forum,
+consult and resident operations are excluded. Native resident migration remains
+a separate unfinished consumer. Unknown methods/paths continue to be refused.
 
 | Module | Remaining exact route/method shapes | Target dependency |
 | --- | --- | --- |
 | events (8) | GET facilities, GET meet/organizations, GET/POST events, POST events/:id/meet, DELETE events/:id, GET/PUT events/:id/attendance | Aedilis facilities/Meet; preserve current event audience/organizer/occurrence checks |
 | facility (21) | GET facilities and facilities/:id; for reservations and meetings: GET collection, GET mine, POST collection, GET/PATCH/DELETE :id; POST meetings/:id/finalize, POST meetings/:id/glab-event, POST meetings/:id/responses, PATCH meetings/:id/responses/:responseId; GET meet/status, POST meet/oauth/start, GET meet/oauth/callback | Aedilis scoped target and callback/session binding; groups already classified |
 | library (7) | GET equipment, GET/POST books, GET me, GET lookup, GET loans/mine, POST loans | Bibliotheca scoped target; local budget already classified |
-| cocoiru (8) | GET active-members; resident/:groupId: PUT availability, GET available, POST calls, GET inbox, DELETE inbox/:id, POST tasukete, GET discord-lobby | Native client's scoped-session migration; current recipient/lease/subject ownership, lobby GET creates/returns a secret |
 | tirocinium (8) | GET companies, GET career-companies, PUT/DELETE career-companies/:relationType/:companyId; calls: POST collection, GET :id/events, POST :id/frames, DELETE :id | Tirocinium target/streaming call ownership; preserve other-owner/blocked task boundaries |
 | di (4) | GET entry-points, POST discussion-launch, GET review-trends, GET conclusions | Discutere launch/identity contract and existing service-access integration must be checked separately |
 | odeum (8) | GET status, GET live, POST sessions, POST sessions/:id/end, POST sessions/:id/viewer-ticket, GET sessions/:id/invitation, GET ticket-pubkeys, POST sessions/:id/program-ticket | Existing event audience/presenter/program owner checks and Odeum target/ticket contract |
 
-These seven groups total64route/method shapes. Corpus shared routes also need
+These six groups total56route/method shapes. Corpus shared routes also need
 explicit host decisions: hub overview, external-id list/reassignment, discovery
 read/write, declared data aggregation, capabilities and MCP. Declared downstream
 metadata alone must not authorize a source resource or an arbitrary tool/action.
@@ -244,3 +244,25 @@ Static assets, health/public-config/auth-ceremony endpoints and external-service
 mirrors are separate boundaries, not user-operation gaps to blanket-allow.
 Action settings, target implementation, source checkout reflection and live
 verification remain independent acceptance conditions for each row.
+
+Resident presence/calls use only the exact group `glab` and verified subject.
+Private reads, including lobby secret, are sensitive. Writes are important and
+retain the8192-byte body ceiling. Call preparation rechecks the actual current
+recipient lease, using a clone of the already bounded/captured request so the
+endpoint's raw-body parser receives identical untouched bytes. Acknowledgment
+requires the current recipient/id row; administrators cannot consume another
+user's inbox. Endpoints retain rate/expiry/recipient limits and atomic broadcast.
+The lobby secret is initialized by the module after schema setup with the same
+existing standard randomness and conflict-safe insert; GET only reads current
+state and returns503 if missing. It cannot create authority state via an ambient
+cookie GET. There is no crypto/protocol replacement or new native attestation.
+
+| Risk | Exact additional GLAB actions |
+| --- | --- |
+| sensitive_read | resident.active-members.read, resident.available.read, resident.inbox.read, resident.lobby-secret.read |
+| important | resident.availability.update, resident.call.create, resident.call.acknowledge, resident.tasukete.create |
+
+These eight declarations need explicit administrator consent settings. The
+native Cocoiru caller still needs its own scoped-session migration; source
+classification alone is not consumer completion. Other module/target/settings/
+checkout/runtime conditions continue to block coordinated deployment.

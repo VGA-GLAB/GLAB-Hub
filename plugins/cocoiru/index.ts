@@ -16,6 +16,7 @@ import {
   broadcastTasukete,
   countPendingCalls,
   getOrCreateLobbySecret,
+  getLobbySecret,
   hasActiveLease,
   hasRecentCall,
   hasRecentTasukete,
@@ -74,6 +75,9 @@ const cocoiruModule: CorpusModule = {
   id: 'cocoiru', title: 'アクティブなメンバー', icon: '🏠',
   setup(ctx: CorpusContext) {
     ensureSchema(ctx.db);
+    // Module-owned initialization, not an ambient-cookie GET side effect. Reads
+    // fetch current state and refuse a missing row rather than recreating it.
+    getOrCreateLobbySecret(ctx.db, randomBytes(32).toString('hex'), Date.now());
     const r = new Hono();
     r.get('/active-members', c => {
       noStore(c);
@@ -151,7 +155,8 @@ const cocoiruModule: CorpusModule = {
 
     r.get('/resident/:groupId/discord-lobby', (c) => {
       c.header('Cache-Control', 'private, no-store');
-      const secret = getOrCreateLobbySecret(ctx.db, randomBytes(32).toString('hex'), Date.now());
+      const secret = getLobbySecret(ctx.db);
+      if (!secret) return c.json({ error: 'lobby_unavailable' }, 503);
       return c.json({ secret });
     });
 

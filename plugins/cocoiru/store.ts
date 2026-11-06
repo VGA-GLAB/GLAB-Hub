@@ -89,6 +89,11 @@ export function listInbox(db: SqlDb, recipientId: string, now: number, limit = 2
     ORDER BY created_at ASC, id ASC LIMIT ?`).all(recipientId, now, limit) as CocoiruCallRow[];
 }
 
+/** 現在の call と宛先の組が一致することを検査する。 */
+export function hasInboxCall(db: SqlDb, recipientId: string, id: string): boolean {
+  return db.prepare('SELECT id FROM glab_cocoiru_call WHERE id = ? AND recipient_id = ?').get(id, recipientId) !== undefined;
+}
+
 /** 自分宛てのその call だけを消す。 他人宛ての id を渡しても何も消さない。 */
 export function acknowledgeCall(db: SqlDb, recipientId: string, id: string): boolean {
   return Number(db.prepare('DELETE FROM glab_cocoiru_call WHERE id = ? AND recipient_id = ?')
@@ -123,5 +128,12 @@ export function broadcastTasukete(db: SqlDb, broadcast: TasuketeBroadcast): numb
 export function getOrCreateLobbySecret(db: SqlDb, candidate: string, now: number): string {
   db.prepare('INSERT INTO glab_cocoiru_lobby (id, secret, created_at) VALUES (1, ?, ?) ON CONFLICT(id) DO NOTHING')
     .run(candidate, now);
-  return (db.prepare('SELECT secret FROM glab_cocoiru_lobby WHERE id = 1').get() as { secret: string }).secret;
+  const secret = getLobbySecret(db);
+  if (!secret) throw new Error('Cocoiru lobby initialization failed');
+  return secret;
+}
+
+/** Pure read: a user GET must never create replacement authority state. */
+export function getLobbySecret(db: SqlDb): string | null {
+  return (db.prepare('SELECT secret FROM glab_cocoiru_lobby WHERE id = 1').get() as { secret: string } | undefined)?.secret ?? null;
 }

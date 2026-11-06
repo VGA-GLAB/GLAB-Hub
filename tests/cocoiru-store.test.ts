@@ -4,11 +4,15 @@
 
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
+import { Hono, type CorpusContext } from '../corpus/server/hub/sdk.ts';
+import cocoiru from '../plugins/cocoiru/index.ts';
 import {
   acknowledgeCall,
   broadcastTasukete,
   countPendingCalls,
   getOrCreateLobbySecret,
+  getLobbySecret,
+  hasInboxCall,
   hasActiveLease,
   hasRecentCall,
   hasRecentTasukete,
@@ -113,5 +117,35 @@ describe('glab_cocoiru store', () => {
 
     assert.match(first, /^[0-9a-f]{64}$/);
     assert.equal(second, first);
+  });
+
+  it('initializes lobby in setup and never recreates missing state through GET', async () => {
+    temp.db.prepare('DELETE FROM glab_cocoiru_lobby').run();
+    const app = new Hono();
+    app.use('*', async (c, next) => {
+      c.set('auth', { userId: 'owner', externalId: 'mapped', role: 'general', displayName: 'Owner', projectKey: 'glab', isAdmin: false });
+      await next();
+    });
+    await cocoiru.setup({ db: temp.db, registerRoute: (router: Hono) => { app.route('/api/x/cocoiru', router); },
+      registerPanel: () => {}, logger: { info: () => {} } } as unknown as CorpusContext);
+    const present = await app.request('/api/x/cocoiru/resident/glab/discord-lobby');
+    assert.equal(present.status, 200);
+    assert.match((await present.json() as { secret: string }).secret, /^[0-9a-f]{64}$/);
+    temp.db.prepare('DELETE FROM glab_cocoiru_lobby').run();
+    const missing = await app.request('/api/x/cocoiru/resident/glab/discord-lobby');
+    assert.equal(missing.status, 503);
+    assert.equal(missing.headers.get('cache-control'), 'private, no-store');
+    assert.equal(getLobbySecret(temp.db), null);
+  });
+
+  it('reads missing lobby state without creating it and checks exact call recipient ownership', () => {
+    temp.db.prepare('DELETE FROM glab_cocoiru_lobby').run();
+    assert.equal(getLobbySecret(temp.db), null);
+    assert.equal(getLobbySecret(temp.db), null);
+    insertCall(temp.db, call('owned-call', 'owner', 1));
+    assert.equal(hasInboxCall(temp.db, 'owner', 'owned-call'), true);
+    assert.equal(hasInboxCall(temp.db, 'other', 'owned-call'), false);
+    acknowledgeCall(temp.db, 'owner', 'owned-call');
+    assert.equal(hasInboxCall(temp.db, 'owner', 'owned-call'), false);
   });
 });
