@@ -17,6 +17,7 @@ import { forumOperationPolicy } from './forum-operations.ts';
 import { consultOperationPolicy } from './consult-operations.ts';
 import { roleOperationPolicy } from './role-operations.ts';
 import { rosterOperationPolicy } from './roster-operations.ts';
+import { profileOperationPolicy } from './profile-operations.ts';
 
 const attendance = attendanceOperationPolicy();
 const coreMetadata = new Map([
@@ -31,6 +32,8 @@ export const glabOperationPolicy: ServiceOperationPolicy = c => {
   if (discussion) return discussion;
   const membership = roleOperationPolicy(c) ?? rosterOperationPolicy(c);
   if (membership) return membership;
+  const profile = profileOperationPolicy(c);
+  if (profile) return profile;
   const media = mediaOperationPolicy(c);
   if (media) return media;
   const voluptas = voluptasOperationPolicy(c);

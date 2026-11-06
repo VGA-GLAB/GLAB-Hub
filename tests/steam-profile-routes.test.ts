@@ -20,7 +20,7 @@ const profile = { steamId: '76561198000000001', playedGamesPublic: true, steamId
 test('Steam routes use the authenticated owner, reject user selection and disable caching', async () => {
   const writes: unknown[][] = [];
   const client: CernereProjectApi = {
-    getUserData: async (userId) => { assert.equal(userId, 'owner'); return {}; },
+    getUserData: async (userId, project) => { assert.equal(userId, 'owner'); assert.equal(project, 'voluptas'); return {}; },
     setUserData: async (...args) => { writes.push(args); }, call: async () => ({}),
   };
   const app = appFor(client);
@@ -34,7 +34,7 @@ test('Steam routes use the authenticated owner, reject user selection and disabl
   assert.equal(writes.length, 0);
   assert.equal((await put(profile)).status, 200);
   assert.equal(writes[0]?.[0], 'owner');
-  assert.equal(writes[0]?.[1], 'volputas');
+  assert.equal(writes[0]?.[1], 'voluptas');
   client.getUserData = async () => { throw new Error('private upstream detail'); };
   const failed = await app.request('/steam-profile');
   assert.equal(failed.status, 503);

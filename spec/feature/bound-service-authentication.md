@@ -169,3 +169,25 @@ and consent before cutover. Unknown routes/methods remain denied. This unit does
 not change existing optional roster name-resolution behavior or introduce new
 authority credentials; remaining settings/target/consumer/runtime conditions are
 still unresolved until separately verified.
+
+Own profile/public-name/Steam profile operations retain the existing admitted
+subject boundary. Their handlers always derive the target from getIdentity(c),
+reject extra body fields and never select a user from query/body. Initial signup
+fields remain Cr-owned; this classification does not grant pending applicants
+new GLAB access. Each callback reads current admission before execution, and
+Cr still enforces the current field/consent rules for the actual write.
+
+| Risk | Exact additional GLAB actions |
+| --- | --- |
+| read | identity.settings-link.read |
+| sensitive_read | identity.profile.read, identity.public-name.read, identity.steam-profile.read |
+| important | identity.profile.update, identity.public-name.update, identity.steam-profile.update |
+
+Steam fields use the canonical Cr authentication project `voluptas`, including
+the optional Steam part of profile registration; the retired `volputas` alias
+is never used for profile data authorization. The existing Cr project credential
+must have explicitly configured access to those fields and the user must permit
+the actual operation. No UI/storage rename or fallback credential is introduced.
+These seven action/risk declarations, existing endpoint validation, other
+consumer migrations, checkout reflection and runtime/cutover evidence remain
+separate prerequisites; type checking alone does not prove live settings.

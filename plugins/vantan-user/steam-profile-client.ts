@@ -1,7 +1,8 @@
 import type { CernereProjectApi } from '../cernere/shared-owner.ts';
 import { translateSteamProfile, type SteamProfile } from './steam-profile-schema.ts';
 
-const PROJECT = 'volputas';
+// Cr migration063 retired the old auth project spelling; storage names are separate.
+const PROJECT = 'voluptas';
 const COLUMNS = ['steam_id', 'played_games_public', 'steam_id_public'];
 
 export async function getSteamProfile(client: CernereProjectApi, userId: string): Promise<SteamProfile> {

@@ -38,17 +38,17 @@ test('each publication choice is independent; legacy and malformed grants stay p
   assert.throws(() => translateSteamProfile({ steam_id: Number(id) }));
 });
 
-test('Cr reads and writes only the three Volputas columns, including revocation and clearing', async () => {
+test('Cr reads and writes only the canonical Voluptas project columns, including revocation and clearing', async () => {
   const { client, writes } = fakeClient();
   client.getUserData = async (userId, project, columns) => {
     assert.equal(userId, 'owner');
-    assert.equal(project, 'volputas');
+    assert.equal(project, 'voluptas');
     assert.deepEqual(columns, ['steam_id', 'played_games_public', 'steam_id_public']);
     return { steam_id: id, played_games_public: true, steam_id_public: false };
   };
   assert.equal((await getSteamProfile(client, 'owner')).steamIdPublic, false);
   await setSteamProfile(client, 'owner', privateProfile);
-  assert.deepEqual(writes, [['owner', 'volputas', {
+  assert.deepEqual(writes, [['owner', 'voluptas', {
     steam_id: null, played_games_public: false, steam_id_public: false,
   }]]);
 });
@@ -65,12 +65,12 @@ test('optional Steam saves before the registration gate, and a failure cannot co
   const { client, writes } = fakeClient();
   const input = registrationInputSchema.parse({ ...requiredProfile, steamProfile: privateProfile });
   await saveRegistration(client, 'owner', input);
-  assert.deepEqual(writes.map((row) => row[1]), ['volputas', 'glab']);
+  assert.deepEqual(writes.map((row) => row[1]), ['voluptas', 'glab']);
   writes.length = 0;
   client.setUserData = async (_userId, project) => {
     writes.push([project]);
     throw new Error('Cr unavailable');
   };
   await assert.rejects(saveRegistration(client, 'owner', input), /Cr unavailable/);
-  assert.deepEqual(writes, [['volputas']]);
+  assert.deepEqual(writes, [['voluptas']]);
 });
