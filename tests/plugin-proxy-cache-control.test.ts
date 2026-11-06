@@ -48,20 +48,25 @@ describe('authenticated plugin proxy cache policy', () => {
       {
         mode: 'test',
         async authorize(_session, _target, request) {
+          assert.equal(_target.projectKey, 'voluptas');
+          assert.equal(request.action, 'survey.list');
           return { path: request.path, init: { ...request.init, headers: { authorization: `Cernere-Delegation ${'d'.repeat(43)}` } } };
         },
       },
-      'volputas',
+      'voluptas',
     );
 
+    assert.equal(response.status, 200);
     assert.equal(response.headers.get('cache-control'), 'private, no-store');
     assert.equal(await response.text(), 'sensitive-answer');
   });
 
   it('marks connector and token failures private and no-store', async () => {
+    let sent = 0, authorizations = 0;
     const connectorFailure = await proxy(
       context() as never,
       connector(async () => {
+        sent++;
         throw new Error('offline');
       }) as never,
       '/api/v1/integrations/glab/surveys',
@@ -71,12 +76,13 @@ describe('authenticated plugin proxy cache policy', () => {
           return { path: request.path, init: { ...request.init, headers: { authorization: `Cernere-Delegation ${'d'.repeat(43)}` } } };
         },
       },
-      'volputas',
+      'voluptas',
     );
     assert.equal(
       connectorFailure.headers.get('cache-control'),
       'private, no-store',
     );
+    assert.equal(sent, 1);
 
     // tokenが取れない場合は匿名で中継せず、送信前に503/no-storeを返す。
     const tokenUnavailable = await proxy(
@@ -86,12 +92,14 @@ describe('authenticated plugin proxy cache policy', () => {
       {
         mode: 'test',
         async authorize() {
+          authorizations++;
           return null;
         },
       },
-      'volputas',
+      'voluptas',
     );
     assert.equal(tokenUnavailable.status, 503);
+    assert.equal(authorizations, 1);
     assert.equal(
       tokenUnavailable.headers.get('cache-control'),
       'private, no-store',

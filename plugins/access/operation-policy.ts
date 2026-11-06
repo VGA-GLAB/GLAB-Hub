@@ -12,6 +12,7 @@ import { attendanceOperationPolicy } from './attendance-operations.ts';
 import { mediaOperationPolicy } from './media-operations.ts';
 import { memberContentOperationPolicy } from './member-content-operations.ts';
 import { questOperationPolicy } from './quest-operations.ts';
+import { voluptasOperationPolicy } from './voluptas-operations.ts';
 
 const attendance = attendanceOperationPolicy();
 const coreMetadata = new Map([
@@ -24,6 +25,8 @@ export const glabOperationPolicy: ServiceOperationPolicy = c => {
   if (memberContent) return memberContent;
   const media = mediaOperationPolicy(c);
   if (media) return media;
+  const voluptas = voluptasOperationPolicy(c);
+  if (voluptas) return voluptas;
   const attendanceOperation = attendance(c);
   if (attendanceOperation) return attendanceOperation;
   if (method === 'GET' && path === '/api/me') return classify('identity.self.read', 'sensitive_read', selfResource);

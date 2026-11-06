@@ -52,7 +52,7 @@ describe('one-operation downstream authorization boundary', () => {
     } };
     const response = await app(c => proxyStream(c, connector(async (_path, init) => {
       assert.equal(init?.body, undefined); return new Response(bytes, { status: 206, headers: { 'content-range': 'bytes 2-5/6', 'content-length': '4', 'accept-ranges': 'bytes' } });
-    }, 'volputas'), path, source, 'volputas')).request('/relay', { headers: { range: 'bytes=2-5' } });
+    }, 'volputas'), path, source, 'voluptas')).request('/relay', { headers: { range: 'bytes=2-5' } });
     assert.equal(response.status, 206); assert.equal(response.headers.get('content-range'), 'bytes 2-5/6');
     assert.deepEqual(new Uint8Array(await response.arrayBuffer()), bytes);
   });
@@ -73,7 +73,7 @@ describe('one-operation downstream authorization boundary', () => {
         return new Response(new ReadableStream({ start(controller) {
           events.push('result'); controller.enqueue(new TextEncoder().encode('{"ok":true}')); controller.close();
         } }), { headers: { 'content-type': 'application/json' } });
-      }, 'volputas'), path, source, 'volputas');
+      }, 'volputas'), path, source, 'voluptas');
     }).request('/relay', { method: 'PUT', body: 'unused', headers: { 'content-type': 'video/mp4' } });
     assert.equal(response.status, 200); assert.deepEqual(await response.json(), { ok: true });
     assert.deepEqual(events, ['result', 'dispose']);
@@ -81,7 +81,7 @@ describe('one-operation downstream authorization boundary', () => {
   it('does not read or issue an upload when the classified capture is absent', async () => {
     const source: TokenProvider = { mode: 'fixture', authorize: async () => assert.fail('Must not issue') };
     const response = await app(c => proxyStream(c, connector(async () => assert.fail('Must not send'), 'volputas'),
-      '/api/v1/integrations/glab/evidence/media/videos/record', source, 'volputas')).request('/relay', { method: 'PUT', body: 'bytes' });
+      '/api/v1/integrations/glab/evidence/media/videos/record', source, 'voluptas')).request('/relay', { method: 'PUT', body: 'bytes' });
     assert.equal(response.status, 403);
   });
   it('waits for the outgoing reader to close before completing the upload response', async () => {
@@ -96,7 +96,7 @@ describe('one-operation downstream authorization boundary', () => {
     let completed = false;
     const response = Promise.resolve(app(async c => {
       c.set('authorizedUploadBody', { body: new Blob(['fixed']), maximumBytes: 100, timeoutSeconds: 5 });
-      return proxyStream(c, connector(async () => new Response('{"ok":true}'), 'volputas'), path, source, 'volputas');
+      return proxyStream(c, connector(async () => new Response('{"ok":true}'), 'volputas'), path, source, 'voluptas');
     }).request('/relay', { method: 'PUT', body: 'unused' })).then(result => { completed = true; return result; });
     try {
       await disposing;
@@ -117,7 +117,7 @@ describe('one-operation downstream authorization boundary', () => {
       return proxyStream(c, connector(async () => {
         sent++; if (failure === 'connection') throw new Error('unknown result');
         return new Response(new Uint8Array(65537));
-      }, 'volputas'), path, source, 'volputas');
+      }, 'volputas'), path, source, 'voluptas');
     }).request('/relay', { method: 'PUT', body: 'unused' });
     assert.equal(response.status, 502); assert.equal((await response.json() as { outcome: string }).outcome, 'unknown');
     assert.equal(disposed, 1); assert.equal(sent, 1);

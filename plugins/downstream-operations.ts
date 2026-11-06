@@ -44,13 +44,14 @@ const routes: readonly Route[] = [
     ['PATCH', 'surveys/[^/]+', 'survey.update'], ['PUT', 'surveys/[^/]+/response', 'survey.respond'],
     ['GET', 'reviews', 'review.list'], ['POST', 'reviews', 'review.create'],
     ['GET', 'reviews/[^/]+/follow-up', 'review.follow-up.read'], ['POST', 'reviews/[^/]+/follow-up', 'review.follow-up.write'],
-    ['GET', 'reviews/analysis/[^/]+', 'review.analysis.read'], ['POST', 'reviews/analysis/[^/]+', 'review.analysis.create'],
-    ['GET', 'recent-games', 'games.recent'], ['GET', 'games', 'games.list'], ['POST', 'games', 'games.create'], ['PATCH', 'games/[^/]+', 'games.update'],
+    ['GET', 'reviews/analysis/catalog', 'review.analysis.catalog'],
+    ['GET', 'reviews/analysis/[^/]+', 'review.analysis.read'], ['POST', 'reviews/analysis/(?!catalog$)[^/]+', 'review.analysis.create'],
+    ['GET', 'reviews/recent-games', 'games.recent'], ['GET', 'games', 'games.list'], ['POST', 'games', 'games.create'], ['PATCH', 'games/[^/]+', 'games.update'],
     ['GET', 'evidence/emotion-curves', 'evidence.curves.read'], ['POST', 'evidence/emotion-curves', 'evidence.curves.create'],
     ['POST', 'evidence/emotion-curves/[^/]+/evaluate', 'evidence.evaluate'],
     ['GET', 'evidence/media/[^/]+/[^/]+/ticket', 'evidence.media.ticket'],
     ['GET', 'evidence/media/[^/]+/[^/]+', 'evidence.media.read'], ['PUT', 'evidence/media/[^/]+/[^/]+', 'evidence.media.write'],
-  ].map(([method, path, action]) => ({ project: 'volputas', method: method ?? '',
+  ].map(([method, path, action]) => ({ project: 'voluptas', method: method ?? '',
     path: new RegExp(`^/api/v1/integrations/glab/${path}$`), action: action ?? '' })),
 ];
 

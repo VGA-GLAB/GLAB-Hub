@@ -102,3 +102,26 @@ revision updates and quest compare/revision writes remain the final transaction
 boundary; a changed owner/role/project/revision cannot be replaced with a cached
 positive result. Dashboard location mutation and other unreviewed operations are
 still unclassified and refused; this table is not a complete cutover manifest.
+
+The Voluptas caller unit adds the explicit survey/review/game/emotion-curve
+actions, preserving live GLAB admission and local administration. Voluptas
+independently consumes the scoped downstream proof and checks current survey
+publication, record ownership and Cr admin role (target PR3640). All personal
+GETs are sensitive; writes/evaluation are important. Small JSON routes use the
+target-owned1MiB ceiling, while the four media routes retain their own bounded
+upload policy. Source identity/permit alone never authorizes target rows.
+
+The fixed recent-games path is `reviews/recent-games` at the target. The earlier
+root recent-games caller and source classification are removed. Analysis catalog
+is explicitly `review.analysis.catalog`/read before private record-id matching;
+POST catalog and unknown routes/methods remain refused. Administrator declaration
+must include the exact target action/risk table in Voluptas
+`spec/feature/glab-scoped-catalog-delegation.md` on both relevant projects, plus
+GLAB-only `games.admin.read`/sensitive_read. Settings, direct runtime checks and
+other unfinished module/consumer migrations still block coordinated deployment.
+
+Authentication destination project is `voluptas`, as required by Cr migration063,
+the Ex launch target and the actual service manifest. The retired `volputas`
+project spelling is rejected. Existing GLAB module/connector IDs and browser
+`/api/x/volputas` URLs are distinct identifiers; none can select the auth project.
+No physical data/table/storage_slug is renamed by this authentication correction.

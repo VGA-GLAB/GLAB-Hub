@@ -7,8 +7,10 @@ import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
 import { normalizeHttpBaseUrl, proxy, proxyStream } from '../shared.ts';
 
 const GLAB_SURVEYS_PATH = '/api/v1/integrations/glab/surveys';
+// Cr migration063 retired the old project-key spelling. Module IDs/URLs are separate.
+const VOLUPTAS_PROJECT_KEY = 'voluptas';
 const GLAB_REVIEWS_PATH = '/api/v1/integrations/glab/reviews';
-const GLAB_RECENT_GAMES_PATH = '/api/v1/integrations/glab/recent-games';
+const GLAB_RECENT_GAMES_PATH = '/api/v1/integrations/glab/reviews/recent-games';
 const GLAB_GAMES_PATH = '/api/v1/integrations/glab/games';
 const GLAB_EVIDENCE_PATH = '/api/v1/integrations/glab/evidence';
 
@@ -33,32 +35,32 @@ const volputasModule: CorpusModule = {
 
     const routes = new Hono();
     routes.get('/surveys', (c) => proxy(
-      c, connector, GLAB_SURVEYS_PATH, ctx.tokenProvider, 'volputas',
+      c, connector, GLAB_SURVEYS_PATH, ctx.tokenProvider, VOLUPTAS_PROJECT_KEY,
     ));
     routes.get('/surveys/:id', (c) => proxy(
       c,
       connector,
       `${GLAB_SURVEYS_PATH}/${encodeURIComponent(c.req.param('id'))}`,
       ctx.tokenProvider,
-      'volputas',
+      VOLUPTAS_PROJECT_KEY,
     ));
     routes.put('/surveys/:id/response', (c) => proxy(
       c,
       connector,
       `${GLAB_SURVEYS_PATH}/${encodeURIComponent(c.req.param('id'))}/response`,
       ctx.tokenProvider,
-      'volputas',
+      VOLUPTAS_PROJECT_KEY,
     ));
     // 感想系の中継。 proxy() が全応答に cache-control: private, no-store を付ける。
     // @implements SPEC-VOLPUTAS-REVIEWS-004
     routes.get('/reviews', (c) => proxy(
-      c, connector, GLAB_REVIEWS_PATH, ctx.tokenProvider, 'volputas',
+      c, connector, GLAB_REVIEWS_PATH, ctx.tokenProvider, VOLUPTAS_PROJECT_KEY,
     ));
     // 投稿は Voluptas に保存させ、 201 で返った record を GLAB が自分でリレー
     // キューに積む。 感想の入口は GLAB (認証フロント) だけなので、 Voluptas から
     // GLAB への折り返し (service token) は持たない。 キュー失敗で投稿を失敗にしない。
     routes.post('/reviews', async (c) => {
-      const response = await proxy(c, connector, GLAB_REVIEWS_PATH, ctx.tokenProvider, 'volputas');
+      const response = await proxy(c, connector, GLAB_REVIEWS_PATH, ctx.tokenProvider, VOLUPTAS_PROJECT_KEY);
       if (response.status !== 201) return response;
       const record = parseCreatedReview(await response.clone().json().catch(() => null));
       if (!record) {
@@ -83,27 +85,27 @@ const volputasModule: CorpusModule = {
       return response;
     });
     // 投稿後の追加ヒアリングと体験解析 (Voluptas SPEC-GLAB-VOICE-FOLLOW-UP)。
-    // 記録は Voluptas が token の本人 (Cernere owner id) だけに閉じる。
+    // Voluptas が現在の scoped delegation の本人だけに記録を閉じる。
     const reviewRecordPath = (c: { req: { param(name: string): string | undefined } }, suffix: string): string =>
       `${GLAB_REVIEWS_PATH}/${suffix.replace(':id', encodeURIComponent(c.req.param('id') ?? ''))}`;
     routes.get('/reviews/:id/follow-up', (c) => proxy(
-      c, connector, reviewRecordPath(c, ':id/follow-up'), ctx.tokenProvider, 'volputas',
+      c, connector, reviewRecordPath(c, ':id/follow-up'), ctx.tokenProvider, VOLUPTAS_PROJECT_KEY,
     ));
     routes.post('/reviews/:id/follow-up', (c) => proxy(
-      c, connector, reviewRecordPath(c, ':id/follow-up'), ctx.tokenProvider, 'volputas',
+      c, connector, reviewRecordPath(c, ':id/follow-up'), ctx.tokenProvider, VOLUPTAS_PROJECT_KEY,
     ));
     routes.get('/reviews/analysis/:id', (c) => proxy(
-      c, connector, reviewRecordPath(c, 'analysis/:id'), ctx.tokenProvider, 'volputas',
+      c, connector, reviewRecordPath(c, 'analysis/:id'), ctx.tokenProvider, VOLUPTAS_PROJECT_KEY,
     ));
     routes.post('/reviews/analysis/:id', (c) => proxy(
-      c, connector, reviewRecordPath(c, 'analysis/:id'), ctx.tokenProvider, 'volputas',
+      c, connector, reviewRecordPath(c, 'analysis/:id'), ctx.tokenProvider, VOLUPTAS_PROJECT_KEY,
     ));
     routes.get('/recent-games', (c) => proxy(
-      c, connector, GLAB_RECENT_GAMES_PATH, ctx.tokenProvider, 'volputas',
+      c, connector, GLAB_RECENT_GAMES_PATH, ctx.tokenProvider, VOLUPTAS_PROJECT_KEY,
     ));
     // ゲームマスタ。 一覧は全員、 登録と更新は管理者だけ。 requireAdmin は
     // 画面と操作を出すかどうかの判断で、 権限の正本は Voluptas 側が
-    // Cernere token の role で見る (GLAB を迂回されても書けない)。
+    // オンラインで検証した Cernere 本人 role で見る (GLAB を迂回されても書けない)。
     routes.get('/games', (c) => {
       // 非公開ゲームの列挙は管理 UI だけに許可する。任意のクエリをそのまま
       // Voluptas へ渡すこの中継で includeInactive を許すと、画面を経由せず
@@ -111,48 +113,48 @@ const volputasModule: CorpusModule = {
       if (c.req.query('includeInactive') !== undefined) {
         return c.json({ error: 'admin_required' }, 403);
       }
-      return proxy(c, connector, GLAB_GAMES_PATH, ctx.tokenProvider, 'volputas');
+      return proxy(c, connector, GLAB_GAMES_PATH, ctx.tokenProvider, VOLUPTAS_PROJECT_KEY);
     });
     routes.get('/games/admin', requireAdmin, (c) => proxy(
-      c, connector, `${GLAB_GAMES_PATH}?includeInactive=true`, ctx.tokenProvider, 'volputas',
+      c, connector, `${GLAB_GAMES_PATH}?includeInactive=true`, ctx.tokenProvider, VOLUPTAS_PROJECT_KEY,
     ));
     routes.post('/games', requireAdmin, (c) => proxy(
-      c, connector, GLAB_GAMES_PATH, ctx.tokenProvider, 'volputas',
+      c, connector, GLAB_GAMES_PATH, ctx.tokenProvider, VOLUPTAS_PROJECT_KEY,
     ));
     routes.patch('/games/:id', requireAdmin, (c) => proxy(
       c,
       connector,
       `${GLAB_GAMES_PATH}/${encodeURIComponent(c.req.param('id'))}`,
       ctx.tokenProvider,
-      'volputas',
+      VOLUPTAS_PROJECT_KEY,
     ));
 
     // アンケート定義の登録と公開切替 (ゲーム別アンケート)。
     routes.post('/surveys', requireAdmin, (c) => proxy(
-      c, connector, GLAB_SURVEYS_PATH, ctx.tokenProvider, 'volputas',
+      c, connector, GLAB_SURVEYS_PATH, ctx.tokenProvider, VOLUPTAS_PROJECT_KEY,
     ));
     routes.patch('/surveys/:id', requireAdmin, (c) => proxy(
       c,
       connector,
       `${GLAB_SURVEYS_PATH}/${encodeURIComponent(c.req.param('id'))}`,
       ctx.tokenProvider,
-      'volputas',
+      VOLUPTAS_PROJECT_KEY,
     ));
 
     // 感情曲線。 記録と評価は JSON だが、 動画とゲームログはバイナリなので
     // 中継の経路を分ける (proxy() は本文を文字列化してしまう)。
     routes.get('/evidence/emotion-curves', (c) => proxy(
-      c, connector, `${GLAB_EVIDENCE_PATH}/emotion-curves`, ctx.tokenProvider, 'volputas',
+      c, connector, `${GLAB_EVIDENCE_PATH}/emotion-curves`, ctx.tokenProvider, VOLUPTAS_PROJECT_KEY,
     ));
     routes.post('/evidence/emotion-curves', (c) => proxy(
-      c, connector, `${GLAB_EVIDENCE_PATH}/emotion-curves`, ctx.tokenProvider, 'volputas',
+      c, connector, `${GLAB_EVIDENCE_PATH}/emotion-curves`, ctx.tokenProvider, VOLUPTAS_PROJECT_KEY,
     ));
     routes.post('/evidence/emotion-curves/:recordId/evaluate', (c) => proxy(
       c,
       connector,
       `${GLAB_EVIDENCE_PATH}/emotion-curves/${encodeURIComponent(c.req.param('recordId'))}/evaluate`,
       ctx.tokenProvider,
-      'volputas',
+      VOLUPTAS_PROJECT_KEY,
     ));
     routes.get('/evidence/media/:kind/:recordId/ticket', (c) => proxy(
       c,
@@ -160,7 +162,7 @@ const volputasModule: CorpusModule = {
       `${GLAB_EVIDENCE_PATH}/media/${encodeURIComponent(c.req.param('kind'))}`
         + `/${encodeURIComponent(c.req.param('recordId'))}/ticket`,
       ctx.tokenProvider,
-      'volputas',
+      VOLUPTAS_PROJECT_KEY,
     ));
     routes.put('/evidence/media/:kind/:recordId', (c) => proxyStream(
       c,
@@ -168,16 +170,17 @@ const volputasModule: CorpusModule = {
       `${GLAB_EVIDENCE_PATH}/media/${encodeURIComponent(c.req.param('kind'))}`
         + `/${encodeURIComponent(c.req.param('recordId'))}`,
       ctx.tokenProvider,
-      'volputas',
+      VOLUPTAS_PROJECT_KEY,
     ));
-    // 再生。 <video> が直接引くのでチケット (クエリ文字列) が認可を担う。
+    // ブラウザは GLAB session、GLAB→Voluptas は現在の scoped delegation。
+    // チケットだけでは本人の失効・対象所有権確認を代替しない。
     routes.get('/evidence/media/:kind/:recordId', (c) => proxyStream(
       c,
       connector,
       `${GLAB_EVIDENCE_PATH}/media/${encodeURIComponent(c.req.param('kind'))}`
         + `/${encodeURIComponent(c.req.param('recordId'))}`,
       ctx.tokenProvider,
-      'volputas',
+      VOLUPTAS_PROJECT_KEY,
     ));
     ctx.registerRoute(routes);
     ctx.registerPanel({ title: 'レビュー', icon: '📝' });
