@@ -230,11 +230,11 @@ a separate unfinished consumer. Unknown methods/paths continue to be refused.
 | Module | Remaining exact route/method shapes | Target dependency |
 | --- | --- | --- |
 | events (5) | GET facilities, GET meet/organizations, POST events, POST events/:id/meet, DELETE events/:id | Aedilis facilities/Meet; local list and own attendance are classified separately |
-| facility (16) | GET reservations/:id (target handler absent); meetings: GET collection, GET mine, POST collection, GET/PATCH/DELETE :id; POST meetings/:id/finalize, POST meetings/:id/glab-event, POST meetings/:id/responses, PATCH meetings/:id/responses/:responseId; GET meet/status, POST meet/oauth/start, GET meet/oauth/callback, GET/POST meet/:id | Aedilis remaining scoped target/callback/session binding; groups and seven facility/reservation operations are classified separately |
+| facility (6) | GET reservations/:id (target handler absent); GET meet/status, POST meet/oauth/start, GET meet/oauth/callback, GET/POST meet/:id | Aedilis managed Meet target/callback/session binding; groups, seven facility/reservation operations and ten meeting-poll operations are classified separately |
 | tirocinium (5) | GET companies; calls: POST collection, GET :id/events, POST :id/frames, DELETE :id | Tirocinium target/streaming call ownership; own career companies are classified separately; preserve other-owner/blocked task boundaries |
 | di (4) | GET entry-points, POST discussion-launch, GET review-trends, GET conclusions | Discutere launch/identity contract and existing service-access integration must be checked separately |
 
-After the facility/reservation operations below, these four groups total30route/method shapes. The previous35 figure omitted GET/POST meet/:id: the actual pre-unit remainder was37, with seven source operations classified here. Corpus shared routes still need
+After the meeting-poll operations below, these four groups total20route/method shapes. The previous35 figure omitted GET/POST meet/:id: the actual earlier remainder was37, then seven facility/reservation and ten meeting-poll source operations were classified. Corpus shared routes still need
 explicit host decisions for declared data aggregation, capability invocation
 and MCP. Overview/admin configuration and capability-list metadata are classified
 by the later unit below. Declared downstream
@@ -470,3 +470,38 @@ aedilis to Cr's canonical audience; transport origin is not that authority. Both
 projects require current operation declarations and consent before cutover. Actual
 settings, runtime, protected canonical reflection, other targets/native consumers
 and coordinated deployment remain incomplete. Test execution belongs to Revisor.
+
+## Scoped meeting-poll and GLAB handoff callers
+
+Ten source operations are classified under `/api/x/facility/meetings`: collection
+and own lists, collection creation, meeting read/update/cancellation, finalization,
+response creation/update and GLAB event handoff. Every GET is sensitive_read;
+mutations are important. Source action names are facility.meetings.list.read,
+mine.read, create, read, update, cancel, finalize, response.create,
+response.update and glab-event.finalize. The admitted nonempty subject is required;
+current meeting/response ownership and audience remain Aedilis's responsibility.
+
+The destination uses `/api/integrations/glab/meetings` and its matching target
+actions. Current actor/session/admission/expiry checks are repeated around
+membership awaits and before signing the actual request. DELETE retains its exact
+revision body. The existing handoff cancellation helper also uses the target's
+glab-event/cancel action, but this does not classify the still-unfinished source
+event-deletion operation by itself. Old direct meeting paths, session/guest
+operations, response deletion, unknown methods and implicit HEAD cannot delegate.
+
+The event-import handler accepts only the verified subject's matching meeting and
+slot snapshot with consistent facility/reservation linkage. It repeats current
+GLAB actor checks after Ae finalization and each awaited store read, immediately
+before local facility promotion/event import and before returning data. A changed
+actor, expired session, disconnect or revoked admission stops subsequent work.
+There is no distributed transaction across Ae, SQLite admission and GLAB's
+PostgreSQL stores; permission is checked synchronously before each write dispatch.
+An unknown local result is never automatically re-executed. Existing import by
+meeting ID and target handoff idempotency support a new explicitly authorized
+manual request, not proof reuse or an authorization fallback.
+
+Stores/DB/SDK remain borrowed from their existing owners. No dependency,
+connection, startup traffic, credential format or custom signature is added.
+Cr operation declarations/current consent, explicit administrator audiences,
+protected canonical source reflection, runtime verification, other targets/native
+consumers and coordinated cutover remain separate unfinished conditions.

@@ -5,6 +5,7 @@
   "templateRules": [],
   "membership": [
     { "pathPattern": "(^|/)tests/member-facility-operation-policy\\.test\\.ts$" },
+    { "pathPattern": "(^|/)tests/(?:member-meeting-operation-policy|meeting-event-delegation)\\.test\\.ts$" },
     {
       "pathPattern": "/plugins/facility/"
     },

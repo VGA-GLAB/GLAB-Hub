@@ -44,7 +44,7 @@ const facilityModule: CorpusModule = {
       'aedilis',
     ));
     for (const resource of ['reservations', 'meetings']) {
-      const base = (resource === 'reservations' ? AEDILIS_GLAB_PREFIX : '/api') + '/' + resource;
+      const base = AEDILIS_GLAB_PREFIX + '/' + resource;
       r.get('/' + resource, c => bookingProxy(c, ctx, aedilis, base));
       r.get('/' + resource + '/mine', c => bookingProxy(c, ctx, aedilis, base + '/mine'));
       r.post('/' + resource, c => bookingProxy(c, ctx, aedilis, base));
@@ -52,10 +52,10 @@ const facilityModule: CorpusModule = {
       r.patch('/' + resource + '/:id', c => bookingProxy(c, ctx, aedilis, base + '/' + segment(c, 'id')));
       r.delete('/' + resource + '/:id', c => bookingProxy(c, ctx, aedilis, base + '/' + segment(c, 'id')));
     }
-    r.post('/meetings/:id/finalize', c => bookingProxy(c, ctx, aedilis, '/api/meetings/' + segment(c, 'id') + '/finalize'));
+    r.post('/meetings/:id/finalize', c => bookingProxy(c, ctx, aedilis, AEDILIS_GLAB_PREFIX + '/meetings/' + segment(c, 'id') + '/finalize'));
     r.post('/meetings/:id/glab-event', c => finalizeMeetingEvent(c, ctx, aedilis));
-    r.post('/meetings/:id/responses', c => bookingProxy(c, ctx, aedilis, '/api/meetings/' + segment(c, 'id') + '/responses'));
-    r.patch('/meetings/:id/responses/:responseId', c => bookingProxy(c, ctx, aedilis, '/api/meetings/' + segment(c, 'id') + '/responses/' + segment(c, 'responseId')));
+    r.post('/meetings/:id/responses', c => bookingProxy(c, ctx, aedilis, AEDILIS_GLAB_PREFIX + '/meetings/' + segment(c, 'id') + '/responses'));
+    r.patch('/meetings/:id/responses/:responseId', c => bookingProxy(c, ctx, aedilis, AEDILIS_GLAB_PREFIX + '/meetings/' + segment(c, 'id') + '/responses/' + segment(c, 'responseId')));
     registerMeetRoutes(r, ctx, aedilis);
     ctx.registerRoute(r);
 

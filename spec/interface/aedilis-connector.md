@@ -36,6 +36,18 @@ Aedilis はこのコネクタを含め出席検証に関与しない。
 現Aeにhandlerが無いため許可せず別残件に保持する。以下のMeet/会議は現仕様として残るが、
 新委譲target/sourceの実装・宣言・現在同意が揃うまで移行完了/配備可とはしない。
 
+### 会議pollとGLAB予定への引継ぎ
+
+`/api/x/facility/meetings`のlist/mine/create/read/update/cancel/finalizeと
+回答作成/編集は、`/api/integrations/glab/meetings`へ単回委譲する。
+GETは機密閲覧、変更は重要操作。DELETEのrevision本文も変更せずdigestへ束縛する。
+`POST meetings/:id/glab-event`は同targetの`:id/glab-event/finalize`へ渡す。
+Aeは現在ownerとPublic限定export/予約freezeを保持し、GLABは受け取った本人/meeting/slot
+の一致と最新在籍許可を確認してから既存の冪等importを行う。
+内部cancelも同namespaceの`:id/glab-event/cancel`を使うが、イベント削除sourceの分類は別未完。
+この境界はAe公開9372814cの標準target契約に依存する。Google Meet/GPS/直接PWAや
+GLAB側の残るイベント/Meet/callbackはこのpoll単位の完了へ含めない。
+
 ## イベント連動
 
 - `GET /api/x/events/facilities` は GLAB 施設マスタと Aedilis 候補を分けて返す。

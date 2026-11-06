@@ -5,6 +5,7 @@
 export interface DownstreamOperation { action: string; additionalHeaders?: readonly string[] }
 interface Route { project: string; method: string; path: RegExp; action: string; booking?: true }
 export const AEDILIS_GLAB_PREFIX = '/api/integrations/glab';
+export const AEDILIS_MEETING_PREFIX = AEDILIS_GLAB_PREFIX + '/meetings';
 const routes: readonly Route[] = [
   { project: 'aedilis', method: 'GET', path: /^\/api\/integrations\/glab\/facilities$/, action: 'facility.list' },
   { project: 'aedilis', method: 'GET', path: /^\/api\/integrations\/glab\/facilities\/[^/]+$/, action: 'facility.read' },
@@ -21,17 +22,17 @@ const routes: readonly Route[] = [
   { project: 'aedilis', method: 'GET', path: /^\/api\/meet\/[0-9a-f-]{36}$/i, action: 'meet.read', booking: true },
   { project: 'aedilis', method: 'POST', path: /^\/api\/meet\/[0-9a-f-]{36}$/i, action: 'meet.create', booking: true },
   { project: 'aedilis', method: 'POST', path: /^\/api\/meet\/external\/glab-event\/\d+$/, action: 'meet.event.create', booking: true },
-  ...['meetings'].flatMap(resource => [
-    { project: 'aedilis', method: 'GET', path: new RegExp(`^/api/${resource}$`), action: `${resource}.list`, booking: true as const },
-    { project: 'aedilis', method: 'GET', path: new RegExp(`^/api/${resource}/mine$`), action: `${resource}.own`, booking: true as const },
-    { project: 'aedilis', method: 'POST', path: new RegExp(`^/api/${resource}$`), action: `${resource}.create`, booking: true as const },
-    { project: 'aedilis', method: 'GET', path: new RegExp(`^/api/${resource}/[^/]+$`), action: `${resource}.read`, booking: true as const },
-    { project: 'aedilis', method: 'PATCH', path: new RegExp(`^/api/${resource}/[^/]+$`), action: `${resource}.update`, booking: true as const },
-    { project: 'aedilis', method: 'DELETE', path: new RegExp(`^/api/${resource}/[^/]+$`), action: `${resource}.delete`, booking: true as const },
-  ]),
-  { project: 'aedilis', method: 'POST', path: /^\/api\/meetings\/[^/]+\/finalize$/, action: 'meetings.finalize', booking: true },
-  { project: 'aedilis', method: 'POST', path: /^\/api\/meetings\/[^/]+\/responses$/, action: 'meetings.respond', booking: true },
-  { project: 'aedilis', method: 'PATCH', path: /^\/api\/meetings\/[^/]+\/responses\/[^/]+$/, action: 'meetings.response.update', booking: true },
+  { project: 'aedilis', method: 'GET', path: /^\/api\/integrations\/glab\/meetings$/, action: 'meetings.list.read', booking: true },
+  { project: 'aedilis', method: 'GET', path: /^\/api\/integrations\/glab\/meetings\/mine$/, action: 'meetings.mine.read', booking: true },
+  { project: 'aedilis', method: 'POST', path: /^\/api\/integrations\/glab\/meetings$/, action: 'meetings.create', booking: true },
+  { project: 'aedilis', method: 'GET', path: /^\/api\/integrations\/glab\/meetings\/[0-9a-f-]{36}$/i, action: 'meetings.read', booking: true },
+  { project: 'aedilis', method: 'PATCH', path: /^\/api\/integrations\/glab\/meetings\/[0-9a-f-]{36}$/i, action: 'meetings.update', booking: true },
+  { project: 'aedilis', method: 'DELETE', path: /^\/api\/integrations\/glab\/meetings\/[0-9a-f-]{36}$/i, action: 'meetings.cancel', booking: true },
+  { project: 'aedilis', method: 'POST', path: /^\/api\/integrations\/glab\/meetings\/[0-9a-f-]{36}\/finalize$/i, action: 'meetings.finalize', booking: true },
+  { project: 'aedilis', method: 'POST', path: /^\/api\/integrations\/glab\/meetings\/[0-9a-f-]{36}\/responses$/i, action: 'meetings.response.create', booking: true },
+  { project: 'aedilis', method: 'PATCH', path: /^\/api\/integrations\/glab\/meetings\/[0-9a-f-]{36}\/responses\/[0-9a-f-]{36}$/i, action: 'meetings.response.update', booking: true },
+  { project: 'aedilis', method: 'POST', path: /^\/api\/integrations\/glab\/meetings\/[0-9a-f-]{36}\/glab-event\/finalize$/i, action: 'meetings.glab-event.finalize', booking: true },
+  { project: 'aedilis', method: 'POST', path: /^\/api\/integrations\/glab\/meetings\/[0-9a-f-]{36}\/glab-event\/cancel$/i, action: 'meetings.glab-event.cancel', booking: true },
   { project: 'bibliotheca', method: 'GET', path: /^\/api\/integrations\/glab\/items\/equipment$/, action: 'equipment.list' },
   { project: 'bibliotheca', method: 'GET', path: /^\/api\/integrations\/glab\/items\/books$/, action: 'inventory.books.list' },
   { project: 'bibliotheca', method: 'POST', path: /^\/api\/integrations\/glab\/items\/books$/, action: 'inventory.books.create' },
