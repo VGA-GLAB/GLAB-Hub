@@ -191,3 +191,56 @@ the actual operation. No UI/storage rename or fallback credential is introduced.
 These seven action/risk declarations, existing endpoint validation, other
 consumer migrations, checkout reflection and runtime/cutover evidence remain
 separate prerequisites; type checking alone does not prove live settings.
+
+Project registry reads retain admitted-member visibility; private analysis and
+named members/releases are sensitive reads. Create/edit/GitHub synchronization
+and assignment/removal require current verified administration and current
+project rows. Existing body/repository/file-path checks remain in the handlers.
+TEAM detail requires an active project and current membership, even for an admin;
+registry-wide visibility does not imply TEAM access. The endpoint repeats the
+same current checks and filters the subject's team list.
+
+Software catalog summaries expose only the existing published projection.
+Draft/signing metadata and entry edits remain admin-only. Signed download is a
+recipient-bound sensitive POST, with an8192-byte request bound and current
+publication check. The existing endpoint independently validates recipient key,
+nonce, pinned signature/hash, file bounds and current version/publication after
+file read. No crypto, native attestation, release encryption or file protocol is
+replaced. Admin entry input retains its16KiB ceiling.
+
+| Risk | Exact additional GLAB actions |
+| --- | --- |
+| read | software.catalog.read |
+| sensitive_read | projects.list, projects.detail.read, projects.releases.read, projects.analysis.summary.read, projects.analysis.file.read, projects.known-users.read, teams.own.read, teams.detail.read, software.catalog.manage.read, software.release.download |
+| important | projects.create, projects.update, projects.github.sync, projects.member.assign, projects.member.remove, software.entry.save |
+
+The seventeen action/risk entries need explicit administrator declaration and
+consent. Service mirror paths are not user actions and retain their separate
+service-principal authorization. Current endpoint ACLs and artifact validation
+remain necessary after the shared guard; a permit is not data authorization.
+
+## Remaining source routes before coordinated cutover
+
+The following is a finite implementation inventory, not an allowlist. It was
+compared with the22modules in plugins/pack.json and the actual route registrations.
+Already-classified attendance, budget, profile, roster, role, showcase, forum and
+consult operations are excluded. Unknown methods/paths continue to be refused.
+
+| Module | Remaining exact route/method shapes | Target dependency |
+| --- | --- | --- |
+| events (8) | GET facilities, GET meet/organizations, GET/POST events, POST events/:id/meet, DELETE events/:id, GET/PUT events/:id/attendance | Aedilis facilities/Meet; preserve current event audience/organizer/occurrence checks |
+| facility (21) | GET facilities and facilities/:id; for reservations and meetings: GET collection, GET mine, POST collection, GET/PATCH/DELETE :id; POST meetings/:id/finalize, POST meetings/:id/glab-event, POST meetings/:id/responses, PATCH meetings/:id/responses/:responseId; GET meet/status, POST meet/oauth/start, GET meet/oauth/callback | Aedilis scoped target and callback/session binding; groups already classified |
+| library (7) | GET equipment, GET/POST books, GET me, GET lookup, GET loans/mine, POST loans | Bibliotheca scoped target; local budget already classified |
+| cocoiru (8) | GET active-members; resident/:groupId: PUT availability, GET available, POST calls, GET inbox, DELETE inbox/:id, POST tasukete, GET discord-lobby | Native client's scoped-session migration; current recipient/lease/subject ownership, lobby GET creates/returns a secret |
+| tirocinium (8) | GET companies, GET career-companies, PUT/DELETE career-companies/:relationType/:companyId; calls: POST collection, GET :id/events, POST :id/frames, DELETE :id | Tirocinium target/streaming call ownership; preserve other-owner/blocked task boundaries |
+| di (4) | GET entry-points, POST discussion-launch, GET review-trends, GET conclusions | Discutere launch/identity contract and existing service-access integration must be checked separately |
+| odeum (8) | GET status, GET live, POST sessions, POST sessions/:id/end, POST sessions/:id/viewer-ticket, GET sessions/:id/invitation, GET ticket-pubkeys, POST sessions/:id/program-ticket | Existing event audience/presenter/program owner checks and Odeum target/ticket contract |
+
+These seven groups total64route/method shapes. Corpus shared routes also need
+explicit host decisions: hub overview, external-id list/reassignment, discovery
+read/write, declared data aggregation, capabilities and MCP. Declared downstream
+metadata alone must not authorize a source resource or an arbitrary tool/action.
+Static assets, health/public-config/auth-ceremony endpoints and external-service
+mirrors are separate boundaries, not user-operation gaps to blanket-allow.
+Action settings, target implementation, source checkout reflection and live
+verification remain independent acceptance conditions for each row.

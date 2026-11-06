@@ -18,6 +18,8 @@ import { consultOperationPolicy } from './consult-operations.ts';
 import { roleOperationPolicy } from './role-operations.ts';
 import { rosterOperationPolicy } from './roster-operations.ts';
 import { profileOperationPolicy } from './profile-operations.ts';
+import { projectOperationPolicy } from './project-operations.ts';
+import { softwareLibraryOperationPolicy } from './software-library-operations.ts';
 
 const attendance = attendanceOperationPolicy();
 const coreMetadata = new Map([
@@ -34,6 +36,8 @@ export const glabOperationPolicy: ServiceOperationPolicy = c => {
   if (membership) return membership;
   const profile = profileOperationPolicy(c);
   if (profile) return profile;
+  const project = projectOperationPolicy(c) ?? softwareLibraryOperationPolicy(c);
+  if (project) return project;
   const media = mediaOperationPolicy(c);
   if (media) return media;
   const voluptas = voluptasOperationPolicy(c);
