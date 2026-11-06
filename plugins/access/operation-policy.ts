@@ -15,6 +15,8 @@ import { questOperationPolicy } from './quest-operations.ts';
 import { voluptasOperationPolicy } from './voluptas-operations.ts';
 import { forumOperationPolicy } from './forum-operations.ts';
 import { consultOperationPolicy } from './consult-operations.ts';
+import { roleOperationPolicy } from './role-operations.ts';
+import { rosterOperationPolicy } from './roster-operations.ts';
 
 const attendance = attendanceOperationPolicy();
 const coreMetadata = new Map([
@@ -27,6 +29,8 @@ export const glabOperationPolicy: ServiceOperationPolicy = c => {
   if (memberContent) return memberContent;
   const discussion = forumOperationPolicy(c) ?? consultOperationPolicy(c);
   if (discussion) return discussion;
+  const membership = roleOperationPolicy(c) ?? rosterOperationPolicy(c);
+  if (membership) return membership;
   const media = mediaOperationPolicy(c);
   if (media) return media;
   const voluptas = voluptasOperationPolicy(c);

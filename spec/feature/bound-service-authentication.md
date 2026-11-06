@@ -146,3 +146,26 @@ These declared actions/risks need explicit administrator consent permissions
 before switch. Unknown methods/paths stay refused; current resource checks are
 repeated without a positive cache. Other unfinished modules/targets/consumers
 and settings/runtime evidence still block coordinated deployment.
+
+Role and private member-roster operations use exact route/method classifications.
+Existing role definitions are shared with admitted members; own role and named
+role-member lists are sensitive reads. Role definition changes and assignment/
+removal require the current verified administrator, independently of any role
+name in the URL/body. The endpoint retains its `requireAdmin` check. All member
+roster enumeration, creation, mutation and linking remain administrator-only;
+mutation/link/delete callbacks fetch the current target row immediately before
+execution. The endpoint still validates body, linkage uniqueness and PII removal.
+An absent row, revoked admission or downgraded administrator cannot use a prior
+positive resource decision. No service permit replaces these GLAB decisions.
+
+| Risk | Exact additional GLAB actions |
+| --- | --- |
+| read | roles.definitions.read |
+| sensitive_read | roles.self.read, roles.members.read, roster.list, roster.link-candidates.read |
+| important | roles.definition.save, roles.definition.delete, roles.member.assign, roles.member.remove, roster.create, roster.update, roster.link, roster.delete |
+
+These thirteen actions require the matching administrator-owned Cr declaration
+and consent before cutover. Unknown routes/methods remain denied. This unit does
+not change existing optional roster name-resolution behavior or introduce new
+authority credentials; remaining settings/target/consumer/runtime conditions are
+still unresolved until separately verified.
