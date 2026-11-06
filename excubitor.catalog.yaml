@@ -31,6 +31,10 @@ services:
     # Corpus プラグインが接続する実依存を起動順へ反映する。
     depends_on: [cernere, cernere-frontend, aedilis, bibliotheca, tirocinium, discutere, voluptas, ostiarius]
     autostart: false
+    # 本番は DB の一時断で落ちても自動で立ち直らせる (2026-10-30 に AWS で GROMAC Postgres の接続待ち切れで落ち、8 日停止した)。
+    # 間隔は 1s から倍々で最大 30s、30 回で約 13 分ぶん待つ。
+    restart_policy: on-failure
+    max_restart: 30
     env:
       CORPUS_PUBLIC_URL: http://localhost:5187
       # Public leaf-certificate fingerprint; the private signing key stays in the release operator's CNG store.
