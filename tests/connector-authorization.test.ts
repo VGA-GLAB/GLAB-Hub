@@ -3,6 +3,8 @@ import { describe, it } from 'node:test';
 import { Hono, type Context, type ServiceConnector, type TokenProvider, type ServiceUserSession } from '../corpus/server/hub/sdk.ts';
 import { authorizedConnectorFetch, proxy, proxyStream } from '../plugins/shared.ts';
 import { AedilisEventClient, AedilisRequestError } from '../plugins/events/aedilis-client.ts';
+import { configureAdmissionPolicy } from '../plugins/access/policy.ts';
+import type { SqlDb } from '../plugins/data.ts';
 
 const session: ServiceUserSession = { token: 's'.repeat(43), grant: { projectToken: 'scoped', sessionBinding: 'b'.repeat(43), projectKey: 'glab',
   expiresAt: new Date(Date.now() + 600_000).toISOString(), user: { id: 'subject', role: 'general', displayName: 'Person', email: null } } };
@@ -123,12 +125,16 @@ describe('one-operation downstream authorization boundary', () => {
     assert.equal(disposed, 1); assert.equal(sent, 1);
   });
   it('retains controlled authorization failure in the Aedilis event client', async () => {
-    const source: TokenProvider = { mode: 'fixture', authorize: async () => null };
+    configureAdmissionPolicy({ prepare: () => ({ get: () => ({ status: 'approved' }) }) } as unknown as SqlDb);
+    let prepared = 0;
+    const source: TokenProvider = { mode: 'fixture', authorize: async current => { prepared++; assert.equal(current, session); return null; } };
     const client = new AedilisEventClient(connector(async () => assert.fail('Must not send')), source);
     const response = await app(async c => {
+      c.set('auth', { userId: session.grant.user.id, externalId: session.grant.user.id, role: 'general', displayName: 'Person', projectKey: 'glab', isAdmin: false });
       await assert.rejects(client.listFacilities(c), (error: unknown) => error instanceof AedilisRequestError && error.status === 503);
       return new Response('checked');
     }).request('/relay');
     assert.equal(response.status, 200);
+    assert.equal(prepared, 1);
   });
 });

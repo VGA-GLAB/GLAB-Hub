@@ -3,6 +3,12 @@ import { expandOccurrences, type EventOccurrence } from './recurrence.ts';
 
 type DatabaseClient = ReturnType<typeof postgres>;
 
+/** Request owner snapshot; the current host admission/session is checked inside the transaction. */
+export interface EventMutationOwner { userId: string; isAdmin: boolean; assertCurrent: () => void }
+export class EventOwnerRejected extends Error {
+  constructor(readonly code: 'not_found' | 'forbidden') { super('Event mutation owner rejected'); }
+}
+
 const WEEK_MS = 7 * 24 * 60 * 60 * 1_000;
 
 /** `to` 未指定時に週次イベントを展開する既定の先読み幅。 */
@@ -59,7 +65,7 @@ const EVENT_COLUMNS = `
   discord_message_id, audience_roles, recurrence, meet_url, meeting_id
 `;
 
-class EventStore {
+export class EventStore {
   constructor(private readonly sql: DatabaseClient) {}
 
   async initialize(): Promise<void> {
@@ -101,8 +107,10 @@ class EventStore {
     await this.sql`CREATE INDEX IF NOT EXISTS glab_event_starts ON glab_event(starts_at)`;
   }
 
-  async create(event: NewEvent): Promise<number> {
-    const [created] = await this.sql<{ id: number }[]>`
+  async create(event: NewEvent, assertCurrent: () => void): Promise<number> {
+    return this.sql.begin(async tx => {
+      assertCurrent();
+      const [created] = await tx<{ id: number }[]>`
       INSERT INTO glab_event
         (title, body, location, starts_at, ends_at, facility_id, reservation_id, created_by, audience_roles, recurrence)
       VALUES (
@@ -113,8 +121,10 @@ class EventStore {
       )
       RETURNING id
     `;
-    if (!created) throw new Error('failed to create GLAB event');
-    return created.id;
+      assertCurrent();
+      if (!created) throw new Error('failed to create GLAB event');
+      return created.id;
+    });
   }
 
   async list(options: EventListOptions = {}): Promise<EventOccurrence[]> {
@@ -158,18 +168,33 @@ class EventStore {
     return (rows[0] as unknown as EventRow | undefined) ?? null;
   }
 
-  async delete(id: number): Promise<boolean> {
-    // 通知済み記録を先に消す。 残したまま id が再利用されると新イベントの初回通知が
-    // 恒久的に抑止されるが、 逆順で途中失敗した場合の再通知は 1 回で済む。
-    await this.sql`DELETE FROM glab_event_occurrence_notified WHERE event_id = ${id}`;
-    const rows = await this.sql<{ id: number }[]>`
-      DELETE FROM glab_event WHERE id = ${id} RETURNING id
-    `;
-    return rows.length > 0;
+  private async lockOwner(tx: Pick<DatabaseClient, 'unsafe'>, id: number, owner: EventMutationOwner): Promise<void> {
+    const rows = await tx.unsafe<{ created_by: string }[]>('SELECT created_by FROM glab_event WHERE id=$1 FOR UPDATE', [id]);
+    owner.assertCurrent();
+    if (!rows[0]) throw new EventOwnerRejected('not_found');
+    if (!owner.userId || (rows[0].created_by !== owner.userId && !owner.isAdmin)) throw new EventOwnerRejected('forbidden');
   }
 
-  async setMeetUrl(id: number, meetUrl: string): Promise<void> {
-    await this.sql`UPDATE glab_event SET meet_url = ${meetUrl} WHERE id = ${id}`;
+  /** @implements SPEC-GLAB-BOUND-AUTH-001 */
+  async delete(id: number, owner: EventMutationOwner): Promise<boolean> {
+    return this.sql.begin(async tx => {
+      await this.lockOwner(tx, id, owner);
+      await tx`DELETE FROM glab_event_occurrence_notified WHERE event_id = ${id}`;
+      owner.assertCurrent();
+      const rows = await tx<{ id: number }[]>`DELETE FROM glab_event WHERE id = ${id} RETURNING id`;
+      owner.assertCurrent();
+      return rows.length > 0;
+    });
+  }
+
+  /** @implements SPEC-GLAB-BOUND-AUTH-001 */
+  async setMeetUrl(id: number, meetUrl: string, owner: EventMutationOwner): Promise<void> {
+    if (!/^https:\/\/meet\.google\.com\/[a-z-]+$/.test(meetUrl)) throw new Error('Invalid managed Meet URL');
+    await this.sql.begin(async tx => {
+      await this.lockOwner(tx, id, owner);
+      await tx`UPDATE glab_event SET meet_url = ${meetUrl} WHERE id = ${id}`;
+      owner.assertCurrent();
+    });
   }
 
   async markNotified(id: number, discordMessageId: string | null): Promise<void> {

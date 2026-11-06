@@ -29,10 +29,12 @@ import { careerCompanyOperationPolicy } from './career-company-operations.ts';
 import { facilityOperationPolicy } from './facility-operations.ts';
 import { meetingOperationPolicy } from './meeting-operations.ts';
 import { managedMeetOperationPolicy } from './managed-meet-operations.ts';
+import { eventMutationOperationPolicy } from './event-mutation-operations.ts';
 
 const attendance = attendanceOperationPolicy();
 const resident = residentOperationPolicy();
 const localEvents = localEventOperationPolicy();
+const eventMutations = eventMutationOperationPolicy();
 const odeum = odeumOperationPolicy();
 const coreMetadata = new Map([
   ['/api/hub/connectors', 'hub.connectors.read'], ['/api/hub/modules', 'hub.modules.read'], ['/api/hub/services', 'hub.services.read'],
@@ -56,6 +58,8 @@ export const glabOperationPolicy: ServiceOperationPolicy = c => {
   if (presence) return presence;
   const event = localEvents(c);
   if (event) return event;
+  const eventMutation = eventMutations(c);
+  if (eventMutation) return eventMutation;
   const lending = lendingOperationPolicy(c);
   if (lending) return lending;
   const presentation = odeum(c);

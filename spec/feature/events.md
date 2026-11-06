@@ -20,7 +20,7 @@ GLAB の集会 / 勉強会などのイベントを **GLAB PostgreSQL** で登録
 - `title` は必須、`facilityId` は任意。`startsAt` / `endsAt` はepoch msまたはISO文字列を受け、`endsAt > startsAt`を必須とする。
 - Web UIはGLAB施設とAedilis候補をselectで表示し、通常イベントは1〜8時間の使用時間から終了時刻を算出する。終日指定では選択日の00:00〜23:59:59.999とする。
 - Aedilis候補を初めて使う時は、候補の名前と対応IDをGLAB施設マスタへ昇格する。
-- 施設指定時にAedilis予約が失敗した場合はGLABイベントを作成しない。GLAB保存が失敗した場合は作成済み予約をbest-effortで取り消す。
+- 施設指定時にAedilis予約が失敗した場合はGLABイベントを作成しない。PostgreSQL保存の応答が不明な場合は、実際にはcommit済みの可能性があるため予約取消を自動補償せず、503 `event_creation_result_unconfirmed` / `retryable:false` とする。再ログイン後に自分のイベント一覧とAe予約一覧を照合してから明示的に処理し、自動再実行しない。
 - 登録時に `cacheDisplayName(db, userId, displayName)` で表示名をキャッシュする。
 
 ## 状態

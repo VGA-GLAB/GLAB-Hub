@@ -52,7 +52,7 @@ GLAB側の残るイベント/Meet/callbackはこのpoll単位の完了へ含め�
 
 - `GET /api/x/events/facilities` は GLAB 施設マスタと Aedilis 候補を分けて返す。
 - `POST /api/x/events/events` は Aedilis 予約を先に作り、成功時だけ GLAB イベントを保存する。
-- GLAB 保存失敗時は作成済み予約を best-effort で取り消す。
+- GLAB PostgreSQL保存のcommit成否不明時は作成済み予約を自動取消しない。既成立のイベントに必要な予約を壊す可能性があるため、固定503/retryable:falseを返し、再認証後に本人の予定/予約を確認して明示処理する。Cr消費・Ae予約・GLAB保存は分散transactionではなく、未知結果の自動再実行もしない。
 - イベント削除時は Aedilis 予約を取り消してから GLAB イベントを削除する。
 - 固定の `AEDILIS_SERVICE_TOKEN` は使用しない。
 

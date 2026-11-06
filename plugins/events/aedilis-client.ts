@@ -5,6 +5,7 @@ import type {
 } from '../../corpus/server/hub/sdk.ts';
 import { authorizedConnectorFetch } from '../shared.ts';
 import { AEDILIS_GLAB_PREFIX } from '../downstream-operations.ts';
+import { BookingActorUnavailable, currentBookingActor } from '../facility/booking-actor.ts';
 
 export interface AedilisFacilityCandidate {
   id: string;
@@ -28,8 +29,10 @@ export class AedilisEventClient {
   ) {}
 
   async listFacilities(c: Context): Promise<AedilisFacilityCandidate[]> {
+    const actor = currentBookingActor(c);
     const response = await this.request(c, AEDILIS_GLAB_PREFIX + '/facilities');
     const body = await response.json().catch(() => null) as { items?: unknown[] } | null;
+    actor.assertCurrent();
     if (!body || !Array.isArray(body.items)) throw new AedilisRequestError(502, 'invalid_response');
     return body.items.flatMap((item) => {
       if (!item || typeof item !== 'object') return [];
@@ -47,6 +50,7 @@ export class AedilisEventClient {
     c: Context,
     input: { facilityId: string; startsAt: number; endsAt: number; purpose: string },
   ): Promise<string> {
+    const actor = currentBookingActor(c);
     const response = await this.request(c, AEDILIS_GLAB_PREFIX + '/reservations', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -60,6 +64,7 @@ export class AedilisEventClient {
     const body = await response.json().catch(() => null) as
       | { reservation?: { id?: unknown } }
       | null;
+    actor.assertCurrent();
     const reservationId = body?.reservation?.id;
     if (typeof reservationId !== 'string' || !reservationId) {
       throw new AedilisRequestError(502, 'invalid_reservation_response');
@@ -74,6 +79,7 @@ export class AedilisEventClient {
   }
 
   private async request(c: Context, path: string, init: RequestInit = {}): Promise<Response> {
+    const actor = currentBookingActor(c);
     let response: Response;
     try {
       response = await authorizedConnectorFetch(
@@ -82,15 +88,18 @@ export class AedilisEventClient {
         path,
         this.tokenProvider,
         'aedilis',
-        init,
+        { ...init, signal: c.req.raw.signal },
       );
-    } catch {
+      actor.assertCurrent();
+    } catch (error) {
+      if (error instanceof BookingActorUnavailable) throw error;
       throw new AedilisRequestError(502, 'unreachable');
     }
     if (response.ok) return response;
     const body = await response.clone().json().catch(() => null) as
       | { code?: unknown; error?: unknown }
       | null;
+    actor.assertCurrent();
     const code = typeof body?.code === 'string'
       ? body.code
       : typeof body?.error === 'string' ? body.error : 'request_failed';

@@ -5,7 +5,7 @@
 import { Hono, getIdentity, cacheDisplayName } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusModule, CorpusContext, ServiceConnector } from '../../corpus/server/hub/sdk.ts';
 import { z } from 'zod';
-import { getEventStore, type EventRow } from './store.ts';
+import { EventOwnerRejected, getEventStore, type EventRow } from './store.ts';
 import { canSee, resolveRoles, parseAudience as audience } from '../roles/audience.ts';
 import { getFacilityStore, type GlabFacility } from './facility-store.ts';
 import { makeAedilisConnector } from '../shared.ts';
@@ -17,6 +17,8 @@ import {
 import { ORGANIZATION_ID, isMeetUrl, issueEventMeet, meetOrganizations } from './meet-client.ts';
 import { cancelMeetingEvent } from '../facility/meeting-event.ts';
 import { registerEventAttendance } from './attendance-routes.ts';
+import { BookingActorUnavailable } from '../facility/booking-actor.ts';
+import { currentEventOwner, type EventRequestOwner } from './request-owner.ts';
 
 const eventInputSchema = z.object({
   title: z.string().trim().min(1).max(255),
@@ -37,6 +39,7 @@ const meetInputSchema = z.object({
 
 /** `from`〜`to` に許す最大幅 (週次イベントの occurrence 展開量の上限)。 */
 const MAX_EVENT_RANGE_MS = 366 * 24 * 60 * 60 * 1_000;
+export type AedilisEventRequests = Pick<AedilisEventClient, 'listFacilities' | 'createReservation' | 'cancelReservation'>;
 
 function eventView(row: EventRow): Record<string, unknown> {
   return {
@@ -72,13 +75,16 @@ function candidateView(candidate: AedilisFacilityCandidate): Record<string, unkn
 
 async function resolveFacility(
   c: Parameters<AedilisEventClient['listFacilities']>[0],
-  client: AedilisEventClient,
+  client: AedilisEventRequests,
   facilityId: string,
+  facilities: Pick<ReturnType<typeof getFacilityStore>, 'get' | 'promote'>,
+  actor: EventRequestOwner,
 ): Promise<GlabFacility | null> {
-  const facilities = getFacilityStore();
   const existing = await facilities.get(facilityId);
+  actor.assertCurrent();
   if (existing) return existing;
   const candidate = (await client.listFacilities(c)).find((item) => item.id === facilityId);
+  actor.assertCurrent();
   if (!candidate) return null;
   return facilities.promote({
     id: candidate.id,
@@ -92,28 +98,45 @@ function aedilisFailure(error: AedilisRequestError): Response {
   return Response.json({
     error: 'aedilis_reservation_failed',
     downstreamStatus: error.status,
-    code: error.code,
+    code: /^[a-z][a-z0-9_]{0,63}$/.test(error.code) ? error.code : 'request_unconfirmed',
+    retryable: false,
   }, { status });
 }
 
-export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient, connector: ServiceConnector): Hono {
-  const events = getEventStore();
-  const facilities = getFacilityStore();
+export interface EventRouteStores {
+  events: () => Pick<ReturnType<typeof getEventStore>, 'get' | 'list' | 'create' | 'setMeetUrl' | 'delete'>;
+  facilities: () => Pick<ReturnType<typeof getFacilityStore>, 'get' | 'list' | 'promote'>;
+}
+export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventRequests, connector: ServiceConnector,
+  stores: EventRouteStores = { events: getEventStore, facilities: getFacilityStore }): Hono {
+  // Borrow the existing startup-owned stores. Tests supply bounded stores, never
+  // new connections, fallback state or a second owner of the production pool.
+  const events = stores.events(), facilities = stores.facilities();
   const routes = new Hono();
-  registerEventAttendance(routes, ctx);
+  routes.use('*', async (c, next) => { c.header('cache-control', 'private, no-store'); await next(); });
+  routes.onError((error, c) => {
+    if (error instanceof BookingActorUnavailable) return c.json({ error: 'current_booking_actor_unconfirmed', retryable: false }, 403);
+    if (error instanceof EventOwnerRejected) return c.json({ error: error.code, retryable: false }, error.code === 'not_found' ? 404 : 403);
+    return c.json({ error: 'event_operation_unconfirmed', retryable: false }, 503);
+  });
+  registerEventAttendance(routes, ctx, id => events.get(id));
 
   routes.get('/facilities', async (c) => {
+    const actor = currentEventOwner(c);
     const master = await facilities.list();
+    actor.assertCurrent();
     try {
       const knownIds = new Set(master.map((item) => item.aedilisFacilityId));
       const suggestions = (await aedilis.listFacilities(c))
         .filter((item) => !knownIds.has(item.id));
+      actor.assertCurrent();
       return c.json({
         items: master.map(facilityView),
         suggestions: suggestions.map(candidateView),
         aedilisAvailable: true,
       });
     } catch (error) {
+      actor.assertCurrent();
       return c.json({
         items: master.map(facilityView),
         suggestions: [],
@@ -123,17 +146,22 @@ export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient, conn
     }
   });
 
-  // Meet の代表にできる組織 (自分の所属)。Cernere に届かなければ空 (組織無しでは発行できる)。
+  // Current own membership only; an unknown lookup cannot be a successful empty result.
   routes.get('/meet/organizations', async (c) => {
+    const actor = currentEventOwner(c);
     try {
-      return c.json({ items: await meetOrganizations(c, ctx) });
+      const items = await meetOrganizations(c, ctx);
+      actor.assertCurrent();
+      return c.json({ items });
     } catch {
-      return c.json({ items: [], available: false });
+      actor.assertCurrent();
+      return c.json({ error: 'event_organizations_unavailable', available: false, retryable: false }, 503);
     }
   });
 
   routes.get('/events', async (c) => {
     const identity = getIdentity(c);
+    const actor = currentEventOwner(c);
     const includePast = c.req.query('all') === '1';
     const from = c.req.query('from');
     const to = c.req.query('to');
@@ -149,6 +177,7 @@ export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient, conn
       return c.json({ error: 'invalid_event_range' }, 400);
     }
     const rows = await events.list({ includePast, from: fromAt, to: toAt });
+    actor.assertCurrent();
     // The PostgreSQL read yields; use current roles when projecting private rows.
     const roles = resolveRoles(ctx.db, identity.userId);
     return c.json({
@@ -160,7 +189,9 @@ export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient, conn
 
   routes.post('/events', async (c) => {
     const identity = getIdentity(c);
+    const actor = currentEventOwner(c);
     const parsed = eventInputSchema.safeParse(await c.req.json().catch(() => null));
+    actor.assertCurrent();
     if (!parsed.success) return c.json({ error: 'invalid_event' }, 400);
     const startsAt = timestamp(parsed.data.startsAt);
     const endsAt = timestamp(parsed.data.endsAt);
@@ -174,8 +205,9 @@ export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient, conn
     let reservationId: string | null = null;
     if (facilityIdInput) {
       try {
-        facility = await resolveFacility(c, aedilis, facilityIdInput);
+        facility = await resolveFacility(c, aedilis, facilityIdInput, facilities, actor);
       } catch (error) {
+        if (error instanceof BookingActorUnavailable) throw error;
         return error instanceof AedilisRequestError
           ? aedilisFailure(error)
           : c.json({ error: 'facility_lookup_failed' }, 502);
@@ -183,13 +215,16 @@ export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient, conn
       if (!facility) return c.json({ error: 'facility_not_found' }, 400);
 
       try {
+        actor.assertCurrent();
         reservationId = await aedilis.createReservation(c, {
           facilityId: facility.aedilisFacilityId,
           startsAt,
           endsAt,
           purpose: parsed.data.title,
         });
+        actor.assertCurrent();
       } catch (error) {
+        if (error instanceof BookingActorUnavailable) throw error;
         return error instanceof AedilisRequestError
           ? aedilisFailure(error)
           : c.json({ error: 'aedilis_reservation_failed' }, 502);
@@ -198,6 +233,7 @@ export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient, conn
 
     let eventId: number;
     try {
+      actor.assertCurrent();
       eventId = await events.create({
         title: parsed.data.title,
         body: parsed.data.body?.trim() || null,
@@ -209,64 +245,75 @@ export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient, conn
         createdBy: identity.userId,
         audienceRoles: parsed.data.audienceRoles,
         recurrence: parsed.data.recurrence,
-      });
+      }, actor.assertCurrent);
     } catch (error) {
-      if (reservationId) await aedilis.cancelReservation(c, reservationId).catch(() => undefined);
-      throw error;
+      if (error instanceof BookingActorUnavailable) throw error;
+      // A PostgreSQL commit acknowledgment can be lost. Automatically cancelling
+      // the reservation here could break an event which actually committed.
+      return c.json({ error: 'event_creation_result_unconfirmed', retryable: false }, 503);
     }
+    actor.assertCurrent();
     if (identity.displayName) cacheDisplayName(ctx.db, identity.userId, identity.displayName);
     // Meet の発行に失敗してもイベントは残す (一覧の「Meet リンクを発行」から再発行できる)。
     let meetError: string | null = null;
     if (parsed.data.meet) {
       const meet = await issueEventMeet(c, ctx, connector, eventId, parsed.data.meetOrganizationId ?? null);
-      if ('url' in meet) await events.setMeetUrl(eventId, meet.url);
+      actor.assertCurrent();
+      if ('url' in meet) await events.setMeetUrl(eventId, meet.url, actor);
       else meetError = meet.error;
     }
     const created = await events.get(eventId);
+    actor.assertCurrent();
+    if (!created) return c.json({ error: 'event_creation_result_unconfirmed', retryable: false }, 503);
+    actor.assertOwner(created);
     return c.json({ ok: true, event: created ? eventView(created) : null, ...(meetError ? { meetError } : {}) });
   });
 
   routes.post('/events/:id/meet', async (c) => {
-    const identity = getIdentity(c);
+    const actor = currentEventOwner(c);
     const eventId = Number(c.req.param('id'));
     if (!Number.isSafeInteger(eventId) || eventId <= 0) {
       return c.json({ error: 'invalid_event_id' }, 400);
     }
     const parsed = meetInputSchema.safeParse(await c.req.json().catch(() => null));
+    actor.assertCurrent();
     if (!parsed.success) return c.json({ error: 'invalid_meet' }, 400);
     const event = await events.get(eventId);
+    actor.assertCurrent();
     if (!event) return c.json({ error: 'not_found' }, 404);
     // 削除と同じく登録者と管理者だけ。
-    if (event.created_by !== identity.userId && !identity.isAdmin) {
-      return c.json({ error: 'forbidden' }, 403);
-    }
+    actor.assertOwner(event);
     if (isMeetUrl(event.meet_url)) return c.json({ ok: true, meetUrl: event.meet_url });
     const meet = await issueEventMeet(c, ctx, connector, eventId, parsed.data.organizationId ?? null);
+    actor.assertCurrent();
     if (!('url' in meet)) return c.json({ error: meet.error }, 502);
-    await events.setMeetUrl(eventId, meet.url);
+    await events.setMeetUrl(eventId, meet.url, actor);
+    actor.assertCurrent();
     return c.json({ ok: true, meetUrl: meet.url });
   });
 
   routes.delete('/events/:id', async (c) => {
-    const identity = getIdentity(c);
+    const actor = currentEventOwner(c);
     const eventId = Number(c.req.param('id'));
     if (!Number.isSafeInteger(eventId) || eventId <= 0) {
       return c.json({ error: 'invalid_event_id' }, 400);
     }
     const event = await events.get(eventId);
+    actor.assertCurrent();
     if (!event) return c.json({ error: 'not_found' }, 404);
-    if (event.created_by !== identity.userId && !identity.isAdmin) {
-      return c.json({ error: 'forbidden' }, 403);
-    }
+    actor.assertOwner(event);
     let aedilisCancelFailed = false;
     if (event.meeting_id) {
       // Ae's meeting owner must cancel the handed-off reservation; never force-delete one side.
       const cancelled = await cancelMeetingEvent(c, ctx, connector, event.meeting_id);
+      actor.assertCurrent();
       if (!cancelled.ok) return cancelled;
     } else if (event.reservation_id) {
       try {
         await aedilis.cancelReservation(c, event.reservation_id);
+        actor.assertCurrent();
       } catch (error) {
+        actor.assertCurrent();
         // 404 = Aedilis 側で既にキャンセル済み。それ以外は ?force=1 (削除権限と同一の
         // 登録者/admin) でのみローカル削除を強行できる — 恒久的に削除不能な残骸を作らない。
         const alreadyCancelled = error instanceof AedilisRequestError && error.status === 404;
@@ -278,7 +325,13 @@ export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient, conn
         aedilisCancelFailed = !alreadyCancelled;
       }
     }
-    await events.delete(eventId);
+    const current = await events.get(eventId);
+    actor.assertCurrent();
+    if (!current) return c.json({ error: 'not_found' }, 404);
+    actor.assertOwner(current);
+    if (current.meeting_id !== event.meeting_id || current.reservation_id !== event.reservation_id) return c.json({ error: 'event_changed', retryable: false }, 409);
+    await events.delete(eventId, actor);
+    actor.assertCurrent();
     return c.json({ ok: true, aedilisCancelFailed });
   });
 

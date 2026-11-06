@@ -65,10 +65,13 @@ test('admission revoked while reading the PostgreSQL event cannot use a stale pr
 });
 
 test('external reservation/Meet mutations and malformed event ids do not inherit a local event grant', () => {
-  fixture();
+  const { policy } = fixture();
   for (const [method, path] of [['POST', '/events'], ['DELETE', '/events/1'], ['POST', '/events/1/meet'],
     ['GET', '/facilities'], ['GET', '/meet/organizations'], ['POST', '/events/1/attendance'],
     ['PUT', '/events/9007199254740992/attendance'], ['GET', '/events/0/attendance'], ['HEAD', '/events']]) {
+    assert.equal(policy(context(method!, '/api/x/events' + path)), null);
+  }
+  for (const [method, path] of [['POST', '/events/1/attendance'], ['PUT', '/events/9007199254740992/attendance'], ['HEAD', '/events']]) {
     assert.equal(glabOperationPolicy(context(method!, '/api/x/events' + path)), null);
   }
 });

@@ -229,12 +229,11 @@ a separate unfinished consumer. Unknown methods/paths continue to be refused.
 
 | Module | Remaining exact route/method shapes | Target dependency |
 | --- | --- | --- |
-| events (5) | GET facilities, GET meet/organizations, POST events, POST events/:id/meet, DELETE events/:id | Aedilis facilities/Meet; local list and own attendance are classified separately |
 | facility (1) | GET reservations/:id (target handler absent) | Explicitly refused; groups, seven facility/reservation operations, ten meeting-poll and five managed Meet source operations are classified separately |
 | tirocinium (5) | GET companies; calls: POST collection, GET :id/events, POST :id/frames, DELETE :id | Tirocinium target/streaming call ownership; own career companies are classified separately; preserve other-owner/blocked task boundaries |
 | di (4) | GET entry-points, POST discussion-launch, GET review-trends, GET conclusions | Discutere launch/identity contract and existing service-access integration must be checked separately |
 
-After meeting-poll and managed Meet operations below, these four groups total15route/method shapes. The previous35 figure omitted GET/POST meet/:id: the actual earlier remainder was37, then seven facility/reservation, ten meeting-poll and five managed Meet source operations were classified. Corpus shared routes still need
+After meeting-poll, managed Meet and five cross-service event operations below, these three groups total10route/method shapes. The previous35 figure omitted GET/POST meet/:id: the actual earlier remainder was37, then seven facility/reservation, ten meeting-poll, five managed Meet and five event source operations were classified. Corpus shared routes still need
 explicit host decisions for declared data aggregation, capability invocation
 and MCP. Overview/admin configuration and capability-list metadata are classified
 by the later unit below. Declared downstream
@@ -317,6 +316,55 @@ It cannot return the downstream response. Actual unknown membership/authority
 or connection failures remain503, never a public/anonymous fallback. This
 distinguishes a refused owner from an unavailable lookup without allowing an
 operation or automatically repeating an already-dispatched effect.
+
+## Remaining event source operations
+
+The five existing event shapes now declare `events.facilities.read` (read),
+`events.organizations.read` (sensitive_read), `events.create`,
+`events.meet.create` and `events.delete` (important). Their current admitted
+subject remains mandatory. Meet issuance and deletion additionally read the
+current event and require its creator or the authenticated administrator; the
+browser cannot select owner/admin through a payload or query. Unknown methods,
+unsafe/noncanonical ids and other action shapes remain refused. New source
+actions do not grant arbitrary aggregation or replace target data authorization.
+GET and DELETE have zero body; create has16384bytes and Meet8192bytes.
+
+All source handlers recheck the same subject/session/admission and request abort
+after awaited body, PG or target reads and before effects or disclosure. The
+existing Ae requests use the accepted scoped target namespace and propagate the
+actual request signal. Facilities retain the explicit available:false suggestion
+status when only Ae is unavailable; missing current actor cannot use this branch.
+An unknown Cr organization lookup returns503/available:false rather than a
+successful empty membership. No new destination/provider scope is introduced.
+
+Meet metadata and deletion acquire the current PG event row `FOR UPDATE`, then
+recheck its owner/admin and source actor inside the same transaction. Deletion
+includes occurrence-notification cleanup. New event insertion checks source
+authority before and after its write in a short transaction. No transaction
+contains remote Cr/Ae/Google HTTP. The stores are borrowed from their existing
+startup owner; no request opens a new pool. Callback/driver contract tests and
+actual Hono handlers use bounded fixtures without claiming a live PG rollback.
+
+Cr consume, local admission, PG commit and Ae side effects are separate systems.
+An effect already dispatched may finish while the caller ends. Unknown PG create
+results return503 `event_creation_result_unconfirmed`, retryable:false. They
+cannot automatically cancel a reservation which might belong to an event that
+actually committed, and cannot automatically repeat creation. Reauthenticate and
+compare the user's event/booking lists before an explicit reconciliation. No
+reservation identifier, downstream private diagnostic or successful event data
+is disclosed after actor loss. Normal creation without Meet still leaves an
+event when optional Meet issuance fails, matching the existing feature.
+
+After awaited remote cancellation, deletion re-reads the current event and
+refuses a changed owner or booking/meeting linkage before transaction-local
+deletion. The existing explicit force=1 option retains exactly the same current
+owner/admin condition and bound query; it cannot acquire extra rights or force
+delete a handed-off meeting after a failed Ae handoff cancellation.
+
+Cr source/target action/risk/consent settings, configured audiences, canonical
+source reflection, live PostgreSQL/provider checks and all-consumer cutover
+remain independent unfinished gates. No package/lock/install/indirect dependency,
+credential storage, startup communication, configuration or deploy changes.
 
 Hub overview is a sensitive admitted-member read; capability-list metadata is a
 read and does not authorize invocation. External-id mappings and discovery
