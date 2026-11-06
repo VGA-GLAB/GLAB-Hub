@@ -13,7 +13,6 @@ test('absence requires login, rejects supplied identities and is independent of 
     app.use('*', async (c, next) => {
       const userId = c.req.header('x-test-user');
       if (userId) {
-        c.set('userToken', 'test');
         c.set('auth', { userId, externalId: userId, role: 'general', projectKey: null, isAdmin: false, displayName: null });
       }
       await next();

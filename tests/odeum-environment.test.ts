@@ -20,10 +20,12 @@ test('missing odeum env only disables odeum and reports key names', () => {
 test('odeum env is not part of the hub-stopping required set', () => {
   assert.equal(requireInjectedEnvironment({
     CERNERE_BASE_URL: 'https://auth.example.test',
+    CERNERE_FRONTEND_URL: 'https://auth.example.test',
+    CERNERE_PROJECT_KEY: 'glab',
     CERNERE_PROJECT_CLIENT_ID: 'c',
     CERNERE_PROJECT_CLIENT_SECRET: 's',
     CORPUS_PUBLIC_URL: 'https://hub.example.test',
-    CORPUS_TOKEN_MODE: 'cernere-project-token',
+    CORPUS_TOKEN_MODE: 'cernere-service-delegation',
     GLAB_DATABASE_URL: 'postgresql://t:t@localhost/t',
   }), undefined);
   assert.match(read('server.ts'), /inspectOdeumEnvironment\(process\.env\)/);

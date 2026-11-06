@@ -1,5 +1,11 @@
 # feature: プロフィール顔写真の登録と名簿表示
 
+この旧設計は撤去済み。Cernere `spec/feature/face-consent-and-revocation.md`
+の 2026-09-12 決定を正本とし、写真/template は施設 Ostiarius だけに置く。
+GLAB の旧写真中継 client/routes/upload UI は今回除去した。成功応答を模擬しない。
+現行の GLAB は `bound-service-authentication.md` の scoped session を使い、
+本人の同意記録の確認・作成・撤回だけを扱う。以下は旧設計の履歴であり実装契約ではない。
+
 正本仕様は Ostiarius `spec/feature/face-photo-seeded-enrollment.md`。ここでは GLab 側の責務だけを書く。
 
 ## 1. GLab は写真を保存しない

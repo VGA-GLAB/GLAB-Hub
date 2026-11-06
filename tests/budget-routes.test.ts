@@ -4,6 +4,7 @@ import Database from 'better-sqlite3';
 import { Hono } from '../corpus/server/hub/sdk.ts';
 import { GLAB_SCHEMA } from '../plugins/data.ts';
 import { budgetRoutes } from '../plugins/library/budget-routes.ts';
+import { setBoundTestUser } from './bound-user-fixture.ts';
 
 test('budget writes require admin, validate yen, and reuse stable IDs', async () => {
   const db = new Database(':memory:'); db.exec(GLAB_SCHEMA);
@@ -12,8 +13,7 @@ test('budget writes require admin, validate yen, and reuse stable IDs', async ()
       const r = new Hono();
       r.use('*', async (c, next) => {
         if (authenticated) {
-          c.set('userToken', 'test-only');
-          c.set('auth', { userId: 'self', isAdmin: admin });
+          setBoundTestUser(c, { userId: 'self', isAdmin: admin });
         }
         await next();
       });

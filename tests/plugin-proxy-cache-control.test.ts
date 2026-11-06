@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { proxy } from '../plugins/shared.ts';
+import { boundTestSession } from './bound-user-fixture.ts';
 
 function context() {
   return {
@@ -15,7 +16,7 @@ function context() {
       },
     },
     get(key: string) {
-      return key === 'userToken' ? 'user-access-token' : undefined;
+      return key === 'serviceUserSession' ? boundTestSession() : undefined;
     },
   };
 }
@@ -46,8 +47,8 @@ describe('authenticated plugin proxy cache policy', () => {
       '/api/v1/integrations/glab/surveys',
       {
         mode: 'test',
-        async getDownstreamToken() {
-          return 'project-token';
+        async authorize(_session, _target, request) {
+          return { path: request.path, init: { ...request.init, headers: { authorization: `Cernere-Delegation ${'d'.repeat(43)}` } } };
         },
       },
       'volputas',
@@ -66,8 +67,8 @@ describe('authenticated plugin proxy cache policy', () => {
       '/api/v1/integrations/glab/surveys',
       {
         mode: 'test',
-        async getDownstreamToken() {
-          return 'project-token';
+        async authorize(_session, _target, request) {
+          return { path: request.path, init: { ...request.init, headers: { authorization: `Cernere-Delegation ${'d'.repeat(43)}` } } };
         },
       },
       'volputas',
@@ -84,7 +85,7 @@ describe('authenticated plugin proxy cache policy', () => {
       '/api/v1/integrations/glab/surveys',
       {
         mode: 'test',
-        async getDownstreamToken() {
+        async authorize() {
           return null;
         },
       },

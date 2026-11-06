@@ -3,18 +3,19 @@ import { test } from 'node:test';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import type { Context, CorpusContext, ServiceConnector } from '../corpus/server/hub/sdk.ts';
 import { bookingProxy } from '../plugins/facility/booking-proxy.ts';
+import { boundTestSession, testDelegationProvider } from './bound-user-fixture.ts';
 
 const secret = randomBytes(48).toString('base64url');
 const body = JSON.stringify({ visibility: 'internal', group: { kind: 'team', id: 'p1' } });
 function context(token: string | null = 'current-user-token'): Context {
   return {
-    get: (key: string) => key === 'userToken' ? token : key === 'auth' ? { userId: 'current-user' } : undefined,
+    get: (key: string) => key === 'serviceUserSession' ? (token ? boundTestSession({ userId: 'current-user' }) : undefined) : key === 'auth' ? { userId: 'current-user' } : undefined,
     req: { method: 'POST', url: 'http://glab.test/reservations', text: async () => body,
       header: () => 'untrusted-caller-assertion' },
   } as unknown as Context;
 }
 function corpus(key: string | undefined = secret): CorpusContext {
-  return { env: () => key, logger: { error() {} }, tokenProvider: { mode: 'test', getDownstreamToken: async () => 'delegated' } } as unknown as CorpusContext;
+  return { env: () => key, logger: { error() {} }, tokenProvider: testDelegationProvider() } as unknown as CorpusContext;
 }
 function connector(fetch: ServiceConnector['fetch']): ServiceConnector {
   return { id: 'aedilis', title: 'Aedilis', baseUrl: 'http://aedilis.test', scope: 'multi', fetch, health: async () => ({ status: 'up' }) };
@@ -37,7 +38,7 @@ test('the relay binds verified groups to the actual user, request and freshly de
     writes++;
     assert.equal(path, '/api/reservations');
     const headers = new Headers(init?.headers);
-    assert.equal(headers.get('authorization'), 'Bearer delegated');
+    assert.equal(headers.get('authorization'), `Cernere-Delegation ${'d'.repeat(43)}`);
     const [encoded, signature] = (headers.get('x-glab-booking-context') ?? '').split('.');
     assert.ok(encoded); assert.ok(signature);
     assert.equal(signature, createHmac('sha256', secret).update(encoded).digest('base64url'));

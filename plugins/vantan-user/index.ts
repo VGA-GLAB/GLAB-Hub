@@ -8,7 +8,7 @@ import {
 import { ensureGlabUser, ensureSchema } from '../data.ts';
 import { registerSteamProfileRoutes } from './steam-profile-routes.ts';
 import { registrationInputSchema, saveRegistration } from './registration.ts';
-import { registerFacePhotoRoutes } from './face-photo-routes.ts';
+import { registerFaceConsentRoutes } from './face-consent-routes.ts';
 import { registerPublicNameRoutes } from './public-name-routes.ts';
 import { VersionedHttpServiceConnector } from '../service-health-connector.ts';
 import { normalizeHttpBaseUrl } from '../shared.ts';
@@ -74,7 +74,7 @@ const vantanUserModule: CorpusModule = {
       }
     });
 
-    registerFacePhotoRoutes(router, ctx);
+    registerFaceConsentRoutes(router, ctx);
     registerPublicNameRoutes(router, ctx, client);
     registerSteamProfileRoutes(router, ctx, client);
 

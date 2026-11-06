@@ -11,7 +11,6 @@ it('isolates drafts and management from ordinary users and requires complete pub
   let signedIn = false, admin = false;
   app.use('*', async (c, next) => {
     if (signedIn) {
-      c.set('userToken', 'test-only-user');
       c.set('auth', { userId: 'user', externalId: 'user', role: 'general', displayName: null, isAdmin: admin, projectKey: 'glab' });
     }
     await next();

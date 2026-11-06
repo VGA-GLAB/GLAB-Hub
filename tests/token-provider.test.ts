@@ -1,66 +1,27 @@
 import assert from 'node:assert/strict';
-import { afterEach, describe, it } from 'node:test';
-import { CernereProjectTokenProvider } from '../corpus/server/hub/tokens.ts';
+import { test } from 'node:test';
+import { CernereDelegationTokenProvider } from '../corpus/server/hub/tokens.ts';
+import { boundTestSession } from './bound-user-fixture.ts';
 
-const originalFetch = globalThis.fetch;
-
-afterEach(() => {
-  globalThis.fetch = originalFetch;
+test('uses the opaque local session and explicit target origin, preserving a base path in the bound envelope', async () => {
+  const session = boundTestSession(); let calls = 0;
+  const provider = new CernereDelegationTokenProvider({ delegate: async (token, target, operation) => {
+    calls++; assert.equal(token, session.token);
+    assert.deepEqual(target, { projectKey: 'volputas', audience: 'http://localhost:8892' });
+    assert.equal(operation.path, '/prefix/records'); assert.equal(operation.action, 'records.read');
+    return { delegationToken: 'd'.repeat(43), requestId: '11111111-1111-4111-8111-111111111111', expiresAt: new Date(Date.now() + 30_000).toISOString() };
+  } });
+  const result = await provider.authorize(session, { service: 'volputas', projectKey: 'volputas', baseUrl: 'http://localhost:8892/prefix/' },
+    { path: '/records', action: 'records.read' });
+  assert.ok(result); assert.equal(calls, 1); assert.equal(result.path, '/records');
+  assert.equal(new Headers(result.init.headers).get('authorization'), `Cernere-Delegation ${'d'.repeat(43)}`);
 });
-
-describe('CernereProjectTokenProvider', () => {
-  it('removes trailing slashes from the project-token audience URL', async () => {
-    let requestBody: unknown;
-    globalThis.fetch = (async (_input, init) => {
-      requestBody = JSON.parse(String(init?.body));
-      return Response.json({ accessToken: 'project-token', expiresIn: 900 });
-    }) as typeof fetch;
-
-    const provider = new CernereProjectTokenProvider('https://cernere.example');
-    const token = await provider.getDownstreamToken('user-token', {
-      service: 'volputas',
-      projectKey: 'volputas',
-      baseUrl: 'http://localhost:8892/',
-    });
-
-    assert.equal(token, 'project-token');
-    assert.deepEqual(requestBody, {
-      project_key: 'volputas',
-      hub_url: 'http://localhost:8892',
-    });
-  });
-
-  // 発行失敗は throw ではなく null + 警告になった (Corpus 62e35f6)。 宣言
-  // (`Promise<string | null>`) と呼び出し側に実装を揃えたもの。 トークン
-  // 無しで参照先へ進み、 参照先自身に 401/503 を返させる。 握り潰しでない
-  // ことは警告が残ることで担保するので、 そこまで見る。
-  it('returns null on project-token issuance failure and still reports it', async () => {
-    globalThis.fetch = (async () => Response.json(
-      { error: 'signing unavailable' },
-      { status: 500 },
-    )) as typeof fetch;
-
-    const warnings: string[] = [];
-    const originalWarn = console.warn;
-    console.warn = (...args: unknown[]) => {
-      warnings.push(args.map(String).join(' '));
-    };
-
-    try {
-      const provider = new CernereProjectTokenProvider('https://cernere.example');
-      const token = await provider.getDownstreamToken('user-token', {
-        service: 'volputas',
-        projectKey: 'volputas',
-        baseUrl: 'http://localhost:8892',
-      });
-
-      assert.equal(token, null);
-      assert.ok(
-        warnings.some((line) => line.includes('volputas') && line.includes('500')),
-        `expected a warning naming the service and status, got ${JSON.stringify(warnings)}`,
-      );
-    } finally {
-      console.warn = originalWarn;
-    }
-  });
+test('authority failure yields no request, retry, reusable token or anonymous fallback', async () => {
+  let calls = 0;
+  const provider = new CernereDelegationTokenProvider({ delegate: async () => { calls++; throw new Error('Private credential detail'); } });
+  const target = { service: 'volputas', projectKey: 'volputas', baseUrl: 'http://localhost:8892' };
+  assert.equal(await provider.authorize(boundTestSession(), target, { path: '/records', action: 'records.read' }), null);
+  assert.equal(calls, 1);
+  assert.equal(await provider.authorize(null, target, { path: '/records', action: 'records.read' }), null);
+  assert.equal(calls, 1);
 });

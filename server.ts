@@ -20,6 +20,7 @@ import { closeEventStore, initializeEventStore } from './plugins/events/store.ts
 import { cernereClientOwner } from './plugins/cernere/shared-owner.ts';
 import { createShutdown } from './plugins/cernere/shutdown.ts';
 import { memberAccessPolicy } from './plugins/access/policy.ts';
+import { glabOperationPolicy } from './plugins/access/operation-policy.ts';
 import { createGlabPublicRoutes } from './plugins/public-routes.ts';
 import { closeTirociniumCalls } from './plugins/tirocinium/call-routes.ts';
 import {
@@ -53,7 +54,6 @@ process.env.CORPUS_PUBLIC_URL ??= `http://localhost:${process.env.CORPUS_PORT}`;
 // 「パスキーで続ける」で Cernere のログイン画面へ移り、戻った authCode を /auth/exchange で GLAB origin の
 // HttpOnly Cookie セッションに交換する。旧 composite (GLAB 画面内の email/password 中継) は Cernere で廃止済み。
 // passkey では Corpus が CERNERE_FRONTEND_URL を必須にする (公開設定の cernereFrontendUrl)。
-process.env.CORPUS_AUTH_UI_MODE = 'passkey';
 
 // 認証の配置モード。 Corpus は無言フォールバックを禁じており未設定だと起動を拒否する
 // (Corpus DESIGN §16.1)。 GLAB は Cloudflare Access のようなエッジ認証の背後には
@@ -112,6 +112,7 @@ try {
   if (!stopping) {
     const { startCorpus } = await import('./corpus/server/index.ts');
     const runtime = await startCorpus({
+      operationPolicy: glabOperationPolicy,
       accessPolicy: memberAccessPolicy,
       publicReadRoutes: db => createGlabPublicRoutes(db, resolve(ROOT, 'public/legal')),
     });

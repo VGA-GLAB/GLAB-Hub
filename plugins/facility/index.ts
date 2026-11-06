@@ -1,7 +1,7 @@
 // Authenticated GLab facilities and meeting scheduling through Aedilis.
 // @implements SPEC-GLAB-BOOKING-001
 
-import { Hono, getUserToken } from '../../corpus/server/hub/sdk.ts';
+import { Hono, getUserSession } from '../../corpus/server/hub/sdk.ts';
 import type { CorpusModule, CorpusContext, Context } from '../../corpus/server/hub/sdk.ts';
 import { ensureSchema } from '../data.ts';
 import { bookingGroups, bookingProxy } from './booking-proxy.ts';
@@ -27,19 +27,20 @@ const facilityModule: CorpusModule = {
     const r = new Hono();
     r.use('*', async (c, next) => {
       c.header('cache-control', 'private, no-store');
-      if (!getUserToken(c)) return c.json({ error: 'unauthorized' }, 401);
+      if (!getUserSession(c)) return c.json({ error: 'unauthorized' }, 401);
       await next();
     });
     r.get('/groups', async c => {
       try { return c.json({ items: await bookingGroups(c, ctx) }); }
       catch { return c.json({ error: 'memberships_unavailable' }, 503); }
     });
-    r.get('/facilities', (c) => proxy(c, aedilis, '/api/facilities', ctx.tokenProvider));
+    r.get('/facilities', (c) => proxy(c, aedilis, '/api/facilities', ctx.tokenProvider, 'aedilis'));
     r.get('/facilities/:id', (c) => proxy(
       c,
       aedilis,
       `/api/facilities/${segment(c, 'id')}`,
       ctx.tokenProvider,
+      'aedilis',
     ));
     for (const resource of ['reservations', 'meetings']) {
       r.get('/' + resource, c => bookingProxy(c, ctx, aedilis, '/api/' + resource));

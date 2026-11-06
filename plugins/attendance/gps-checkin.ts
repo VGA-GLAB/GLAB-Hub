@@ -10,7 +10,7 @@
  * 写真のバイト列・位置はログに出さない (状態コードと固定語彙だけを記録する)。
  */
 
-import { getIdentity, getUserToken } from '../../corpus/server/hub/sdk.ts';
+import { getIdentity, getUserSession } from '../../corpus/server/hub/sdk.ts';
 import type { AuthIdentity, Context, ServiceConnector, TokenProvider } from '../../corpus/server/hub/sdk.ts';
 import {
   dateInJst,
@@ -51,7 +51,7 @@ export interface GpsCheckinDeps {
 }
 
 export async function handleGpsCheckin(c: Context, deps: GpsCheckinDeps): Promise<Response> {
-  if (!getUserToken(c)) return c.json({ error: 'unauthorized' }, 401, NO_STORE);
+  if (!getUserSession(c)) return c.json({ error: 'unauthorized' }, 401, NO_STORE);
   const identity = getIdentity(c);
 
   const parsed = await readGpsCheckinForm(c.req.raw);
@@ -66,7 +66,7 @@ export async function handleGpsCheckin(c: Context, deps: GpsCheckinDeps): Promis
   let upstream: Response;
   try {
     upstream = await authorizedConnectorFetch(
-      c, deps.aedilis, AEDILIS_GPS_CHECKIN_PATH, deps.tokenProvider, deps.aedilis.id,
+      c, deps.aedilis, AEDILIS_GPS_CHECKIN_PATH, deps.tokenProvider, 'aedilis',
       { method: 'POST', body: aedilisForm(locationStatement, parsed.form) },
     );
   } catch {
@@ -108,7 +108,7 @@ function aedilisForm(locationStatement: string, form: GpsCheckinForm): FormData 
   data.set('lon', form.lon);
   data.set('accuracyM', form.accuracyM);
   data.set('positionAt', form.positionAt);
-  data.set('photo', new Blob([form.photo.bytes], { type: form.photo.contentType }), 'photo');
+  data.set('photo', new Blob([Uint8Array.from(form.photo.bytes)], { type: form.photo.contentType }), 'photo');
   return data;
 }
 

@@ -17,7 +17,6 @@ it('requires user authentication for binaries and membership for profile publica
     const app = new Hono();
     app.use('*', async (c, next) => {
       if (loggedIn) {
-        c.set('userToken', 'verified-session-token');
         c.set('auth', { userId: 'student', externalId: 'student', role: 'general', displayName: null, isAdmin: false, projectKey: 'glab' });
       }
       await next();

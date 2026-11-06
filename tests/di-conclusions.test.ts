@@ -17,7 +17,6 @@ test('login is required; credentials stay on the server; revocation is fetched a
   const app = new Hono();
   app.use('*', async (c, next) => {
     if (c.req.header('x-test-user')) {
-      c.set('userToken', 'session');
       c.set('auth', { userId: 'student', externalId: 'student', role: 'general', projectKey: null, isAdmin: false, displayName: null });
     }
     await next();

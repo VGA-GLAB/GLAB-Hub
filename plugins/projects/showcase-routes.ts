@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { getDisplayName, getIdentity, getUserToken, requireAdmin, type Hono, type CorpusContext } from '../../corpus/server/hub/sdk.ts';
+import { getDisplayName, getIdentity, requireAdmin, type Hono, type CorpusContext } from '../../corpus/server/hub/sdk.ts';
 import { registerShowcaseDownloads } from './showcase-download-routes.ts';
 import { getProject } from '../data.ts';
 import { isWorkMember, linkedAuthors, listShowcaseRows, saveShowcase, setWorkProfile, workDownloads } from './showcase-store.ts';
@@ -16,7 +16,7 @@ export function registerShowcaseRoutes(router: Hono, ctx: CorpusContext): void {
   const db = ctx.db;
   router.use('/showcase/*', async (c, next) => {
     c.header('cache-control', 'private, no-store');
-    if (!getUserToken(c)) return c.json({ error: 'user_login_required' }, 401);
+    if (!c.get('auth')) return c.json({ error: 'user_login_required' }, 401);
     await next();
   });
   registerShowcaseDownloads(router, ctx);

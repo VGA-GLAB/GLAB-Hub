@@ -1,49 +1,30 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { AddressInfo } from 'node:net';
-import { WebSocketServer } from 'ws';
 import { readOrganizations } from '../plugins/facility/groups.ts';
+import type { ServiceIdentityProvider, ServiceUserSession } from '../corpus/server/hub/sdk.ts';
 
-/** Minimal Cernere /auth stand-in: organization list and per-organization member lists. */
-async function cernere(members: Record<string, { userId: string; role: string; email?: string }[]>): Promise<{ url: string; requests: unknown[]; close: () => Promise<void> }> {
-  const server = new WebSocketServer({ port: 0, host: '127.0.0.1', handleProtocols: () => 'bearer' });
-  const requests: unknown[] = [];
-  server.on('connection', (ws) => {
-    ws.send(JSON.stringify({ type: 'connected', user_state: { userId: 'me' } }));
-    ws.on('message', (data) => {
-      const message = JSON.parse(data.toString()) as { module: string; action: string; payload: { organizationId?: string } };
-      requests.push(message);
-      if (message.module === 'organization') {
-        ws.send(JSON.stringify({ type: 'module_response', module: 'organization', action: 'list',
-          payload: Object.keys(members).map(id => ({ id, name: `Org ${id}`, slug: id })) }));
-      } else if (message.module === 'member') {
-        ws.send(JSON.stringify({ type: 'module_response', module: 'member', action: 'list', payload: members[message.payload.organizationId ?? ''] ?? [] }));
-      }
-    });
-  });
-  await new Promise(resolve => server.once('listening', resolve));
-  const { port } = server.address() as AddressInfo;
-  return { url: `http://127.0.0.1:${port}`, requests, close: () => new Promise(resolve => server.close(() => resolve())) };
+const session: ServiceUserSession = { token: 's'.repeat(43), grant: { projectToken: 'scoped', sessionBinding: 'b'.repeat(43),
+  projectKey: 'glab', expiresAt: new Date(Date.now() + 600_000).toISOString(), user: { id: 'subject', role: 'general', displayName: 'Person', email: null } } };
+function provider(): ServiceIdentityProvider {
+  return { organizations: async current => {
+    assert.equal(current, session);
+    return [{ id: 'a', name: 'Org a', role: 'owner' }, { id: 'b', name: 'Org b', role: 'admin' }];
+  }, faceConsentStatus: async () => assert.fail('Not a consent operation'), createFaceConsent: async () => assert.fail('Not a consent operation'),
+  revokeFaceConsent: async () => assert.fail('Not a consent operation') };
 }
-
-test('marks only the organizations the caller owns as represented, and keeps other members out', async () => {
-  const fake = await cernere({
-    a: [{ userId: 'me', role: 'owner' }, { userId: 'other', role: 'member', email: 'other@example.com' }],
-    b: [{ userId: 'me', role: 'admin' }, { userId: 'other', role: 'owner' }],
-  });
-  try {
-    const groups = await readOrganizations(fake.url, 'token', 'me', { withRepresentative: true });
-    assert.deepEqual(groups, [
-      { kind: 'organization', id: 'a', name: 'Org a', representative: true },
-      { kind: 'organization', id: 'b', name: 'Org b' },
-    ]);
-  } finally { await fake.close(); }
+test('marks only the current caller own owner role, without requesting other member records', async () => {
+  assert.deepEqual(await readOrganizations(provider(), session, { withRepresentative: true }), [
+    { kind: 'organization', id: 'a', name: 'Org a', representative: true }, { kind: 'organization', id: 'b', name: 'Org b' },
+  ]);
 });
-
-test('the plain membership read does not ask Cernere for member lists', async () => {
-  const fake = await cernere({ a: [{ userId: 'me', role: 'owner' }] });
-  try {
-    assert.deepEqual(await readOrganizations(fake.url, 'token', 'me'), [{ kind: 'organization', id: 'a', name: 'Org a' }]);
-    assert.equal(fake.requests.length, 1);
-  } finally { await fake.close(); }
+test('the plain membership response omits roles and representation assertions', async () => {
+  assert.deepEqual(await readOrganizations(provider(), session), [
+    { kind: 'organization', id: 'a', name: 'Org a' }, { kind: 'organization', id: 'b', name: 'Org b' },
+  ]);
+});
+test('an unknown authority result is not replaced by cached or empty memberships', async () => {
+  const source = provider(); let calls = 0;
+  source.organizations = async () => { calls++; throw new Error('Unknown result'); };
+  await assert.rejects(readOrganizations(source, session), /Unknown result/);
+  assert.equal(calls, 1);
 });

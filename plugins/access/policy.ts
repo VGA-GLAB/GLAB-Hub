@@ -5,6 +5,11 @@ import { readAdmission, recordRegistration } from './store.ts';
 
 let admissionDb: SqlDb | null = null;
 export function configureAdmissionPolicy(db: SqlDb): void { admissionDb = db; }
+/** Shared current DB owner for the pre-execution resource gate; never cache decisions. */
+export function currentAdmissionDatabase(): SqlDb {
+  if (!admissionDb) throw new Error('Admission database is not configured');
+  return admissionDb;
+}
 
 /** @implements SPEC-GLAB-ADMISSION-001 */
 export const memberAccessPolicy: MiddlewareHandler = async (c, next) => {

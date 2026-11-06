@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { createHash, randomBytes } from 'node:crypto';
 import type { Context, CorpusContext, ServiceConnector } from '../corpus/server/hub/sdk.ts';
 import { bookingProxy } from '../plugins/facility/booking-proxy.ts';
+import { boundTestSession, testDelegationProvider } from './bound-user-fixture.ts';
 import {
   meetOAuthCompletion,
   meetOAuthRedirectUri,
@@ -50,10 +51,10 @@ test('a server-built request is signed as sent, ignoring the caller body and que
   const secret = randomBytes(48).toString('base64url');
   const serverBody = JSON.stringify({ mode: 'organizer', redirectUri: 'https://glab.example/api/x/facility/meet/oauth/callback' });
   const c = {
-    get: (key: string) => key === 'userToken' ? 'token' : key === 'auth' ? { userId: 'admin' } : undefined,
+    get: (key: string) => key === 'serviceUserSession' ? boundTestSession({ userId: 'admin' }) : key === 'auth' ? { userId: 'admin' } : undefined,
     req: { method: 'GET', url: 'http://glab.test/meet/oauth/callback?state=caller&code=caller', text: async () => assert.fail('must not read the caller body'), header: () => undefined },
   } as unknown as Context;
-  const ctx = { env: () => secret, logger: { error() {} }, tokenProvider: { mode: 'test', getDownstreamToken: async () => 'delegated' } } as unknown as CorpusContext;
+  const ctx = { env: () => secret, logger: { error() {} }, tokenProvider: testDelegationProvider() } as unknown as CorpusContext;
   const sent: { path: string; body: unknown; payload: Record<string, unknown> }[] = [];
   const connector: ServiceConnector = {
     id: 'aedilis', title: 'Aedilis', baseUrl: 'http://aedilis.test', scope: 'multi', health: async () => ({ status: 'up' }),

@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseGameList, parseEmotionCurveList, parseMediaTicket } from '../plugins/volputas/contracts.ts';
+import { CernereDelegationTokenProvider } from '../corpus/server/hub/tokens.ts';
+import type { ServiceUserSession } from '../corpus/server/auth.ts';
 
 function readSource(relativePath: string): string {
   return readFileSync(new URL(`../${relativePath}`, import.meta.url), 'utf8');
@@ -111,9 +113,30 @@ test('media travels through the streaming proxy, not the text one', () => {
   );
 });
 
-test('the streaming proxy declares duplex so Node accepts a streamed body', () => {
-  const src = readSource('plugins/shared.ts');
-  assert.ok(src.includes("duplex?: string }).duplex = 'half'"), 'duplex declaration missing');
+test('the shared provider prepares a stream that Node Request accepts without changing its bytes', async () => {
+  const expiresAt = new Date(Date.now() + 25_000).toISOString();
+  const provider = new CernereDelegationTokenProvider({
+    delegate: async () => assert.fail('Uploads must not use ordinary delegation'),
+    delegateUpload: async () => ({ arrivalToken: 'u'.repeat(43), requestId: '22222222-2222-4222-8222-222222222222', expiresAt }),
+  });
+  const session: ServiceUserSession = { token: 's'.repeat(43), grant: {
+    projectToken: 'scoped', sessionBinding: 'b'.repeat(43), projectKey: 'glab', expiresAt,
+    user: { id: 'subject', role: 'general', displayName: 'Person', email: null },
+  } };
+  const body = new Blob([new Uint8Array([255, 0, 13, 10, 128])]);
+  const path = '/api/v1/integrations/glab/evidence/media/videos/record';
+  const prepared = await provider.authorize(session, { service: 'volputas', projectKey: 'volputas', baseUrl: 'https://media.example' }, {
+    path, action: 'evidence.media.write', upload: { body, maximumBytes: 2 * 1024 ** 3, timeoutSeconds: 300 },
+    init: { method: 'PUT', body, headers: { 'content-type': 'video/mp4' } },
+  });
+  assert.ok(prepared?.dispose);
+  try {
+    assert.ok(prepared.init.body instanceof ReadableStream);
+    const request = new Request('https://media.example' + prepared.path, prepared.init);
+    assert.deepEqual(new Uint8Array(await request.arrayBuffer()), new Uint8Array(await body.arrayBuffer()));
+    assert.equal(request.headers.get('content-length'), String(body.size));
+    assert.equal(request.headers.get('authorization'), `Cernere-Upload ${'u'.repeat(43)}`);
+  } finally { await prepared.dispose(); }
 });
 
 test('the streaming proxy preserves video byte-range semantics without exposing internal errors', () => {

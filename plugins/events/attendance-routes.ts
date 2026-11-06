@@ -1,4 +1,4 @@
-import { getIdentity, getUserToken, getDisplayName, cacheDisplayName,
+import { getIdentity, getDisplayName, cacheDisplayName,
   type Hono, type CorpusContext } from '../../corpus/server/hub/sdk.ts';
 import { dateInJst, ensureSchema, type SqlDb } from '../data.ts';
 import { canSee, parseAudience, resolveRoles } from '../roles/audience.ts';
@@ -21,7 +21,7 @@ export function registerEventAttendance(routes: Hono, ctx: CorpusContext,
   ensureSchema(ctx.db);
   routes.use('/events/:id/attendance', async (c, next) => {
     c.header('cache-control', 'private, no-store');
-    if (!getUserToken(c)) return c.json({ error: 'ログインしてください' }, 401);
+    if (!c.get('auth')) return c.json({ error: 'ログインしてください' }, 401);
     await next();
   });
   routes.on(['GET', 'PUT'], '/events/:id/attendance', async c => {

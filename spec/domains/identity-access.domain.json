@@ -5,6 +5,9 @@
   "templateRules": [],
   "membership": [
     {
+      "pathPattern": "(^|/)plugins/access/(?:.*/)?[^/]+$"
+    },
+    {
       "pathPattern": "/plugins/cernere/"
     },
     {
@@ -34,6 +37,7 @@
     "membership-roster"
   ],
   "specRefs": [
+    "spec/feature/bound-service-authentication.md",
     "spec/feature/self-permissions.md",
     "DESIGN 7. 認証",
     "spec/feature/first-access-registration.md",

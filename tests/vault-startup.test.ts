@@ -6,10 +6,12 @@ import contract from '../contracts/injected-environment.contract.ts';
 
 const complete = {
   CERNERE_BASE_URL: 'https://auth.example.test',
+  CERNERE_FRONTEND_URL: 'https://login.example.test',
+  CERNERE_PROJECT_KEY: 'glab',
   CERNERE_PROJECT_CLIENT_ID: 'test-client',
   CERNERE_PROJECT_CLIENT_SECRET: 'test-secret-not-for-logs',
   CORPUS_PUBLIC_URL: 'https://hub.example.test',
-  CORPUS_TOKEN_MODE: 'cernere-project-token',
+  CORPUS_TOKEN_MODE: 'cernere-service-delegation',
   GLAB_DATABASE_URL: 'postgresql://test:test@localhost/test',
 };
 
@@ -54,7 +56,7 @@ test('launch configuration uses injected env and bypasses standalone secret boot
   // The host must install the membership gate when starting Corpus.
   assert.match(launcher, /import \{ memberAccessPolicy \} from '\.\/plugins\/access\/policy\.ts'/);
   assert.match(launcher, /import \{ createGlabPublicRoutes \} from '\.\/plugins\/public-routes\.ts'/);
-  assert.match(launcher, /await startCorpus\(\{\s*accessPolicy:\s*memberAccessPolicy,\s*publicReadRoutes:\s*db => createGlabPublicRoutes\(db, resolve\(ROOT, 'public\/legal'\)\),?\s*\}\)/);
+  assert.match(launcher, /await startCorpus\(\{\s*operationPolicy:\s*glabOperationPolicy,\s*accessPolicy:\s*memberAccessPolicy,\s*publicReadRoutes:\s*db => createGlabPublicRoutes\(db, resolve\(ROOT, 'public\/legal'\)\),?\s*\}\)/);
   // The public router retains quests while adding the fixed legal document routes.
   const publicRoutes = read('plugins/public-routes.ts');
   assert.match(publicRoutes, /router\.route\('\/', createPublicLegalRoutes\(legalDirectory\)\)/);

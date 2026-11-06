@@ -9,6 +9,7 @@ import type {
   ServiceConnector,
   TokenProvider,
 } from '../corpus/server/hub/sdk.ts';
+import { getAuthorizedUploadBody } from '../corpus/server/hub/sdk.ts';
 import {
   VersionedHttpServiceConnector,
   type VersionedConnectorOptions,
@@ -103,8 +104,8 @@ export function noStore(c: { header(name: string, value: string): void }): void 
 /**
  * 受信リクエストを ServiceConnector 越しに接続先サービスへ中継する。
  *
- * - メソッド / クエリ文字列 / ボディ / Authorization をそのまま転送する
- *   (= 接続先サービスがユーザの Cernere トークンで認可する)。
+ * - 明示した宛先の method/path/query/body/semantic headers に束縛した
+ *   一度限りの委譲で中継する。接続先自身のデータ認可は引き続き必須。
  * - 接続先が未設定 (baseUrl 空) のときは HttpServiceConnector が 503 を返すので、
  *   それがそのままクライアントへ届く → パネル側で「未接続」表示にできる。
  */
@@ -113,15 +114,16 @@ export async function proxy(
   conn: ServiceConnector,
   path: string,
   tokenProvider: TokenProvider,
-  projectKey = conn.id,
+  projectKey: string,
 ): Promise<Response> {
   const method = c.req.method;
   const headers: Record<string, string> = {};
 
   const init: RequestInit = { method, headers };
-  if (method !== 'GET' && method !== 'HEAD' && method !== 'DELETE') {
-    init.body = await c.req.text();
-    headers['content-type'] = c.req.header('content-type') ?? 'application/json';
+  if (method !== 'GET' && method !== 'HEAD') {
+    init.body = new Uint8Array(await c.req.arrayBuffer());
+    const contentType = c.req.header('content-type');
+    if (contentType) headers['content-type'] = contentType;
   }
 
   const search = new URL(c.req.url).search;
@@ -153,18 +155,15 @@ export async function proxy(
 }
 
 /**
- * proxy() のバイナリ版。 本文と応答をストリームのまま流す。
- *
- * proxy() は本文を `c.req.text()` で読み、 応答も一度テキストにしてから返す。
- * 動画にはどちらも使えない (文字列化で壊れる・メモリに載る) ので、 中継の
- * 経路だけを差し替えたものを別に置く。 認可の載せ方は proxy() と同じ。
+ * GET/Range はstreamを維持。PUT は共通guardが捕捉した同一Blobだけを送る。
+ * @implements SPEC-GLAB-BOUND-AUTH-001
  */
 export async function proxyStream(
   c: Context,
   conn: ServiceConnector,
   path: string,
   tokenProvider: TokenProvider,
-  projectKey = conn.id,
+  projectKey: string,
 ): Promise<Response> {
   const method = c.req.method;
   const headers = new Headers();
@@ -172,18 +171,19 @@ export async function proxyStream(
   // 返すことになり、長い動画の再生・シークが壊れる。
   const range = c.req.header('range');
   if (range) headers.set('range', range);
-  const init: RequestInit = { method, headers };
-  if (method !== 'GET' && method !== 'HEAD' && method !== 'DELETE') {
-    init.body = c.req.raw.body;
-    headers.set('content-type', c.req.header('content-type') ?? 'application/octet-stream');
-    // Node の fetch は本文がストリームのとき duplex の明示を要求する。
-    (init as RequestInit & { duplex?: string }).duplex = 'half';
+  const init: RequestInit = { method, headers, signal: c.req.raw.signal };
+  const upload = method !== 'GET' && method !== 'HEAD' ? getAuthorizedUploadBody(c) : null;
+  if (method !== 'GET' && method !== 'HEAD') {
+    if (!upload) return Response.json({ error: 'upload_capture_required' }, { status: 403, headers: { 'cache-control': PRIVATE_NO_STORE } });
+    init.body = upload.body;
+    const contentType = c.req.header('content-type');
+    if (contentType) headers.set('content-type', contentType);
   }
 
   const search = new URL(c.req.url).search;
   let res: Response;
   try {
-    res = await authorizedConnectorFetch(c, conn, path + search, tokenProvider, projectKey, init);
+    res = await authorizedConnectorFetch(c, conn, path + search, tokenProvider, projectKey, init, upload ?? undefined);
   } catch (e) {
     // 認証失敗は送信前に503として返す。ここでは接続失敗の詳細を外へ出さない。
     return Response.json(

@@ -10,13 +10,14 @@ import { Hono, type CorpusContext } from '../corpus/server/hub/sdk.ts';
 import softwareLibrary from '../plugins/software-library/index.ts';
 import { saveLibrary } from '../plugins/software-library/store.ts';
 import { verifyRelease } from '../plugins/software-library/signed-release.ts';
+import { setBoundTestUser } from './bound-user-fixture.ts';
 
 it('delivers a verified release only to authenticated members and rechecks publication', async () => {
   const db = new DatabaseSync(':memory:'), root = await mkdtemp(join(tmpdir(), 'glab-delivery-test-'));
   const raw = readFileSync('tests/fixtures/library-release.cocoiru'), pin = readFileSync('tests/fixtures/library-pin.txt', 'utf8');
   const manifest = verifyRelease(raw, pin).manifest;
   const app = new Hono(); let signedIn = false;
-  app.use('*', async (c, next) => { if (signedIn) c.set('userToken', 'offline-member'); await next(); });
+  app.use('*', async (c, next) => { if (signedIn) setBoundTestUser(c); await next(); });
   try {
     await writeFile(join(root, 'fixture.cocoiru'), raw, { flag: 'wx' });
     await softwareLibrary.setup({ db, env: (key: string) => key === 'GLAB_LIBRARY_RELEASE_ROOT' ? root : key === 'GLAB_LIBRARY_CERT_SHA256' ? pin : undefined,

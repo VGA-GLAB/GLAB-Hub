@@ -5,6 +5,9 @@
   "templateRules": [],
   "membership": [
     {
+      "pathPattern": "(^|/)plugins/(connector-authorization|downstream-operations|upload-result)\\.ts$"
+    },
+    {
       "pathPattern": "/server\\.ts$"
     },
     {
@@ -53,6 +56,7 @@
     "build-scripts"
   ],
   "specRefs": [
+    "spec/feature/bound-service-authentication.md",
     "DESIGN 2. アーキテクチャ",
     "DESIGN 4. データ共有（hub ↔ Bot）",
     "spec/interface/corpus-db-shared.md",

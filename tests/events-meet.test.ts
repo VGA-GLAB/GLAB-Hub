@@ -4,14 +4,15 @@ import { randomBytes } from 'node:crypto';
 import type { Context, CorpusContext, ServiceConnector } from '../corpus/server/hub/sdk.ts';
 import { issueEventMeet, isMeetUrl } from '../plugins/events/meet-client.ts';
 import { meetOAuthRedirectUri, requestOrigin } from '../plugins/facility/meet-oauth.ts';
+import { boundTestSession, testDelegationProvider } from './bound-user-fixture.ts';
 
 function fixture(reply: () => Response) {
   const secret = randomBytes(48).toString('base64url');
   const c = {
-    get: (key: string) => key === 'userToken' ? 'token' : key === 'auth' ? { userId: 'member' } : undefined,
+    get: (key: string) => key === 'serviceUserSession' ? boundTestSession({ userId: 'member' }) : key === 'auth' ? { userId: 'member' } : undefined,
     req: { method: 'POST', url: 'http://glab.test/api/x/events/events', text: async () => assert.fail('must not read the caller body'), header: () => undefined },
   } as unknown as Context;
-  const ctx = { env: () => secret, logger: { error() {} }, tokenProvider: { mode: 'test', getDownstreamToken: async () => 'delegated' } } as unknown as CorpusContext;
+  const ctx = { env: () => secret, logger: { error() {} }, tokenProvider: testDelegationProvider() } as unknown as CorpusContext;
   const sent: { path: string; body: unknown; payload: Record<string, unknown> }[] = [];
   const connector: ServiceConnector = {
     id: 'aedilis', title: 'Aedilis', baseUrl: 'http://aedilis.test', scope: 'multi', health: async () => ({ status: 'up' }),

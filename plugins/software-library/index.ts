@@ -1,5 +1,5 @@
 // @implements SPEC-GLAB-SOFTWARE-LIBRARY-001
-import { Hono, getUserToken, requireAdmin, type CorpusModule } from '../../corpus/server/hub/sdk.ts';
+import { Hono, requireAdmin, type CorpusModule } from '../../corpus/server/hub/sdk.ts';
 import { ensureSchema } from '../data.ts';
 import { noStore } from '../shared.ts';
 import { BodyTooLargeError, readBodyWithinLimit } from '../vantan-user/bounded-body.ts';
@@ -16,7 +16,7 @@ const softwareLibrary: CorpusModule = {
     const routes = new Hono();
     routes.use('*', async (c, next) => {
       noStore(c);
-      if (!getUserToken(c)) return c.json({ error: 'user_login_required' }, 401);
+      if (!c.get('auth')) return c.json({ error: 'user_login_required' }, 401);
       await next();
     });
     routes.get('/entries', c => c.json({ entries: listLibraries(ctx.db, false).map(librarySummary) }));

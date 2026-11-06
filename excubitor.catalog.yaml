@@ -36,9 +36,9 @@ services:
       # Public leaf-certificate fingerprint; the private signing key stays in the release operator's CNG store.
       GLAB_LIBRARY_CERT_SHA256: 7a6a1ac99b1ac4204f422c0f0da1500bc76fceeac7366688a0f50ec8efcd7aab
       GLAB_LIBRARY_RELEASE_ROOT: ${ARS_ROOT}/GLAB/data/library-releases
-      CORPUS_TOKEN_MODE: cernere-project-token
+      CORPUS_TOKEN_MODE: cernere-service-delegation
+      CERNERE_PROJECT_KEY: glab
       # ログインはパスキー一本 (Cernere のログイン画面へ移る)。旧 composite (email/password) は Cernere で廃止済み。
-      CORPUS_AUTH_UI_MODE: passkey
       # 利用者のブラウザが開く Cernere ログイン画面 (passkey の RP ID もこの origin)。service code cernere-frontend の
       # topology 自動変数 CERNERE_FRONTEND_URL (=拠点内の http://<host>:5173) が provides の公開 URL を上書きし、
       # 「パスキーで続ける」が外から届かない内部アドレスへ飛んでいた (2026-10-15)。catalog env は topology より優先する。
@@ -68,7 +68,7 @@ services:
       CORPUS_EXTERNAL_SERVICE_AUTH_MODULES: consult,projects,access
       CORPUS_EXTERNAL_SERVICE_TOKEN_HEADERS: x-glab-service-token,x-projecthub-service-token
       CORPUS_CERNERE_STORAGE_SLUG: glab
-    required_env: [CERNERE_BASE_URL, CERNERE_FRONTEND_URL, CORPUS_PUBLIC_URL, CORPUS_TOKEN_MODE, GLAB_OMNIPOTENS_REVIEW_ROOT, GLAB_DATABASE_URL]
+    required_env: [CERNERE_BASE_URL, CERNERE_FRONTEND_URL, CERNERE_PROJECT_KEY, CORPUS_PUBLIC_URL, CORPUS_TOKEN_MODE, GLAB_OMNIPOTENS_REVIEW_ROOT, GLAB_DATABASE_URL]
     requires_secret:
       - service: cernere
         keys: [EXCUBITOR_CERNERE_CLIENT_ID, EXCUBITOR_CERNERE_CLIENT_SECRET]
@@ -106,16 +106,16 @@ services:
       CORPUS_PUBLIC_URL: http://localhost:5188
       GLAB_LIBRARY_CERT_SHA256: 7a6a1ac99b1ac4204f422c0f0da1500bc76fceeac7366688a0f50ec8efcd7aab
       GLAB_LIBRARY_RELEASE_ROOT: ${ARS_ROOT}/GLAB/data/library-releases
-      CORPUS_TOKEN_MODE: cernere-project-token
+      CORPUS_TOKEN_MODE: cernere-service-delegation
+      CERNERE_PROJECT_KEY: glab
       # ログインはパスキー一本 (Cernere のログイン画面へ移る)。旧 composite (email/password) は Cernere で廃止済み。
-      CORPUS_AUTH_UI_MODE: passkey
       GLAB_OMNIPOTENS_REVIEW_ROOT: ${ARS_ROOT}/Omnipotents/Review
       GLAB_SERVICE_TOKEN_AUDIENCE: glab
       CALLIOPE_PROJECT_KEY: calliope
       CORPUS_EXTERNAL_SERVICE_AUTH_MODULES: consult,projects,access
       CORPUS_EXTERNAL_SERVICE_TOKEN_HEADERS: x-glab-service-token,x-projecthub-service-token
       CORPUS_CERNERE_STORAGE_SLUG: glab
-    required_env: [CERNERE_BASE_URL, CERNERE_FRONTEND_URL, CORPUS_PUBLIC_URL, CORPUS_TOKEN_MODE, GLAB_OMNIPOTENS_REVIEW_ROOT, GLAB_DATABASE_URL]
+    required_env: [CERNERE_BASE_URL, CERNERE_FRONTEND_URL, CERNERE_PROJECT_KEY, CORPUS_PUBLIC_URL, CORPUS_TOKEN_MODE, GLAB_OMNIPOTENS_REVIEW_ROOT, GLAB_DATABASE_URL]
     requires_secret:
       - service: cernere-test
         keys: [EXCUBITOR_CERNERE_CLIENT_ID, EXCUBITOR_CERNERE_CLIENT_SECRET]

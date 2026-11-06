@@ -1,5 +1,12 @@
 # 下流サービスへの認証付き中継
 
+現行の移行契約は `spec/feature/bound-service-authentication.md`。再利用できる
+Bearer user token 発行は廃止し、明示 project/method/path/action に対する一度限りの
+`Cernere-Delegation` と準備済み request bytes/headers を TokenProvider から受け取る。
+未分類は `503 downstream_operation_unclassified`。unknown/denied は従来どおり下流へ
+送らず、匿名・呼出元 Authorization・旧 user token へ戻らない。
+以下の旧 token 文字列に関する記述は履歴であり、空文字などの成功値を扱う互換経路はない。
+
 `plugins/connector-authorization.ts` の `authorizedConnectorFetch` を、通常の `proxy`、
 バイナリの `proxyStream`、イベントの `AedilisEventClient` が共有する。
 既存の `plugins/shared.ts` からのexportは維持する。

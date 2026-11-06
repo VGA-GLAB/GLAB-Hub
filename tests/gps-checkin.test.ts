@@ -10,6 +10,7 @@ import { readLocationStatementClaims } from '../plugins/attendance/location-stat
 import { getGpsPhoto, listAttendance } from '../plugins/data.ts';
 import type { VersionedHttpServiceConnector } from '../plugins/service-health-connector.ts';
 import { openTempDb, type TempDb } from './sqlite-fixture.ts';
+import { setBoundTestUser, testDelegationProvider } from './bound-user-fixture.ts';
 
 const USER = { userId: 'user-1', isAdmin: false, displayName: 'User One' };
 const PHOTO = new Uint8Array([0xff, 0xd8, 0xff, 0xe1, 1, 2, 3, 4, 0xff, 0xd9]);
@@ -49,7 +50,7 @@ function harness(options: {
     db: temp.db,
     env: () => undefined,
     logger: { error: (message: string) => logs.push(message), info() {} },
-    tokenProvider: { mode: 'test', getDownstreamToken: async () => 'delegated-token' },
+    tokenProvider: testDelegationProvider(),
   } as unknown as CorpusContext;
   const ostiarius = {
     probe: async () => ({
@@ -74,8 +75,7 @@ function harness(options: {
   app.use('*', async (c, next) => {
     // Corpus の requireAuth の代わり。 認証済みなら identity と user token を積む。
     if (options.authenticated !== false) {
-      c.set('auth', USER as never);
-      c.set('userToken', 'user-token');
+      setBoundTestUser(c, USER);
     }
     await next();
   });
@@ -109,7 +109,7 @@ describe('POST /checkin/gps', () => {
     assert.equal(h.aedilisCalls.length, 1);
     const call = h.aedilisCalls[0]!;
     assert.equal(call.path, '/api/checkin/gps');
-    assert.equal(call.headers.get('authorization'), 'Bearer delegated-token');
+    assert.equal(call.headers.get('authorization'), `Cernere-Delegation ${'d'.repeat(43)}`);
     assert.equal(readLocationStatementClaims(String(call.form.get('locationStatement')))?.facilityId, 'room-a');
     for (const field of ['lat', 'lon', 'accuracyM', 'positionAt']) assert.ok(call.form.get(field));
     const relayed = call.form.get('photo');

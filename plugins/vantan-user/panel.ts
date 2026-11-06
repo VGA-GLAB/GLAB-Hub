@@ -1,6 +1,6 @@
 import { steamProfileSection } from './steam-profile-panel.ts';
 import { workProfileSection } from './work-profile-panel.ts';
-import { facePhotoSection } from './face-photo-panel.ts';
+import { faceConsentSection } from './face-consent-panel.ts';
 import { publicNameSection } from './public-name-panel.ts';
 import {
   el,
@@ -21,6 +21,6 @@ export async function mount(container: HTMLElement, ctx: PanelContext): Promise<
   container.appendChild(publicNameSection(ctx));
   container.appendChild(workProfileSection(ctx));
   container.appendChild(steamProfileSection(ctx));
-  container.appendChild(facePhotoSection(ctx));
+  container.appendChild(faceConsentSection(ctx));
   container.appendChild(cernereLinkSection(ctx));
 }

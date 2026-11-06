@@ -16,7 +16,7 @@ it('only the organizer can approve a request and recurring occurrences remain se
     const app = new Hono();
     let organizer = false;
     app.use('*', async (c, next) => {
-      c.set('auth', { userId: organizer ? 'host' : 'admin', externalId: 'x', displayName: 'test', isAdmin: true, role: 'admin' });
+      c.set('auth', { userId: organizer ? 'host' : 'admin', externalId: 'x', displayName: 'test', isAdmin: true, role: 'admin', projectKey: 'glab' });
       await next();
     });
     const event = { id: 7, starts_at: start, created_by: 'host', audience_roles: null };

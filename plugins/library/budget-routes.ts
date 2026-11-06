@@ -1,4 +1,4 @@
-import { Hono, getIdentity, getUserToken } from '../../corpus/server/hub/sdk.ts';
+import { Hono, getIdentity } from '../../corpus/server/hub/sdk.ts';
 import { z } from 'zod';
 import type { SqlDb } from '../data.ts';
 
@@ -17,7 +17,7 @@ export function budgetRoutes(db: SqlDb): Hono {
   const r = new Hono();
   r.use('*', async (c, next) => {
     c.header('cache-control', 'private, no-store');
-    if (!getUserToken(c)) return c.json({ error: 'unauthorized' }, 401);
+    if (!c.get('auth')) return c.json({ error: 'unauthorized' }, 401);
     await next();
   });
   r.get('/budget', c => {

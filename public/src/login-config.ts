@@ -3,26 +3,29 @@
 
 export interface PublicLoginConfig {
   cernereFrontendUrl?: string;
-  authUiMode?: string;
+  cernereClientId?: string;
 }
 
 export type LoginEntry =
-  | { kind: 'passkey'; cernereFrontendUrl: string }
+  | { kind: 'passkey'; cernereFrontendUrl: string; cernereClientId: string }
   | { kind: 'unavailable'; message: string };
 
 /** @implements SPEC-GLAB-SHELL-002 */
 export function resolveLoginEntry(config: PublicLoginConfig): LoginEntry {
   const url = config.cernereFrontendUrl?.trim();
-  if (!url) {
+  const clientId = config.cernereClientId?.trim();
+  if (!url || !clientId) {
     return {
       kind: 'unavailable',
-      message: 'Cernere ログイン画面の接続先を取得できませんでした (CORPUS_AUTH_UI_MODE=passkey と CERNERE_FRONTEND_URL を確認してください)',
+      message: 'Cernere の接続先とサービス登録を取得できませんでした。',
     };
   }
   try {
-    new URL(url);
+    const parsed = new URL(url);
+    if (parsed.username || parsed.password || parsed.search || parsed.hash || parsed.pathname !== '/'
+      || !(parsed.protocol === 'https:' || (parsed.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname)))) throw new Error('Invalid frontend origin');
   } catch {
     return { kind: 'unavailable', message: 'Cernere ログイン画面の接続先が URL ではありません' };
   }
-  return { kind: 'passkey', cernereFrontendUrl: url };
+  return { kind: 'passkey', cernereFrontendUrl: url, cernereClientId: clientId };
 }

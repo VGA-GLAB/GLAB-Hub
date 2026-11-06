@@ -3,35 +3,21 @@
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { CompositeLoginFrame } from '../../corpus/public/src/cernere-login.tsx';
+import { CompositeLoginFrame, completeServiceLogin } from '../../corpus/public/src/cernere-login.tsx';
 import { clearLegacyToken } from '../../corpus/public/src/api.ts';
 import { BRAND_TITLE, LOGIN_SUBTITLE } from './branding.ts';
 import { resolveLoginEntry, type PublicLoginConfig } from './login-config.ts';
 
 /** @implements SPEC-GLAB-SHELL-002 */
-async function exchangeAuthCode(authCode: string): Promise<void> {
-  const response = await fetch('/auth/exchange', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ code: authCode }),
-  });
-  const data = (await response.json().catch(() => ({}))) as {
-    ok?: boolean;
-    error?: string;
-  };
-  if (!response.ok || !data.ok) {
-    throw new Error(data.error || 'Cernere token exchange failed');
-  }
-  clearLegacyToken();
-  location.reload();
-}
-
-/** @implements SPEC-GLAB-SHELL-002 */
 function EmbeddedLoginHost({
   cernereFrontendUrl,
+  cernereClientId,
+  signal,
   message,
 }: {
   cernereFrontendUrl: string;
+  cernereClientId: string;
+  signal: AbortSignal;
   message: string;
 }) {
   const [error, setError] = useState('');
@@ -43,8 +29,12 @@ function EmbeddedLoginHost({
       {error && <p className="error">{error}</p>}
       <CompositeLoginFrame
         cernereUrl={cernereFrontendUrl}
-        onAuthCode={exchangeAuthCode}
-        onError={(cause) => setError(cause.message)}
+        clientId={cernereClientId}
+        onAuthCode={async (code, verifier) => {
+          await completeServiceLogin(code, verifier, signal);
+          if (!signal.aborted) location.reload();
+        }}
+        onError={(cause) => { if (!signal.aborted) setError(cause.message); }}
       />
     </>
   );
@@ -56,27 +46,31 @@ function EmbeddedLoginHost({
  */
 export function mountGlabLogin(mount: HTMLElement, message: string): () => void {
   const root = createRoot(mount);
-  let disposed = false;
+  const lifetime = new AbortController();
+  clearLegacyToken();
   root.render(<p className="muted">Cernere を読み込み中…</p>);
 
   void (async () => {
     try {
-      const response = await fetch('/api/public-config');
+      const response = await fetch('/api/public-config', { credentials: 'same-origin', redirect: 'error',
+        signal: AbortSignal.any([lifetime.signal, AbortSignal.timeout(10_000)]) });
       const config = (await response.json()) as PublicLoginConfig;
       if (!response.ok) {
         throw new Error('Cernere の接続先を取得できませんでした');
       }
-      if (disposed) return;
+      if (lifetime.signal.aborted) return;
       const entry = resolveLoginEntry(config);
       if (entry.kind === 'unavailable') throw new Error(entry.message);
       root.render(
         <EmbeddedLoginHost
           cernereFrontendUrl={entry.cernereFrontendUrl}
+          cernereClientId={entry.cernereClientId}
+          signal={lifetime.signal}
           message={message}
         />,
       );
     } catch (cause) {
-      if (!disposed) {
+      if (!lifetime.signal.aborted) {
         root.render(
           <p className="error">
             {cause instanceof Error ? cause.message : String(cause)}
@@ -87,7 +81,7 @@ export function mountGlabLogin(mount: HTMLElement, message: string): () => void 
   })();
 
   return () => {
-    disposed = true;
+    lifetime.abort();
     root.unmount();
   };
 }
