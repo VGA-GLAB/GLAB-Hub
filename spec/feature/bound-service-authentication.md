@@ -236,9 +236,10 @@ a separate unfinished consumer. Unknown methods/paths continue to be refused.
 | di (4) | GET entry-points, POST discussion-launch, GET review-trends, GET conclusions | Discutere launch/identity contract and existing service-access integration must be checked separately |
 | odeum (8) | GET status, GET live, POST sessions, POST sessions/:id/end, POST sessions/:id/viewer-ticket, GET sessions/:id/invitation, GET ticket-pubkeys, POST sessions/:id/program-ticket | Existing event audience/presenter/program owner checks and Odeum target/ticket contract |
 
-These six groups total56route/method shapes. Corpus shared routes also need
-explicit host decisions: hub overview, external-id list/reassignment, discovery
-read/write, declared data aggregation, capabilities and MCP. Declared downstream
+These six groups total56route/method shapes. Corpus shared routes still need
+explicit host decisions for declared data aggregation, capability invocation
+and MCP. Overview/admin configuration and capability-list metadata are classified
+by the later unit below. Declared downstream
 metadata alone must not authorize a source resource or an arbitrary tool/action.
 Static assets, health/public-config/auth-ceremony endpoints and external-service
 mirrors are separate boundaries, not user-operation gaps to blanket-allow.
@@ -266,3 +267,25 @@ These eight declarations need explicit administrator consent settings. The
 native Cocoiru caller still needs its own scoped-session migration; source
 classification alone is not consumer completion. Other module/target/settings/
 checkout/runtime conditions continue to block coordinated deployment.
+
+Hub overview is a sensitive admitted-member read; capability-list metadata is a
+read and does not authorize invocation. External-id mappings and discovery
+configuration are private admin reads. Mapping reassignment and discovery update
+are important administrator operations. Current verified GLAB administration is
+required, independently of a role string in the request. The body is bounded to
+64KiB and bound by the common digest/proof contract. Endpoint validation of the
+actual mapping, config locks and update/transaction outcomes is still mandatory.
+
+| Risk | Exact additional GLAB actions |
+| --- | --- |
+| read | hub.capabilities.read |
+| sensitive_read | hub.overview.read, hub.external-ids.read, hub.discovery.read |
+| important | hub.external-ids.reassign, hub.discovery.update |
+
+These six actions require explicit administrator declarations/consent before
+cutover. No manifest, connector prefix or MCP tool is trusted merely because a
+metadata-list operation was permitted. Generic data requires its actual current
+manifest/action/project/target/resource binding to be resolved and authorized;
+arbitrary capability invocation and tools/call remain unclassified and denied.
+This unit adds no credential, dependency, communication or dynamic execution.
+Other source/target/settings/checkout/runtime prerequisites remain unfinished.

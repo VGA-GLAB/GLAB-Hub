@@ -21,6 +21,7 @@ import { profileOperationPolicy } from './profile-operations.ts';
 import { projectOperationPolicy } from './project-operations.ts';
 import { softwareLibraryOperationPolicy } from './software-library-operations.ts';
 import { residentOperationPolicy } from './resident-operations.ts';
+import { hubOperationPolicy } from './hub-operations.ts';
 
 const attendance = attendanceOperationPolicy();
 const resident = residentOperationPolicy();
@@ -30,6 +31,8 @@ const coreMetadata = new Map([
 
 export const glabOperationPolicy: ServiceOperationPolicy = c => {
   const path = c.req.path, method = c.req.method;
+  const hub = hubOperationPolicy(c);
+  if (hub) return hub;
   const memberContent = memberContentOperationPolicy(c) ?? questOperationPolicy(c);
   if (memberContent) return memberContent;
   const discussion = forumOperationPolicy(c) ?? consultOperationPolicy(c);
