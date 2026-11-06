@@ -1,0 +1,12 @@
+{
+  "name": "odeum-authorization",
+  "description": "GLAB発表操作の本人・参加者・運営者認可と共通guard接続",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    { "pathPattern": "(^|/)plugins/odeum/(authorization|program-request|program-routes|routes)\\.ts$" },
+    { "pathPattern": "(^|/)plugins/access/odeum-operations\\.ts$" },
+    { "pathPattern": "(^|/)tests/member-odeum-operation-policy\\.test\\.ts$" }
+  ],
+  "specRefs": ["spec/feature/bound-service-authentication.md", "spec/feature/odeum-live-presentation.md"]
+}

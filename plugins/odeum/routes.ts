@@ -15,15 +15,14 @@ import type { CorpusContext } from '../../corpus/server/hub/sdk.ts';
 import QRCode from 'qrcode';
 import { startSchema } from './start-request.ts';
 import { getEventStore, type EventRow } from '../events/store.ts';
-import { canSee, parseAudience, resolveRoles } from '../roles/audience.ts';
 import { noStore } from '../shared.ts';
 import type { OdeumConfig } from './config.ts';
 import { buildLiveCards, type LiveEventInfo } from './live-cards.ts';
-import { canEndPresentation, canStartPresentation } from './permissions.ts';
+import { canStartPresentation } from './permissions.ts';
+import { OdeumAuthorization, type PresentationEventReader } from './authorization.ts';
 import { fetchRelaySessions } from './relay-client.ts';
 import {
   endOdeumSession,
-  getOdeumSession,
   listLiveOdeumSessions,
   startOdeumSession,
   startDirectSession,
@@ -57,16 +56,11 @@ export function presentUrl(wsBase: string, ticket: string): string {
   return `odeum://present?relay=${encodeURIComponent(wsBase)}&ticket=${encodeURIComponent(ticket)}`;
 }
 
-export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
+export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig, events: () => PresentationEventReader = getEventStore): Hono {
   const routes = new Hono();
-  routes.route('/', makeProgramRoutes(ctx, config));
+  const authorization = new OdeumAuthorization(ctx.db, events);
+  routes.route('/', makeProgramRoutes(ctx, config, events));
 
-  const visible = (event: EventRow, viewer: Viewer): boolean => canSee(
-    parseAudience(event.audience_roles),
-    resolveRoles(ctx.db, viewer.userId),
-    event.created_by === viewer.userId,
-    viewer.isAdmin,
-  );
   const nameOf = (viewer: Viewer): string =>
     viewer.displayName || getDisplayName(ctx.db, viewer.userId) || viewer.userId;
   const enabledSigner = (): TicketSigner | null =>
@@ -84,13 +78,13 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
     noStore(c);
     const viewer = getIdentity(c);
     const sessions = listLiveOdeumSessions(ctx.db);
-    const events = new Map<number, LiveEventInfo>();
-    const store = getEventStore();
+    const eventRows = new Map<number, EventRow>();
+    const store = events();
     for (const eventId of new Set(sessions.map((session) => session.eventId))) {
       if (eventId == null) continue;
       const event = await store.get(eventId);
       if (event) {
-        events.set(eventId, { title: event.title, visible: visible(event, viewer), createdBy: event.created_by });
+        eventRows.set(eventId, event);
       }
     }
     // 中継へ届かなくてもカードは台帳から出す (relayState = unknown)。
@@ -103,10 +97,15 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
         }).token,
       )
       : null;
+    // Relay/PG calls may yield. Project current local admission, roles and live rows now.
+    if (!authorization.member(viewer)) return c.json({ error: 'glab_approval_required' }, 403);
+    if (c.req.raw.signal.aborted) return c.json({ error: 'request_ended' }, 408);
+    const liveEvents = new Map<number, LiveEventInfo>();
+    for (const [id, event] of eventRows) liveEvents.set(id, { title: event.title, visible: authorization.visible(event, viewer), createdBy: event.created_by });
     return c.json({
       enabled: config.disabledReason == null,
       relayReachable: relay != null,
-      sessions: buildLiveCards(sessions, events, relay, viewer, (userId) => getDisplayName(ctx.db, userId)),
+      sessions: buildLiveCards(listLiveOdeumSessions(ctx.db), liveEvents, relay, viewer, (userId) => getDisplayName(ctx.db, userId)),
     });
   });
 
@@ -117,11 +116,13 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
     const viewer = getIdentity(c);
     const parsed = startSchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json({ error: 'invalid_session' }, 400);
-    const event = 'eventId' in parsed.data ? await getEventStore().get(parsed.data.eventId) : null;
+    const event = 'eventId' in parsed.data ? await events().get(parsed.data.eventId) : null;
     if ('eventId' in parsed.data) {
-      if (!event || !visible(event, viewer)) return c.json({ error: 'event_not_found' }, 404);
+      if (!event || !authorization.visible(event, viewer)) return c.json({ error: 'event_not_found' }, 404);
       if (!canStartPresentation(event, viewer)) return c.json({ error: 'forbidden' }, 403);
     }
+    if (!authorization.member(viewer)) return c.json({ error: 'glab_approval_required' }, 403);
+    if (c.req.raw.signal.aborted) return c.json({ error: 'request_ended' }, 408);
     const started = 'title' in parsed.data
       ? startDirectSession(ctx.db, { title: parsed.data.title, presenterUserId: viewer.userId })
       : startOdeumSession(ctx.db, { eventId: parsed.data.eventId, presenterUserId: viewer.userId });
@@ -152,10 +153,11 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
   routes.post('/sessions/:id/end', async (c) => {
     noStore(c);
     const viewer = getIdentity(c);
-    const session = getOdeumSession(ctx.db, c.req.param('id'));
+    const access = await authorization.session(c.req.param('id'), viewer);
+    const session = access?.session;
     if (!session) return c.json({ error: 'not_found' }, 404);
-    const event = session.eventId == null ? null : await getEventStore().get(session.eventId);
-    if (!canEndPresentation(session, event, viewer)) return c.json({ error: 'forbidden' }, 403);
+    if (!access.operator) return c.json({ error: 'forbidden' }, 403);
+    if (c.req.raw.signal.aborted) return c.json({ error: 'request_ended' }, 408);
     const ended = endOdeumSession(ctx.db, session.id);
     if (ended) ctx.logger.info(`odeum session ended: ${session.id}`);
     return c.json({ ok: true, alreadyEnded: !ended });
@@ -166,10 +168,12 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
     const signer = enabledSigner();
     if (!signer || !config.relay) return c.json({ error: 'odeum_disabled', reason: config.disabledReason }, 503);
     const viewer = getIdentity(c);
-    const session = getOdeumSession(ctx.db, c.req.param('id'));
+    const access = await authorization.session(c.req.param('id'), viewer);
+    const session = access?.session;
     if (!session || session.status !== 'live') return c.json({ error: 'session_not_live' }, 404);
-    const event = session.eventId == null ? null : await getEventStore().get(session.eventId);
-    if (session.eventId != null && (!event || !visible(event, viewer))) return c.json({ error: 'session_not_live' }, 404);
+    if (!access.visible) return c.json({ error: 'session_not_live' }, 404);
+    const event = access.event;
+    if (c.req.raw.signal.aborted) return c.json({ error: 'request_ended' }, 408);
     const name = nameOf(viewer);
     const ticket = signOdeumTicket(signer, {
       sub: viewer.userId,
@@ -193,19 +197,23 @@ export function makeOdeumRoutes(ctx: CorpusContext, config: OdeumConfig): Hono {
       return c.json({ error: 'odeum_disabled', reason: config.disabledReason ?? 'invitation_base_invalid' }, 503);
     }
     const viewer = getIdentity(c);
-    const session = getOdeumSession(ctx.db, c.req.param('id'));
+    const access = await authorization.session(c.req.param('id'), viewer);
+    const session = access?.session;
     if (!session || session.status !== 'live') return c.json({ error: 'session_not_live' }, 404);
     // Standalone streams are viewed through the authenticated GLab route only.
     if (session.eventId == null) return c.json({ error: 'event_required_for_invitation' }, 403);
-    const event = await getEventStore().get(session.eventId);
     // 招待は発表の運営者だけが見る (終了できる人と同じ範囲)。
-    if (!canEndPresentation(session, event, viewer)) return c.json({ error: 'forbidden' }, 403);
+    if (!access.operator || !access.event) return c.json({ error: 'forbidden' }, 403);
     const invitation = invitationFor(session.id)!;
     const joinUrl = guestJoinUrl(config.invitationBases.guest, invitation.guestCode);
+    const joinQr = await QRCode.toDataURL(joinUrl, { errorCorrectionLevel: 'M', margin: 2, width: 320 });
+    const current = await authorization.session(session.id, viewer);
+    if (!current || current.session.status !== 'live' || !current.event || !current.operator) return c.json({ error: 'forbidden' }, 403);
+    if (c.req.raw.signal.aborted) return c.json({ error: 'request_ended' }, 408);
     return c.json({
       joinCode: formatGuestCode(invitation.guestCode),
       joinUrl,
-      joinQr: await QRCode.toDataURL(joinUrl, { errorCorrectionLevel: 'M', margin: 2, width: 320 }),
+      joinQr,
       overlayUrl: overlayUrl(config.invitationBases.overlay, invitation.overlayKey),
     });
   });

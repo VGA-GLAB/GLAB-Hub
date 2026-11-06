@@ -233,9 +233,8 @@ a separate unfinished consumer. Unknown methods/paths continue to be refused.
 | facility (21) | GET facilities and facilities/:id; for reservations and meetings: GET collection, GET mine, POST collection, GET/PATCH/DELETE :id; POST meetings/:id/finalize, POST meetings/:id/glab-event, POST meetings/:id/responses, PATCH meetings/:id/responses/:responseId; GET meet/status, POST meet/oauth/start, GET meet/oauth/callback | Aedilis scoped target and callback/session binding; groups already classified |
 | tirocinium (8) | GET companies, GET career-companies, PUT/DELETE career-companies/:relationType/:companyId; calls: POST collection, GET :id/events, POST :id/frames, DELETE :id | Tirocinium target/streaming call ownership; preserve other-owner/blocked task boundaries |
 | di (4) | GET entry-points, POST discussion-launch, GET review-trends, GET conclusions | Discutere launch/identity contract and existing service-access integration must be checked separately |
-| odeum (8) | GET status, GET live, POST sessions, POST sessions/:id/end, POST sessions/:id/viewer-ticket, GET sessions/:id/invitation, GET ticket-pubkeys, POST sessions/:id/program-ticket | Existing event audience/presenter/program owner checks and Odeum target/ticket contract |
 
-After the seven lending operations below, these five groups total46route/method shapes. Corpus shared routes still need
+After the lending and presentation operations below, these four groups total38route/method shapes. Corpus shared routes still need
 explicit host decisions for declared data aggregation, capability invocation
 and MCP. Overview/admin configuration and capability-list metadata are classified
 by the later unit below. Declared downstream
@@ -357,3 +356,50 @@ the catalog's loopback value does not prove production readiness. Bibliotheca's
 direct PWA and remaining legacy routes, other targets/consumers, canonical GLAB's
 protected stale corpus checkout, runtime evidence and coordinated cutover remain
 unfinished. This source change alone must not be deployed.
+
+## GLAB presentation operations (Odeum source boundary)
+
+The eight existing presentation endpoints now have explicit source actions and
+current GLAB resource authorization. The common authority binds the exact body,
+resource and one-use permit; it cannot replace local event audience, session
+presenter/operator, project membership or insert-once program/project binding.
+Ticket-producing POSTs are important operations even when their principal result
+is a launch/view credential. Invitation GET contains guest/overlay secrets and is
+a sensitive read. Unknown methods, arbitrary session suffixes and implicit HEAD
+do not inherit these permissions.
+
+| Risk | Exact actions |
+| --- | --- |
+| read | odeum.status.read |
+| sensitive_read | odeum.live.read, odeum.ticket-keys.read, odeum.invitation.read |
+| important | odeum.session.start, odeum.session.end, odeum.viewer-ticket.issue, odeum.program-ticket.issue |
+
+All operations require the current admitted nonempty subject (or current verified
+administrator according to the existing GLAB admission policy). A named direct
+stream is still allowed for an admitted subject. An event stream may be started
+only by its current creator/admin and must be visible to that actor. Current
+event audience/roles protect viewer tickets. The actual presenter/creator/admin
+may stop their stream, including after an event is removed; that exception does
+not disclose invitation secrets or grant program/viewer tickets. Invitations
+require a current live event session and its operator. Public-key configuration
+remains administrator-only. Program producers require the session operator;
+presenters require the bound project's current membership unless already an
+operator. Existing insert-once binding prevents moving a live program to a new
+project. The same unchanged Zod request schema is used by the resource callback
+and endpoint, with 8KiB route-owned bodies and cloned reads preserving exact bytes.
+
+PostgreSQL reads may yield. OdeumAuthorization re-reads local admission, session
+status/binding and current roles afterward. Endpoints repeat those checks before
+state changes or ticket issuance. Invitation QR generation is followed by another
+current authorization before returning secrets; live cards project current roles,
+admission and live rows after PG/relay I/O. Disconnects cannot proceed to local
+session writes or ticket responses. Failures are not automatically retried.
+
+No signing format, key, dependency or ticket lifetime is changed. Existing relay
+and native tickets are separate contracts, and a ticket is not a Cr service grant
+or reusable delegated operation. Relay/native session invalidation and ongoing
+private viewing still require their own cutover verification; this source-only
+classification does not assert that boundary complete. Existing optional Odeum
+configuration and public guest participation remain unchanged. Administrator
+service_operations/consent for these eight actions, actual runtime verification,
+all remaining target/native consumers and coordinated cutover are still required.

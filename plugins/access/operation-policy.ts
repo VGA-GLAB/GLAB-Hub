@@ -24,10 +24,12 @@ import { residentOperationPolicy } from './resident-operations.ts';
 import { hubOperationPolicy } from './hub-operations.ts';
 import { localEventOperationPolicy } from './local-event-operations.ts';
 import { lendingOperationPolicy } from './lending-operations.ts';
+import { odeumOperationPolicy } from './odeum-operations.ts';
 
 const attendance = attendanceOperationPolicy();
 const resident = residentOperationPolicy();
 const localEvents = localEventOperationPolicy();
+const odeum = odeumOperationPolicy();
 const coreMetadata = new Map([
   ['/api/hub/connectors', 'hub.connectors.read'], ['/api/hub/modules', 'hub.modules.read'], ['/api/hub/services', 'hub.services.read'],
 ]);
@@ -52,6 +54,8 @@ export const glabOperationPolicy: ServiceOperationPolicy = c => {
   if (event) return event;
   const lending = lendingOperationPolicy(c);
   if (lending) return lending;
+  const presentation = odeum(c);
+  if (presentation) return presentation;
   const media = mediaOperationPolicy(c);
   if (media) return media;
   const voluptas = voluptasOperationPolicy(c);
