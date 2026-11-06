@@ -13,6 +13,8 @@ import { mediaOperationPolicy } from './media-operations.ts';
 import { memberContentOperationPolicy } from './member-content-operations.ts';
 import { questOperationPolicy } from './quest-operations.ts';
 import { voluptasOperationPolicy } from './voluptas-operations.ts';
+import { forumOperationPolicy } from './forum-operations.ts';
+import { consultOperationPolicy } from './consult-operations.ts';
 
 const attendance = attendanceOperationPolicy();
 const coreMetadata = new Map([
@@ -23,6 +25,8 @@ export const glabOperationPolicy: ServiceOperationPolicy = c => {
   const path = c.req.path, method = c.req.method;
   const memberContent = memberContentOperationPolicy(c) ?? questOperationPolicy(c);
   if (memberContent) return memberContent;
+  const discussion = forumOperationPolicy(c) ?? consultOperationPolicy(c);
+  if (discussion) return discussion;
   const media = mediaOperationPolicy(c);
   if (media) return media;
   const voluptas = voluptasOperationPolicy(c);

@@ -37,7 +37,7 @@ test('subject/member data GETs are sensitive; current admission is required each
     state.admitted = false; assert.equal(await operation.authorizeResource(c, identity), false); state.admitted = true;
   }
   assert.equal(glabOperationPolicy(context('GET', '/api/x/tech-links/new-private-data')), null);
-  assert.equal(glabOperationPolicy(context('PUT', '/api/x/dashboard/location')), null);
+  assert.equal(glabOperationPolicy(context('PUT', '/api/x/dashboard/location'))?.risk, 'important');
   assert.equal(glabOperationPolicy(context('POST', '/api/x/tech-links/external/links')), null);
 });
 

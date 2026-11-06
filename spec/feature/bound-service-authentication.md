@@ -100,8 +100,9 @@ actions and risks; the service does not infer a declaration from a prefix:
 The current-row callbacks supplement endpoint authorization. Job conditional
 revision updates and quest compare/revision writes remain the final transaction
 boundary; a changed owner/role/project/revision cannot be replaced with a cached
-positive result. Dashboard location mutation and other unreviewed operations are
-still unclassified and refused; this table is not a complete cutover manifest.
+positive result. Other unreviewed operations stay unclassified and refused;
+this table is not a complete cutover manifest. Subject-bound location mutation
+is covered by the later presence unit, retaining its live endpoint permission check.
 
 The Voluptas caller unit adds the explicit survey/review/game/emotion-curve
 actions, preserving live GLAB admission and local administration. Voluptas
@@ -125,3 +126,23 @@ the Ex launch target and the actual service manifest. The retired `volputas`
 project spelling is rejected. Existing GLAB module/connector IDs and browser
 `/api/x/volputas` URLs are distinct identifiers; none can select the auth project.
 No physical data/table/storage_slug is renamed by this authentication correction.
+
+Forum/consult classification preserves existing GLAB data policy. Forum detail
+and comments re-read the current thread audience/roles; list projection still
+filters every row in the endpoint. Thread delete is creator/admin, pin is admin.
+Consult boards are shared with admitted members, while resolve is creator/admin
+and the presence roster is administrator-only. Self availability/location use
+only the verified subject; the endpoint must still query current canEditPresence
+immediately before writing and refuse missing/denied permission. The common
+gate supplements that check. Bot external routes keep their separate service
+principal boundary and are not user operations.
+
+| Risk | Exact additional GLAB actions |
+| --- | --- |
+| sensitive_read | forum.threads.list, forum.thread.read, forum.comments.read, consults.list, consult.read, presence.self.read, presence.members.read |
+| important | forum.thread.create, forum.thread.delete, forum.thread.pin, forum.comment.create, consult.create, consult.resolve, presence.self.update, dashboard.location.update |
+
+These declared actions/risks need explicit administrator consent permissions
+before switch. Unknown methods/paths stay refused; current resource checks are
+repeated without a positive cache. Other unfinished modules/targets/consumers
+and settings/runtime evidence still block coordinated deployment.

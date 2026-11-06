@@ -37,6 +37,11 @@ export const memberContentOperationPolicy: ServiceOperationPolicy = c => {
     ['/api/x/dashboard/daily-quest/complete', 'dashboard.daily-quest.complete'],
   ]).get(path);
   if (create) return classify(create, 'important', (_context, identity) => member(identity));
+  if (method === 'PUT' && path === '/api/x/dashboard/location') {
+    // The handler independently fetches current canEditPresence before writing
+    // this verified subject's location; this gate does not replace that check.
+    return classify('dashboard.location.update', 'important', (_context, identity) => member(identity));
+  }
   if (method === 'PUT' && path === '/api/x/jobs/career') return classify('career.self.update', 'important', (_context, identity) => member(identity));
   const link = /^\/api\/x\/tech-links\/links\/([^/]+)(\/comments)?$/.exec(path);
   if (link && (method === 'GET' || !link[2] && ['PATCH', 'DELETE'].includes(method) || link[2] && method === 'POST')) {
