@@ -34,7 +34,7 @@ const groups = async () => [{ kind: 'organization' as const, id: 'org-1', name: 
 test('an event Meet is requested from Aedilis through the signed relay with the chosen organization', async () => {
   const { c, ctx, connector, sent } = fixture(() => Response.json({ status: 'ready', url: 'https://meet.google.com/abc-defg-hij' }));
   assert.deepEqual(await issueEventMeet(c, ctx, connector, 42, 'org-1', groups), { url: 'https://meet.google.com/abc-defg-hij' });
-  assert.equal(sent[0]?.path, '/api/meet/external/glab-event/42');
+  assert.equal(sent[0]?.path, '/api/integrations/glab/meet/external/glab-event/42');
   assert.equal(sent[0]?.body, JSON.stringify({ organizationId: 'org-1' }));
   assert.equal(sent[0]?.payload.method, 'POST');
   assert.deepEqual(sent[0]?.payload.groups, [{ kind: 'organization', id: 'org-1', name: 'GLab' }]);

@@ -73,16 +73,26 @@ test('membership failure cannot be turned into a public or anonymous fallback', 
 
 test('admission revoked while groups are read prevents signing and the target mutation', async () => {
   let calls = 0;
-  const downstream = connector(async path => { calls++; assert.equal(path, target + '/capabilities'); return Response.json({ groupContextVersion: 1 }); });
+  const downstream = connector(async (path, init) => {
+    calls++; assert.equal(path, target + '/capabilities');
+    assert.equal(new Headers(init?.headers).get('x-glab-booking-context'), null);
+    return Response.json({ groupContextVersion: 1 });
+  });
   const response = await bookingProxy(context(), corpus(), downstream, target, async () => { admitted = false; return []; });
-  assert.equal(response.status, 503); assert.equal(calls, 1);
+  assert.equal(response.status, 403); assert.equal(calls, 1);
+  assert.deepEqual(await response.json(), { error: 'current_booking_actor_unconfirmed', retryable: false });
 });
 
 test('disconnect while groups are read prevents the target mutation and propagates cancellation', async () => {
   let calls = 0;
   const controller = new AbortController(), c = context();
   c.req.raw = new Request('http://glab.test/reservations', { signal: controller.signal });
-  const downstream = connector(async (_path, init) => { calls++; assert.equal(init?.signal, c.req.raw.signal); return Response.json({ groupContextVersion: 1 }); });
+  const downstream = connector(async (path, init) => {
+    calls++; assert.equal(path, target + '/capabilities'); assert.equal(init?.signal, c.req.raw.signal);
+    assert.equal(new Headers(init?.headers).get('x-glab-booking-context'), null);
+    return Response.json({ groupContextVersion: 1 });
+  });
   const response = await bookingProxy(c, corpus(), downstream, target, async () => { controller.abort(); return []; });
-  assert.equal(response.status, 503); assert.equal(calls, 1);
+  assert.equal(response.status, 403); assert.equal(calls, 1);
+  assert.deepEqual(await response.json(), { error: 'current_booking_actor_unconfirmed', retryable: false });
 });

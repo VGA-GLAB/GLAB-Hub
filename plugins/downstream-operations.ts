@@ -6,6 +6,7 @@ export interface DownstreamOperation { action: string; additionalHeaders?: reado
 interface Route { project: string; method: string; path: RegExp; action: string; booking?: true }
 export const AEDILIS_GLAB_PREFIX = '/api/integrations/glab';
 export const AEDILIS_MEETING_PREFIX = AEDILIS_GLAB_PREFIX + '/meetings';
+export const AEDILIS_MANAGED_MEET_PREFIX = AEDILIS_GLAB_PREFIX + '/meet';
 const routes: readonly Route[] = [
   { project: 'aedilis', method: 'GET', path: /^\/api\/integrations\/glab\/facilities$/, action: 'facility.list' },
   { project: 'aedilis', method: 'GET', path: /^\/api\/integrations\/glab\/facilities\/[^/]+$/, action: 'facility.read' },
@@ -16,12 +17,12 @@ const routes: readonly Route[] = [
   { project: 'aedilis', method: 'PATCH', path: /^\/api\/integrations\/glab\/reservations\/[0-9a-f-]{36}$/i, action: 'reservations.update', booking: true },
   { project: 'aedilis', method: 'DELETE', path: /^\/api\/integrations\/glab\/reservations\/[0-9a-f-]{36}$/i, action: 'reservations.delete', booking: true },
   { project: 'aedilis', method: 'POST', path: /^\/api\/checkin\/gps$/, action: 'checkin.gps' },
-  { project: 'aedilis', method: 'GET', path: /^\/api\/meet\/status$/, action: 'meet.status', booking: true },
-  { project: 'aedilis', method: 'POST', path: /^\/api\/meet\/oauth\/start$/, action: 'meet.oauth.start', booking: true },
-  { project: 'aedilis', method: 'POST', path: /^\/api\/meet\/oauth\/complete$/, action: 'meet.oauth.complete', booking: true },
-  { project: 'aedilis', method: 'GET', path: /^\/api\/meet\/[0-9a-f-]{36}$/i, action: 'meet.read', booking: true },
-  { project: 'aedilis', method: 'POST', path: /^\/api\/meet\/[0-9a-f-]{36}$/i, action: 'meet.create', booking: true },
-  { project: 'aedilis', method: 'POST', path: /^\/api\/meet\/external\/glab-event\/\d+$/, action: 'meet.event.create', booking: true },
+  { project: 'aedilis', method: 'GET', path: /^\/api\/integrations\/glab\/meet\/status$/, action: 'meet.status.read', booking: true },
+  { project: 'aedilis', method: 'POST', path: /^\/api\/integrations\/glab\/meet\/oauth\/start$/, action: 'meet.oauth.start', booking: true },
+  { project: 'aedilis', method: 'POST', path: /^\/api\/integrations\/glab\/meet\/oauth\/complete$/, action: 'meet.oauth.complete', booking: true },
+  { project: 'aedilis', method: 'GET', path: /^\/api\/integrations\/glab\/meet\/[0-9a-f-]{36}$/i, action: 'meet.read', booking: true },
+  { project: 'aedilis', method: 'POST', path: /^\/api\/integrations\/glab\/meet\/[0-9a-f-]{36}$/i, action: 'meet.create', booking: true },
+  { project: 'aedilis', method: 'POST', path: /^\/api\/integrations\/glab\/meet\/external\/glab-event\/[1-9][0-9]{0,15}$/, action: 'meet.external.create', booking: true },
   { project: 'aedilis', method: 'GET', path: /^\/api\/integrations\/glab\/meetings$/, action: 'meetings.list.read', booking: true },
   { project: 'aedilis', method: 'GET', path: /^\/api\/integrations\/glab\/meetings\/mine$/, action: 'meetings.mine.read', booking: true },
   { project: 'aedilis', method: 'POST', path: /^\/api\/integrations\/glab\/meetings$/, action: 'meetings.create', booking: true },

@@ -11,8 +11,10 @@
 import type { Context, CorpusContext, Hono, ServiceConnector } from '../../corpus/server/hub/sdk.ts';
 import { PRIVATE_NO_STORE } from '../shared.ts';
 import { bookingGroupsWithRepresentative, bookingProxy } from './booking-proxy.ts';
+import { AEDILIS_MANAGED_MEET_PREFIX } from '../downstream-operations.ts';
+import { currentBookingActor } from './booking-actor.ts';
 import {
-  meetOAuthCompletion,
+  meetOAuthCompletionFromUrl,
   meetOAuthRedirectUri,
   meetOAuthResultPage,
   parseMeetOAuthTarget,
@@ -37,35 +39,44 @@ function html(result: MeetOAuthResult, status = 200): Response {
 
 export function registerMeetRoutes(r: Hono, ctx: CorpusContext, aedilis: ServiceConnector): void {
   // 代表者の判定 (Cr 組織の owner) が要るルートだけ、組織ごとの役割も読んで署名する。
-  r.get('/meet/status', c => bookingProxy(c, ctx, aedilis, '/api/meet/status', bookingGroupsWithRepresentative));
+  r.get('/meet/status', c => bookingProxy(c, ctx, aedilis, AEDILIS_MANAGED_MEET_PREFIX + '/status', bookingGroupsWithRepresentative));
   r.post('/meet/oauth/start', async (c) => {
-    const target = parseMeetOAuthTarget(await c.req.json().catch(() => null));
-    if (!target) return Response.json({ error: 'invalid_mode' }, { status: 400, headers: { 'cache-control': PRIVATE_NO_STORE } });
-    const redirectUri = meetOAuthRedirectUri(requestOrigin(c.req.url, c.req.header('x-forwarded-proto')));
-    if (!redirectUri) return Response.json({ error: 'public_url_unconfigured' }, { status: 503, headers: { 'cache-control': PRIVATE_NO_STORE } });
-    return bookingProxy(c, ctx, aedilis, '/api/meet/oauth/start', bookingGroupsWithRepresentative, {
-      method: 'POST', body: JSON.stringify({ ...target, redirectUri }),
-    });
+    try {
+      const actor = currentBookingActor(c);
+      const target = parseMeetOAuthTarget(await c.req.json().catch(() => null));
+      actor.assertCurrent();
+      if (!target) return Response.json({ error: 'invalid_mode' }, { status: 400, headers: { 'cache-control': PRIVATE_NO_STORE } });
+      const redirectUri = meetOAuthRedirectUri(requestOrigin(c.req.url, c.req.header('x-forwarded-proto')));
+      if (!redirectUri) return Response.json({ error: 'public_url_unconfigured' }, { status: 503, headers: { 'cache-control': PRIVATE_NO_STORE } });
+      return await bookingProxy(c, ctx, aedilis, AEDILIS_MANAGED_MEET_PREFIX + '/oauth/start', bookingGroupsWithRepresentative, {
+        method: 'POST', body: JSON.stringify({ ...target, redirectUri }),
+      });
+    } catch {
+      return Response.json({ error: 'meet_unavailable' }, { status: 503, headers: { 'cache-control': PRIVATE_NO_STORE } });
+    }
   });
   r.get('/meet/oauth/callback', async (c: Context) => {
-    const completion = meetOAuthCompletion({
-      state: c.req.query('state'), code: c.req.query('code'), error: c.req.query('error'),
-    });
-    if (!completion) return html('failed', 400);
-    const response = await bookingProxy(c, ctx, aedilis, '/api/meet/oauth/complete', bookingGroupsWithRepresentative, {
-      method: 'POST', body: JSON.stringify(completion),
-    });
-    if (!response.ok) return html('failed', 400);
-    const body = await response.json().catch(() => null) as { mode?: unknown } | null;
-    return html(body?.mode === 'organizer' ? 'organizer' : 'creator');
+    try {
+      const actor = currentBookingActor(c);
+      const completion = meetOAuthCompletionFromUrl(c.req.url);
+      if (!completion) return html('failed', 400);
+      const response = await bookingProxy(c, ctx, aedilis, AEDILIS_MANAGED_MEET_PREFIX + '/oauth/complete', bookingGroupsWithRepresentative, {
+        method: 'POST', body: JSON.stringify(completion),
+      });
+      if (!response.ok) return html('failed', 400);
+      const body = await response.json().catch(() => null) as { mode?: unknown } | null;
+      actor.assertCurrent();
+      if (body?.mode !== 'organizer' && body?.mode !== 'creator') return html('failed', 503);
+      return html(body.mode);
+    } catch { return html('failed', 503); }
   });
   for (const method of ['get', 'post'] as const) {
     r[method]('/meet/:id', (c: Context) => {
       const id = c.req.param('id') ?? '';
       if (!MEETING_ID.test(id)) return Response.json({ error: 'not_found' }, { status: 404, headers: { 'cache-control': PRIVATE_NO_STORE } });
       return method === 'get'
-        ? bookingProxy(c, ctx, aedilis, `/api/meet/${id}`)
-        : bookingProxy(c, ctx, aedilis, `/api/meet/${id}`, undefined, { method: 'POST', body: '{}' });
+        ? bookingProxy(c, ctx, aedilis, `${AEDILIS_MANAGED_MEET_PREFIX}/${id}`)
+        : bookingProxy(c, ctx, aedilis, `${AEDILIS_MANAGED_MEET_PREFIX}/${id}`, undefined, { method: 'POST', body: '{}' });
     });
   }
 }

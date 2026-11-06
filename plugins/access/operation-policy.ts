@@ -28,6 +28,7 @@ import { odeumOperationPolicy } from './odeum-operations.ts';
 import { careerCompanyOperationPolicy } from './career-company-operations.ts';
 import { facilityOperationPolicy } from './facility-operations.ts';
 import { meetingOperationPolicy } from './meeting-operations.ts';
+import { managedMeetOperationPolicy } from './managed-meet-operations.ts';
 
 const attendance = attendanceOperationPolicy();
 const resident = residentOperationPolicy();
@@ -65,6 +66,8 @@ export const glabOperationPolicy: ServiceOperationPolicy = c => {
   if (facility) return facility;
   const meeting = meetingOperationPolicy(c);
   if (meeting) return meeting;
+  const managedMeet = managedMeetOperationPolicy(c);
+  if (managedMeet) return managedMeet;
   const media = mediaOperationPolicy(c);
   if (media) return media;
   const voluptas = voluptasOperationPolicy(c);

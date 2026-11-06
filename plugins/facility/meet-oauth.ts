@@ -56,11 +56,20 @@ export interface MeetOAuthCallbackQuery {
 
 /** Google の戻りの query を Ae に渡せる形にする。キャンセル・欠落は null。 */
 export function meetOAuthCompletion(query: MeetOAuthCallbackQuery): { state: string; code: string } | null {
-  if (query.error) return null;
+  if (query.error !== undefined) return null;
   const state = query.state ?? '';
   const code = query.code ?? '';
   if (!/^[A-Za-z0-9_-]{43}$/.test(state) || !code || code.length > 4096) return null;
   return { state, code };
+}
+
+/** Standard URL decoding, with exactly one state/code and no provider-error parameter.
+ * Duplicate encoded names are also rejected; no raw values are logged or echoed.
+ */
+export function meetOAuthCompletionFromUrl(requestUrl: string): { state: string; code: string } | null {
+  const query = new URL(requestUrl).searchParams;
+  if (query.getAll('state').length !== 1 || query.getAll('code').length !== 1 || query.has('error')) return null;
+  return meetOAuthCompletion({ state: query.get('state') ?? undefined, code: query.get('code') ?? undefined, error: undefined });
 }
 
 const RESULT_MESSAGES = {

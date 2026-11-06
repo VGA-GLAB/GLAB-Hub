@@ -8,6 +8,7 @@ import { configureAdmissionPolicy } from '../plugins/access/policy.ts';
 import type { SqlDb } from '../plugins/data.ts';
 import {
   meetOAuthCompletion,
+  meetOAuthCompletionFromUrl,
   meetOAuthRedirectUri,
   meetOAuthResultPage,
   parseMeetOAuthTarget,
@@ -40,6 +41,12 @@ test('a cancelled or malformed Google return is not relayed to Aedilis', () => {
   assert.equal(meetOAuthCompletion({ state: 'short', code: 'one-use', error: undefined }), null);
   assert.equal(meetOAuthCompletion({ state, code: undefined, error: undefined }), null);
   assert.equal(meetOAuthCompletion({ state, code: 'x'.repeat(4097), error: undefined }), null);
+  assert.equal(meetOAuthCompletion({ state, code: 'one-use', error: '' }), null);
+  const url = `https://glab.example/callback?state=${state}&code=once`;
+  assert.deepEqual(meetOAuthCompletionFromUrl(url), { state, code: 'once' });
+  for (const suffix of ['&state=another', '&st%61te=another', '&code=another', '&error=', '&error=access_denied']) {
+    assert.equal(meetOAuthCompletionFromUrl(url + suffix), null);
+  }
 });
 
 test('the result page only notifies the same origin and never echoes the code or state', () => {
@@ -68,12 +75,12 @@ test('a server-built request is signed as sent, ignoring the caller body and que
       return Response.json({ url: 'https://accounts.google.com/o/oauth2/v2/auth' });
     },
   };
-  const response = await bookingProxy(c, ctx, connector, '/api/meet/oauth/start', async () => [], { method: 'POST', body: serverBody });
+  const response = await bookingProxy(c, ctx, connector, '/api/integrations/glab/meet/oauth/start', async () => [], { method: 'POST', body: serverBody });
   assert.equal(response.status, 200);
   assert.equal(sent.length, 1);
-  assert.equal(sent[0]?.path, '/api/meet/oauth/start');
+  assert.equal(sent[0]?.path, '/api/integrations/glab/meet/oauth/start');
   assert.equal(sent[0]?.body, serverBody);
   assert.equal(sent[0]?.payload.method, 'POST');
-  assert.equal(sent[0]?.payload.path, '/api/meet/oauth/start');
+  assert.equal(sent[0]?.payload.path, '/api/integrations/glab/meet/oauth/start');
   assert.equal(sent[0]?.payload.bodyHash, createHash('sha256').update(serverBody).digest('hex'));
 });

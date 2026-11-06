@@ -3,7 +3,7 @@ import { authorizedConnectorFetch, PRIVATE_NO_STORE } from '../shared.ts';
 import { readOrganizations, readTeams, type BookingGroup } from './groups.ts';
 import { signBookingContext } from './context-signature.ts';
 import { AEDILIS_GLAB_PREFIX } from '../downstream-operations.ts';
-import { currentBookingActor } from './booking-actor.ts';
+import { BookingActorUnavailable, currentBookingActor } from './booking-actor.ts';
 
 async function readGroupsOf(c: Context, ctx: CorpusContext, withRepresentative: boolean): Promise<BookingGroup[]> {
   const session = getUserSession(c), provider = ctx.identityProvider;
@@ -54,10 +54,13 @@ export async function bookingProxy(
       method, signal: c.req.raw.signal, headers: { 'content-type': 'application/json', 'x-glab-booking-context': assertion },
       ...(['GET', 'HEAD'].includes(method) ? {} : { body }),
     });
-    return new Response(await response.text(), {
+    const result = await response.text();
+    actor.assertCurrent();
+    return new Response(result, {
       status: response.status, headers: { ...noStore, 'content-type': 'application/json' },
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof BookingActorUnavailable) return Response.json({ error: 'current_booking_actor_unconfirmed', retryable: false }, { status: 403, headers: noStore });
     ctx.logger.error('Facility booking request failed');
     return Response.json({ error: 'booking_unavailable' }, { status: 503, headers: noStore });
   }

@@ -4,6 +4,7 @@
 
 import type { Context, CorpusContext, ServiceConnector } from '../../corpus/server/hub/sdk.ts';
 import { bookingGroups, bookingProxy } from '../facility/booking-proxy.ts';
+import { AEDILIS_MANAGED_MEET_PREFIX } from '../downstream-operations.ts';
 
 const MEET_URL = /^https:\/\/meet\.google\.com\/[a-z-]+$/;
 export const ORGANIZATION_ID = /^[A-Za-z0-9_-]{1,200}$/;
@@ -24,7 +25,7 @@ export async function issueEventMeet(
   c: Context, ctx: CorpusContext, aedilis: ServiceConnector, eventId: number, organizationId: string | null,
   readGroups: typeof bookingGroups = bookingGroups,
 ): Promise<EventMeetResult> {
-  const response = await bookingProxy(c, ctx, aedilis, `/api/meet/external/glab-event/${eventId}`, readGroups, {
+  const response = await bookingProxy(c, ctx, aedilis, `${AEDILIS_MANAGED_MEET_PREFIX}/external/glab-event/${eventId}`, readGroups, {
     method: 'POST', body: JSON.stringify(organizationId ? { organizationId } : {}),
   });
   if (!response.ok) return failure(response);

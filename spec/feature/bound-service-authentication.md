@@ -230,11 +230,11 @@ a separate unfinished consumer. Unknown methods/paths continue to be refused.
 | Module | Remaining exact route/method shapes | Target dependency |
 | --- | --- | --- |
 | events (5) | GET facilities, GET meet/organizations, POST events, POST events/:id/meet, DELETE events/:id | Aedilis facilities/Meet; local list and own attendance are classified separately |
-| facility (6) | GET reservations/:id (target handler absent); GET meet/status, POST meet/oauth/start, GET meet/oauth/callback, GET/POST meet/:id | Aedilis managed Meet target/callback/session binding; groups, seven facility/reservation operations and ten meeting-poll operations are classified separately |
+| facility (1) | GET reservations/:id (target handler absent) | Explicitly refused; groups, seven facility/reservation operations, ten meeting-poll and five managed Meet source operations are classified separately |
 | tirocinium (5) | GET companies; calls: POST collection, GET :id/events, POST :id/frames, DELETE :id | Tirocinium target/streaming call ownership; own career companies are classified separately; preserve other-owner/blocked task boundaries |
 | di (4) | GET entry-points, POST discussion-launch, GET review-trends, GET conclusions | Discutere launch/identity contract and existing service-access integration must be checked separately |
 
-After the meeting-poll operations below, these four groups total20route/method shapes. The previous35 figure omitted GET/POST meet/:id: the actual earlier remainder was37, then seven facility/reservation and ten meeting-poll source operations were classified. Corpus shared routes still need
+After meeting-poll and managed Meet operations below, these four groups total15route/method shapes. The previous35 figure omitted GET/POST meet/:id: the actual earlier remainder was37, then seven facility/reservation, ten meeting-poll and five managed Meet source operations were classified. Corpus shared routes still need
 explicit host decisions for declared data aggregation, capability invocation
 and MCP. Overview/admin configuration and capability-list metadata are classified
 by the later unit below. Declared downstream
@@ -265,6 +265,58 @@ These eight declarations need explicit administrator consent settings. The
 native Cocoiru caller still needs its own scoped-session migration; source
 classification alone is not consumer completion. Other module/target/settings/
 checkout/runtime conditions continue to block coordinated deployment.
+
+## Managed Meet source and private OAuth callback
+
+Five source shapes use the existing accepted Ae managed Meet target
+`/api/integrations/glab/meet` (Ae3671/public5289e153). Ordinary status and meeting
+link GETs are sensitive; OAuth start, OAuth callback GET and meeting creation
+are important. Exact source actions are `facility.meet.status.read`,
+`facility.meet.oauth.start`, `facility.meet.oauth.complete`, `facility.meet.read`
+and `facility.meet.create`. Admission and same bound subject/session are checked
+currently; Ae independently keeps owner/audience, representative/admin, provider
+state and Google account constraints. Unknown methods/paths remain refused.
+
+Corpus is pinned to public16dbcae632e8a010a32f8ff90cf47f45a5b0f236, nested SDK
+71d6c368 unchanged. The callback alone sets the host-owned `privateQuery: true`
+classification (own service session, important GET, zero body). The standard
+gate binds its original complete query with SHA-256 instead of sending code or
+state in a Cr resource. Ordering, repeated values and encoded spelling are not
+normalized for binding. Incoming delegation/upload cannot use this option.
+This does not validate an OAuth response or create a new authentication method.
+
+The handler separately requires exactly one decoded state and code and no error
+parameter, including rejection of duplicated encoded parameter names. It relays
+only the server-built JSON state/code under a newly signed context; callback
+query is never copied to the destination path. The six destination actions are
+`meet.status.read`, `meet.oauth.start`, `meet.oauth.complete`, `meet.read`,
+`meet.create` and `meet.external.create`. Old `/api/meet` delegation mappings
+are removed. The external event helper uses the new namespace, while the five
+event source operations and their local owner/event-write integration remain
+separate unfinished work, not implicitly allowed by this helper change.
+
+Source actor/admission is checked again after awaited groups, body and target
+response reads. An unknown/malformed successful target reply cannot produce a
+successful OAuth result page. Callback pages use fixed messages, private
+no-store and no-referrer and do not echo raw query values. Existing exact Ae
+redirect allowlisting remains mandatory; an incoming Host/proxy hint cannot
+expand it. Browser cookie is the existing Secure/HttpOnly/Lax opaque service
+session; the provider state additionally binds the same user/source/redirect.
+
+Cr source and destination action/risk/consent declarations, administrator
+audience map and Google redirect/client configuration must be compared before
+switching. No configuration, credential, provider scope, telemetry destination,
+startup communication or dependency graph is added by the caller migration.
+Actual provider roundtrip, canonical GLAB source synchronization and coordinated
+all-consumer cutover remain unverified; no deployment or service operation.
+
+Typed loss of that same booking actor (admission, subject/session or request
+lifetime) is a fixed403 `current_booking_actor_unconfirmed`, `retryable:false`
+before or after dispatch, consistent with the existing handoff denial contract.
+It cannot return the downstream response. Actual unknown membership/authority
+or connection failures remain503, never a public/anonymous fallback. This
+distinguishes a refused owner from an unavailable lookup without allowing an
+operation or automatically repeating an already-dispatched effect.
 
 Hub overview is a sensitive admitted-member read; capability-list metadata is a
 read and does not authorize invocation. External-id mappings and discovery
