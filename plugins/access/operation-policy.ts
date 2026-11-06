@@ -22,9 +22,11 @@ import { projectOperationPolicy } from './project-operations.ts';
 import { softwareLibraryOperationPolicy } from './software-library-operations.ts';
 import { residentOperationPolicy } from './resident-operations.ts';
 import { hubOperationPolicy } from './hub-operations.ts';
+import { localEventOperationPolicy } from './local-event-operations.ts';
 
 const attendance = attendanceOperationPolicy();
 const resident = residentOperationPolicy();
+const localEvents = localEventOperationPolicy();
 const coreMetadata = new Map([
   ['/api/hub/connectors', 'hub.connectors.read'], ['/api/hub/modules', 'hub.modules.read'], ['/api/hub/services', 'hub.services.read'],
 ]);
@@ -45,6 +47,8 @@ export const glabOperationPolicy: ServiceOperationPolicy = c => {
   if (project) return project;
   const presence = resident(c);
   if (presence) return presence;
+  const event = localEvents(c);
+  if (event) return event;
   const media = mediaOperationPolicy(c);
   if (media) return media;
   const voluptas = voluptasOperationPolicy(c);

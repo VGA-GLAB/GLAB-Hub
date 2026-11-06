@@ -229,14 +229,14 @@ a separate unfinished consumer. Unknown methods/paths continue to be refused.
 
 | Module | Remaining exact route/method shapes | Target dependency |
 | --- | --- | --- |
-| events (8) | GET facilities, GET meet/organizations, GET/POST events, POST events/:id/meet, DELETE events/:id, GET/PUT events/:id/attendance | Aedilis facilities/Meet; preserve current event audience/organizer/occurrence checks |
+| events (5) | GET facilities, GET meet/organizations, POST events, POST events/:id/meet, DELETE events/:id | Aedilis facilities/Meet; local list and own attendance are classified separately |
 | facility (21) | GET facilities and facilities/:id; for reservations and meetings: GET collection, GET mine, POST collection, GET/PATCH/DELETE :id; POST meetings/:id/finalize, POST meetings/:id/glab-event, POST meetings/:id/responses, PATCH meetings/:id/responses/:responseId; GET meet/status, POST meet/oauth/start, GET meet/oauth/callback | Aedilis scoped target and callback/session binding; groups already classified |
 | library (7) | GET equipment, GET/POST books, GET me, GET lookup, GET loans/mine, POST loans | Bibliotheca scoped target; local budget already classified |
 | tirocinium (8) | GET companies, GET career-companies, PUT/DELETE career-companies/:relationType/:companyId; calls: POST collection, GET :id/events, POST :id/frames, DELETE :id | Tirocinium target/streaming call ownership; preserve other-owner/blocked task boundaries |
 | di (4) | GET entry-points, POST discussion-launch, GET review-trends, GET conclusions | Discutere launch/identity contract and existing service-access integration must be checked separately |
 | odeum (8) | GET status, GET live, POST sessions, POST sessions/:id/end, POST sessions/:id/viewer-ticket, GET sessions/:id/invitation, GET ticket-pubkeys, POST sessions/:id/program-ticket | Existing event audience/presenter/program owner checks and Odeum target/ticket contract |
 
-These six groups total56route/method shapes. Corpus shared routes still need
+These six groups total53route/method shapes. Corpus shared routes still need
 explicit host decisions for declared data aggregation, capability invocation
 and MCP. Overview/admin configuration and capability-list metadata are classified
 by the later unit below. Declared downstream
@@ -289,3 +289,25 @@ manifest/action/project/target/resource binding to be resolved and authorized;
 arbitrary capability invocation and tools/call remain unclassified and denied.
 This unit adds no credential, dependency, communication or dynamic execution.
 Other source/target/settings/checkout/runtime prerequisites remain unfinished.
+
+Local event list and own attendance are separate from operations that reserve
+facilities or issue/cancel Meet links. The list is a sensitive read and retains
+the endpoint's per-row audience/role projection, with roles resolved after the
+asynchronous event-list read. Attendance read/absence
+update require the actual current event, current admission/roles/audience, a
+meeting-derived single occurrence and verified subject. The callback rechecks
+admission after its asynchronous PostgreSQL read. Writes also require the event
+not to have ended; admin does not override occurrence/end-time constraints.
+The existing endpoint repeats current checks and strictly accepts only `absent`
+for the verified subject. Shared proof consumption and the PG/SQLite operations
+are not a distributed transaction; execution failures are not automatically retried.
+
+| Risk | Exact additional GLAB actions |
+| --- | --- |
+| sensitive_read | events.list, events.attendance.read |
+| important | events.absence.update |
+
+These three administrator declarations/consent permissions are required before
+switch. The five external event operations and their Aedilis target contract
+remain unclassified. Other source/native/target/settings/checkout/runtime
+prerequisites still block coordinated deployment.

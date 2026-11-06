@@ -148,8 +148,9 @@ export function makeRoutes(ctx: CorpusContext, aedilis: AedilisEventClient, conn
     if (toAt != null && (toAt <= rangeFrom || toAt - rangeFrom > MAX_EVENT_RANGE_MS)) {
       return c.json({ error: 'invalid_event_range' }, 400);
     }
-    const roles = resolveRoles(ctx.db, identity.userId);
     const rows = await events.list({ includePast, from: fromAt, to: toAt });
+    // The PostgreSQL read yields; use current roles when projecting private rows.
+    const roles = resolveRoles(ctx.db, identity.userId);
     return c.json({
       events: rows
         .filter((event) => canSee(audience(event.audience_roles), roles, event.created_by === identity.userId, identity.isAdmin))
