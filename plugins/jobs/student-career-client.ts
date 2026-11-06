@@ -26,6 +26,21 @@ export interface StudentCareer {
   isPublic: boolean;
 }
 
+/** Relation-only operations do not retrieve the private career note/portfolio.
+ * @implements SPEC-GLAB-BOUND-AUTH-001
+ */
+export async function getCareerCompanies(
+  client: CernereProjectClient,
+  userId: string,
+): Promise<Pick<StudentCareer, 'desiredCompanies' | 'offerCompanies'>> {
+  const raw = await client.getUserData(userId, PROJECT_KEY, ['desired_companies', 'offer_companies']);
+  const fields = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+  return {
+    desiredCompanies: parseArray(fields.desired_companies, careerCompanySchema),
+    offerCompanies: parseArray(fields.offer_companies, offerCompanySchema),
+  };
+}
+
 export async function getStudentCareer(
   client: CernereProjectClient,
   userId: string,

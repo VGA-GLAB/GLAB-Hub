@@ -231,10 +231,10 @@ a separate unfinished consumer. Unknown methods/paths continue to be refused.
 | --- | --- | --- |
 | events (5) | GET facilities, GET meet/organizations, POST events, POST events/:id/meet, DELETE events/:id | Aedilis facilities/Meet; local list and own attendance are classified separately |
 | facility (21) | GET facilities and facilities/:id; for reservations and meetings: GET collection, GET mine, POST collection, GET/PATCH/DELETE :id; POST meetings/:id/finalize, POST meetings/:id/glab-event, POST meetings/:id/responses, PATCH meetings/:id/responses/:responseId; GET meet/status, POST meet/oauth/start, GET meet/oauth/callback | Aedilis scoped target and callback/session binding; groups already classified |
-| tirocinium (8) | GET companies, GET career-companies, PUT/DELETE career-companies/:relationType/:companyId; calls: POST collection, GET :id/events, POST :id/frames, DELETE :id | Tirocinium target/streaming call ownership; preserve other-owner/blocked task boundaries |
+| tirocinium (5) | GET companies; calls: POST collection, GET :id/events, POST :id/frames, DELETE :id | Tirocinium target/streaming call ownership; own career companies are classified separately; preserve other-owner/blocked task boundaries |
 | di (4) | GET entry-points, POST discussion-launch, GET review-trends, GET conclusions | Discutere launch/identity contract and existing service-access integration must be checked separately |
 
-After the lending and presentation operations below, these four groups total38route/method shapes. Corpus shared routes still need
+After the lending, presentation and own-career operations below, these four groups total35route/method shapes. Corpus shared routes still need
 explicit host decisions for declared data aggregation, capability invocation
 and MCP. Overview/admin configuration and capability-list metadata are classified
 by the later unit below. Declared downstream
@@ -403,3 +403,43 @@ classification does not assert that boundary complete. Existing optional Odeum
 configuration and public guest participation remain unchanged. Administrator
 service_operations/consent for these eight actions, actual runtime verification,
 all remaining target/native consumers and coordinated cutover are still required.
+
+## Own career-company relations
+
+Three GLAB endpoints under `/api/x/tirocinium/career-companies` operate only on
+the verified subject's existing Cr-managed `tirocinium_student_career` data.
+They are separate from Tirocinium's external company directory and interview
+streaming target APIs; those five operations remain unclassified here and other
+owners' blocked tasks are not resolved by this unit.
+
+| Operation | Action | Risk |
+| --- | --- | --- |
+| GET collection | career.companies.self.read | sensitive_read |
+| PUT desired/offer/:companyId | career.companies.self.update | important |
+| DELETE desired/offer/:companyId | career.companies.self.delete | important |
+
+The shared guard requires the current admitted nonempty subject and binds the
+exact path/body/request to the current service session. Relation kinds are only
+desired/offer; the same existing company-ID schema is enforced and write bodies
+are limited to8KiB. No query/body/role field can choose another subject. The
+borrowed project client retains Cr's existing managed-project/column permissions;
+neither this source action nor a project credential grants arbitrary Cr data access.
+The relation reader requests only desired_companies and offer_companies, avoiding
+unrelated career notes/portfolio fields. Handler responses and remote writes repeat
+the current local admission, same-subject and disconnect checks after awaited body
+or Cr reads. Unknown authority/write results expose stable codes without issuer
+details and are never automatically retried. Existing per-company replacement,
+other-relation preservation and Cr data ownership are retained.
+
+This adds no credential format, connection, package, lifetime or native dependency.
+Communications use only the existing server-configured Cr project client: on a
+user operation it obtains a project token at the configured `/api/auth/login`
+and sends the verified subject, the fixed managed-project key and the two
+relation columns over `/ws/project`. Credentials stay in the existing client
+owner; error responses omit issuer details. No client URL, audience or project
+can come from browser input. Constructing these routes starts no connection,
+telemetry, process or installation hook.
+The existing shared client owner continues to own its WS/timers and is not closed
+by the routes. Required administrator service_operations/current consent, source
+reflection, actual runtime and all remaining target/native/cutover conditions are
+separate unfinished acceptance criteria.

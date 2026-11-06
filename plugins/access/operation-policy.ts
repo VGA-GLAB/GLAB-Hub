@@ -25,6 +25,7 @@ import { hubOperationPolicy } from './hub-operations.ts';
 import { localEventOperationPolicy } from './local-event-operations.ts';
 import { lendingOperationPolicy } from './lending-operations.ts';
 import { odeumOperationPolicy } from './odeum-operations.ts';
+import { careerCompanyOperationPolicy } from './career-company-operations.ts';
 
 const attendance = attendanceOperationPolicy();
 const resident = residentOperationPolicy();
@@ -56,6 +57,8 @@ export const glabOperationPolicy: ServiceOperationPolicy = c => {
   if (lending) return lending;
   const presentation = odeum(c);
   if (presentation) return presentation;
+  const careerCompanies = careerCompanyOperationPolicy(c);
+  if (careerCompanies) return careerCompanies;
   const media = mediaOperationPolicy(c);
   if (media) return media;
   const voluptas = voluptasOperationPolicy(c);

@@ -5,6 +5,9 @@
   "templateRules": [],
   "membership": [
     {
+      "pathPattern": "(^|/)tests/member-career-company-operation-policy\\.test\\.ts$"
+    },
+    {
       "pathPattern": "/plugins/jobs/"
     },
     {
@@ -27,6 +30,7 @@
     "company-search"
   ],
   "specRefs": [
+    "spec/feature/bound-service-authentication.md",
     "spec/feature/tirocinium-call.md",
     "spec/feature/jobs.md",
     "spec/data/glab-job.md",
