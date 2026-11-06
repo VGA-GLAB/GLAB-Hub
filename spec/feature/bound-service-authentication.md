@@ -30,7 +30,12 @@ in accordance with Cr's 2026-09-12 facility-only biometric policy. Current face-
 routes use the provider and fixed operation classifications, while policy text is
 fetched from Cr's existing public endpoint without credentials. GLAB's login uses
 the shared code/verifier exchange and configured client ID. Target consumers and
-remaining GLAB classifications are still incomplete. Media transfer now adopts published accepted
+remaining GLAB classifications are still incomplete. The next finite classification unit covers
+dashboard subject data/completion, jobs self career/owner workflows, tech-link rows/comments,
+quests owner/project/revision/approver workflows and the two public Tendentia projections.
+All member-data GETs are sensitive reads. Mutations are important, recheck live admission and
+row ownership/roles, and retain each endpoint's conditional write/schema checks. Unknown routes,
+service-only external endpoints and unreviewed modules remain denied. Media transfer now adopts published accepted
 Cr71d6c368/Co8db51a21 bounded-upload source contracts. The initial feature-head169a114 pin was not
 publicly fetchable; the submodule now uses the published merge. ProfileMediaStore.MEDIA_RULES/evidenceMedia
 are the correct target, rather than the spectator mediaPolicy. Explicit screenshots/voice-memos/videos/game-logs
@@ -82,3 +87,18 @@ after comparison with the49existing GLAB tasks. It references parentCr and Corpu
 `actio:9b574513-b42c-4b47-9840-f7d69797859c`; older anonymous-fallback/external-contract/WS-sharing
 tasks are retained as separate requirements. Initial review may integrate source while remaining
 classification/target/cutover work stays in progress; this partial state must not be deployed.
+
+Administrator declaration for this classification unit must enumerate these exact
+actions and risks; the service does not infer a declaration from a prefix:
+
+| Risk | Actions |
+| --- | --- |
+| read | dashboard.permission-settings.read, trends.entry-points.read, trends.map.read |
+| sensitive_read | dashboard.summary.read, dashboard.membership.read, dashboard.location.read, dashboard.permissions.read, career.self.read, links.list, links.tags.read, links.read, links.comments.read, jobs.list, jobs.owners.audit, quests.pending.read, quests.own.read, quests.published.read |
+| important | links.create, links.update, links.delete, links.comments.create, jobs.create, jobs.close, jobs.owner.update, jobs.owners.rollback, career.self.update, dashboard.daily-quest.complete, quests.create, quests.update, quests.submit, quests.withdraw, quests.decision |
+
+The current-row callbacks supplement endpoint authorization. Job conditional
+revision updates and quest compare/revision writes remain the final transaction
+boundary; a changed owner/role/project/revision cannot be replaced with a cached
+positive result. Dashboard location mutation and other unreviewed operations are
+still unclassified and refused; this table is not a complete cutover manifest.

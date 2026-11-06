@@ -10,6 +10,8 @@ import { isWorkMember, listShowcaseRows, workDownloads } from '../projects/showc
 import { approved, classify, selfResource } from './operation-classification.ts';
 import { attendanceOperationPolicy } from './attendance-operations.ts';
 import { mediaOperationPolicy } from './media-operations.ts';
+import { memberContentOperationPolicy } from './member-content-operations.ts';
+import { questOperationPolicy } from './quest-operations.ts';
 
 const attendance = attendanceOperationPolicy();
 const coreMetadata = new Map([
@@ -18,6 +20,8 @@ const coreMetadata = new Map([
 
 export const glabOperationPolicy: ServiceOperationPolicy = c => {
   const path = c.req.path, method = c.req.method;
+  const memberContent = memberContentOperationPolicy(c) ?? questOperationPolicy(c);
+  if (memberContent) return memberContent;
   const media = mediaOperationPolicy(c);
   if (media) return media;
   const attendanceOperation = attendance(c);
