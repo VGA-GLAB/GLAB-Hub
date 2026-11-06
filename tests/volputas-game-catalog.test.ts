@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseGameList, parseEmotionCurveList, parseMediaTicket } from '../plugins/volputas/contracts.ts';
 import { CernereDelegationTokenProvider } from '../corpus/server/hub/tokens.ts';
+import { DelegationAudiences } from '../corpus/server/hub/delegation-audiences.ts';
 import type { ServiceUserSession } from '../corpus/server/auth.ts';
 
 function readSource(relativePath: string): string {
@@ -28,7 +29,7 @@ function game(overrides: Record<string, unknown> = {}) {
 test('a well-formed game list parses', () => {
   const games = parseGameList({ ok: true, data: [game()] });
   assert.equal(games?.length, 1);
-  assert.equal(games?.[0].title, 'Uni Quest');
+  assert.equal(games?.[0]?.title, 'Uni Quest');
 });
 
 test('a game missing its publication flag is rejected rather than half-rendered', () => {
@@ -55,9 +56,9 @@ test('an emotion curve list keeps entry order and evaluation', () => {
     }],
   });
 
-  assert.equal(records?.[0].entries.length, 2);
-  assert.equal(records?.[0].entries[1].stamp, null);
-  assert.deepEqual(records?.[0].evaluation, { summary: 'ok' });
+  assert.equal(records?.[0]?.entries.length, 2);
+  assert.equal(records?.[0]?.entries[1]?.stamp, null);
+  assert.deepEqual(records?.[0]?.evaluation, { summary: 'ok' });
 });
 
 test('an unknown mode is rejected', () => {
@@ -118,14 +119,14 @@ test('the shared provider prepares a stream that Node Request accepts without ch
   const provider = new CernereDelegationTokenProvider({
     delegate: async () => assert.fail('Uploads must not use ordinary delegation'),
     delegateUpload: async () => ({ arrivalToken: 'u'.repeat(43), requestId: '22222222-2222-4222-8222-222222222222', expiresAt }),
-  });
+  }, new DelegationAudiences('{"voluptas":"https://registered-media.example.test"}'));
   const session: ServiceUserSession = { token: 's'.repeat(43), grant: {
     projectToken: 'scoped', sessionBinding: 'b'.repeat(43), projectKey: 'glab', expiresAt,
     user: { id: 'subject', role: 'general', displayName: 'Person', email: null },
   } };
   const body = new Blob([new Uint8Array([255, 0, 13, 10, 128])]);
   const path = '/api/v1/integrations/glab/evidence/media/videos/record';
-  const prepared = await provider.authorize(session, { service: 'volputas', projectKey: 'volputas', baseUrl: 'https://media.example' }, {
+  const prepared = await provider.authorize(session, { service: 'volputas', projectKey: 'voluptas', baseUrl: 'https://media.example' }, {
     path, action: 'evidence.media.write', upload: { body, maximumBytes: 2 * 1024 ** 3, timeoutSeconds: 300 },
     init: { method: 'PUT', body, headers: { 'content-type': 'video/mp4' } },
   });

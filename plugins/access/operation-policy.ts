@@ -23,6 +23,7 @@ import { softwareLibraryOperationPolicy } from './software-library-operations.ts
 import { residentOperationPolicy } from './resident-operations.ts';
 import { hubOperationPolicy } from './hub-operations.ts';
 import { localEventOperationPolicy } from './local-event-operations.ts';
+import { lendingOperationPolicy } from './lending-operations.ts';
 
 const attendance = attendanceOperationPolicy();
 const resident = residentOperationPolicy();
@@ -49,6 +50,8 @@ export const glabOperationPolicy: ServiceOperationPolicy = c => {
   if (presence) return presence;
   const event = localEvents(c);
   if (event) return event;
+  const lending = lendingOperationPolicy(c);
+  if (lending) return lending;
   const media = mediaOperationPolicy(c);
   if (media) return media;
   const voluptas = voluptasOperationPolicy(c);

@@ -28,7 +28,7 @@ test('anonymous read and borrowing never contact Bibliotheca', async () => {
 test('borrowing delegates the user credential without forwarding cookies', async () => {
   const payload = JSON.stringify({ source: 'equipment', external_key: 'BB-EXAMPLE' });
   const router = app(async (path, init) => {
-    assert.equal(path, '/api/loans'); assert.equal(init?.method, 'POST'); assert.deepEqual(init?.body, new TextEncoder().encode(payload));
+    assert.equal(path, '/api/integrations/glab/loans'); assert.equal(init?.method, 'POST'); assert.deepEqual(init?.body, new TextEncoder().encode(payload));
     const headers = new Headers(init?.headers);
     assert.equal(headers.get('authorization'), `Cernere-Delegation ${delegated}`);
     assert.equal(headers.get('cookie'), null);

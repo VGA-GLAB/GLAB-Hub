@@ -12,6 +12,7 @@ const complete = {
   CERNERE_PROJECT_CLIENT_SECRET: 'test-secret-not-for-logs',
   CORPUS_PUBLIC_URL: 'https://hub.example.test',
   CORPUS_TOKEN_MODE: 'cernere-service-delegation',
+  CORPUS_DELEGATION_AUDIENCES: '{}',
   GLAB_DATABASE_URL: 'postgresql://test:test@localhost/test',
 };
 
@@ -19,6 +20,19 @@ test('Ex injection is sufficient and is not mutated', () => {
   const env = Object.freeze({ ...complete });
   assert.equal(requireInjectedEnvironment(env), undefined);
   assert.equal(contract.post(undefined, env), true);
+});
+
+test('malformed or ambiguous administrator audiences fail before runtime without exposing values', () => {
+  for (const value of ['[]', '{"bibliotheca":"https://bb.example.test","bibliotheca":"https://other.example.test"}',
+    '{"bibliotheca":"https://user:private@example.test/path"}', '{"bibliotheca":"https://bb.example.test/"}']) {
+    assert.throws(() => requireInjectedEnvironment({ ...complete, CORPUS_DELEGATION_AUDIENCES: value }), (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /^CORPUS_DELEGATION_AUDIENCES /);
+      assert.ok(!error.message.includes('private'));
+      assert.ok(!error.message.includes('example.test'));
+      return true;
+    });
+  }
 });
 
 test('each missing or blank required value fails without exposing other values', () => {

@@ -11,12 +11,12 @@ export function libraryRoutes(connector: ServiceConnector, tokens: TokenProvider
     if (!getUserSession(c)) return c.json({ error: 'unauthorized' }, 401);
     await next();
   });
-  router.get('/equipment', c => proxy(c, connector, '/api/items/equipment', tokens, 'bibliotheca'));
-  router.get('/books', c => proxy(c, connector, '/api/items/books', tokens, 'bibliotheca'));
-  router.get('/me', c => proxy(c, connector, '/api/me', tokens, 'bibliotheca'));
-  router.post('/books', c => proxy(c, connector, '/api/items/books', tokens, 'bibliotheca'));
-  router.get('/lookup', c => proxy(c, connector, '/api/items/lookup', tokens, 'bibliotheca'));
-  router.get('/loans/mine', c => proxy(c, connector, '/api/loans/mine', tokens, 'bibliotheca'));
-  router.post('/loans', c => proxy(c, connector, '/api/loans', tokens, 'bibliotheca'));
+  router.get('/equipment', c => proxy(c, connector, '/api/integrations/glab/items/equipment', tokens, 'bibliotheca'));
+  router.get('/books', c => proxy(c, connector, '/api/integrations/glab/items/books', tokens, 'bibliotheca'));
+  router.get('/me', c => proxy(c, connector, '/api/integrations/glab/me', tokens, 'bibliotheca'));
+  router.post('/books', c => proxy(c, connector, '/api/integrations/glab/items/books', tokens, 'bibliotheca'));
+  router.get('/lookup', c => proxy(c, connector, '/api/integrations/glab/items/lookup', tokens, 'bibliotheca'));
+  router.get('/loans/mine', c => proxy(c, connector, '/api/integrations/glab/loans/mine', tokens, 'bibliotheca'));
+  router.post('/loans', c => proxy(c, connector, '/api/integrations/glab/loans', tokens, 'bibliotheca'));
   return router;
 }

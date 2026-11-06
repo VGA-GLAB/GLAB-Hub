@@ -1,13 +1,16 @@
 /** Validate Ex injection before opening stores or importing the Corpus runtime. */
+import { DelegationAudiences } from '../corpus/server/hub/delegation-audiences.ts';
 export function requireInjectedEnvironment(env: NodeJS.ProcessEnv): void {
   const required = [
     'CERNERE_BASE_URL', 'CERNERE_FRONTEND_URL', 'CERNERE_PROJECT_KEY', 'CERNERE_PROJECT_CLIENT_ID', 'CERNERE_PROJECT_CLIENT_SECRET',
-    'CORPUS_PUBLIC_URL', 'CORPUS_TOKEN_MODE', 'GLAB_DATABASE_URL',
+    'CORPUS_PUBLIC_URL', 'CORPUS_TOKEN_MODE', 'CORPUS_DELEGATION_AUDIENCES', 'GLAB_DATABASE_URL',
   ];
   const missing = required.filter((name) => !env[name]?.trim());
   if (missing.length > 0) {
     throw new Error(`Missing Excubitor-injected environment: ${missing.join(', ')}`);
   }
+  // Fail before GLAB opens PostgreSQL stores, rather than waiting for Corpus startup.
+  new DelegationAudiences(env.CORPUS_DELEGATION_AUDIENCES);
 }
 
 /** Env that only the Odeum live-presentation feature needs (relay URL + ticket signing key). */

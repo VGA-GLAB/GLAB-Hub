@@ -26,6 +26,7 @@ test('odeum env is not part of the hub-stopping required set', () => {
     CERNERE_PROJECT_CLIENT_SECRET: 's',
     CORPUS_PUBLIC_URL: 'https://hub.example.test',
     CORPUS_TOKEN_MODE: 'cernere-service-delegation',
+    CORPUS_DELEGATION_AUDIENCES: '{}',
     GLAB_DATABASE_URL: 'postgresql://t:t@localhost/t',
   }), undefined);
   assert.match(read('server.ts'), /inspectOdeumEnvironment\(process\.env\)/);

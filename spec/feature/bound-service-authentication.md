@@ -231,12 +231,11 @@ a separate unfinished consumer. Unknown methods/paths continue to be refused.
 | --- | --- | --- |
 | events (5) | GET facilities, GET meet/organizations, POST events, POST events/:id/meet, DELETE events/:id | Aedilis facilities/Meet; local list and own attendance are classified separately |
 | facility (21) | GET facilities and facilities/:id; for reservations and meetings: GET collection, GET mine, POST collection, GET/PATCH/DELETE :id; POST meetings/:id/finalize, POST meetings/:id/glab-event, POST meetings/:id/responses, PATCH meetings/:id/responses/:responseId; GET meet/status, POST meet/oauth/start, GET meet/oauth/callback | Aedilis scoped target and callback/session binding; groups already classified |
-| library (7) | GET equipment, GET/POST books, GET me, GET lookup, GET loans/mine, POST loans | Bibliotheca scoped target; local budget already classified |
 | tirocinium (8) | GET companies, GET career-companies, PUT/DELETE career-companies/:relationType/:companyId; calls: POST collection, GET :id/events, POST :id/frames, DELETE :id | Tirocinium target/streaming call ownership; preserve other-owner/blocked task boundaries |
 | di (4) | GET entry-points, POST discussion-launch, GET review-trends, GET conclusions | Discutere launch/identity contract and existing service-access integration must be checked separately |
 | odeum (8) | GET status, GET live, POST sessions, POST sessions/:id/end, POST sessions/:id/viewer-ticket, GET sessions/:id/invitation, GET ticket-pubkeys, POST sessions/:id/program-ticket | Existing event audience/presenter/program owner checks and Odeum target/ticket contract |
 
-These six groups total53route/method shapes. Corpus shared routes still need
+After the seven lending operations below, these five groups total46route/method shapes. Corpus shared routes still need
 explicit host decisions for declared data aggregation, capability invocation
 and MCP. Overview/admin configuration and capability-list metadata are classified
 by the later unit below. Declared downstream
@@ -311,3 +310,50 @@ These three administrator declarations/consent permissions are required before
 switch. The five external event operations and their Aedilis target contract
 remain unclassified. Other source/native/target/settings/checkout/runtime
 prerequisites still block coordinated deployment.
+
+## Bibliotheca lending caller and explicit administrator audiences
+
+Seven existing library endpoints now use the target-owned `/api/integrations/glab`
+namespace and exact actions. The previously inspected canonical Bibliotheca main075f
+was stale: accepted public7b47 already contains registered book holdings and signed
+Cc executive-only equipment intake. The statement that book listing/registration
+was unimplemented is withdrawn. The target migration preserves those accepted
+features and does not revive equipment registration over user/delegated HTTP.
+
+| Local action | Risk | Target action |
+| --- | --- | --- |
+| library.equipment.read | read | equipment.list |
+| library.books.read | read | inventory.books.list |
+| library.items.lookup | read | items.lookup |
+| library.identity.self.read | sensitive_read | identity.self.read |
+| library.loans.own.read | sensitive_read | loans.own.read |
+| library.loans.create | important | loans.create |
+| library.books.create | important | inventory.books.create |
+
+All source callbacks require the current admitted nonempty subject; book registration
+also requires current GLAB administration. Bibliotheca independently checks its own
+administrator set, derives the borrower from the consumed decision, queries own
+history only, and checks current item/existing loan before insertion. Query/body
+cannot select another borrower. Unknown/HEAD/direct legacy target paths are not
+classified. Each target action also requires the administrator-owned matching
+`delegate.bibliotheca.<action>` source policy and both services' current consent.
+
+Corpus is pinned to public8ef005432161036e9d00d678eb9be9bda37dcaa5, with nested
+Cernere71d6c368 unchanged. Both glab and glab-test now require
+`CORPUS_DELEGATION_AUDIENCES`, plus the already-required project client credentials.
+GLAB validates the exact same Corpus map before opening PostgreSQL stores. The map
+is selected by administrators, not browser headers/body, connector transport URLs
+or fetched manifest declarations. Missing/malformed/duplicate/noncanonical values
+fail before startup; `{}` explicitly permits no downstream targets. Unknown keys
+are denied before preparing a body or contacting authority. Cr registered hub_url
+remains the final audience authority and transport still requires HTTPS or loopback
+HTTP; LAN plaintext is not enabled by adding a map entry.
+
+No live map value is populated here. Operators must verify each adopted target's
+exact project key, current Cr hub_url, current consent/actions and HTTPS transport,
+then supply only those entries through the service's existing injected settings.
+`CORPUS_PUBLIC_URL` must also be verified against the actual GLAB registered origin;
+the catalog's loopback value does not prove production readiness. Bibliotheca's
+direct PWA and remaining legacy routes, other targets/consumers, canonical GLAB's
+protected stale corpus checkout, runtime evidence and coordinated cutover remain
+unfinished. This source change alone must not be deployed.
