@@ -8,6 +8,7 @@ import { bookingGroups, bookingProxy } from './booking-proxy.ts';
 import { registerMeetRoutes } from './meet-routes.ts';
 import { finalizeMeetingEvent } from './meeting-event.ts';
 import { aedilisBaseUrl, makeAedilisConnector, proxy } from '../shared.ts';
+import { AEDILIS_GLAB_PREFIX } from '../downstream-operations.ts';
 
 function segment(c: Context, name: string): string {
   const value = c.req.param(name);
@@ -34,21 +35,22 @@ const facilityModule: CorpusModule = {
       try { return c.json({ items: await bookingGroups(c, ctx) }); }
       catch { return c.json({ error: 'memberships_unavailable' }, 503); }
     });
-    r.get('/facilities', (c) => proxy(c, aedilis, '/api/facilities', ctx.tokenProvider, 'aedilis'));
+    r.get('/facilities', (c) => proxy(c, aedilis, AEDILIS_GLAB_PREFIX + '/facilities', ctx.tokenProvider, 'aedilis'));
     r.get('/facilities/:id', (c) => proxy(
       c,
       aedilis,
-      `/api/facilities/${segment(c, 'id')}`,
+      `${AEDILIS_GLAB_PREFIX}/facilities/${segment(c, 'id')}`,
       ctx.tokenProvider,
       'aedilis',
     ));
     for (const resource of ['reservations', 'meetings']) {
-      r.get('/' + resource, c => bookingProxy(c, ctx, aedilis, '/api/' + resource));
-      r.get('/' + resource + '/mine', c => bookingProxy(c, ctx, aedilis, '/api/' + resource + '/mine'));
-      r.post('/' + resource, c => bookingProxy(c, ctx, aedilis, '/api/' + resource));
-      r.get('/' + resource + '/:id', c => bookingProxy(c, ctx, aedilis, '/api/' + resource + '/' + segment(c, 'id')));
-      r.patch('/' + resource + '/:id', c => bookingProxy(c, ctx, aedilis, '/api/' + resource + '/' + segment(c, 'id')));
-      r.delete('/' + resource + '/:id', c => bookingProxy(c, ctx, aedilis, '/api/' + resource + '/' + segment(c, 'id')));
+      const base = (resource === 'reservations' ? AEDILIS_GLAB_PREFIX : '/api') + '/' + resource;
+      r.get('/' + resource, c => bookingProxy(c, ctx, aedilis, base));
+      r.get('/' + resource + '/mine', c => bookingProxy(c, ctx, aedilis, base + '/mine'));
+      r.post('/' + resource, c => bookingProxy(c, ctx, aedilis, base));
+      r.get('/' + resource + '/:id', c => bookingProxy(c, ctx, aedilis, base + '/' + segment(c, 'id')));
+      r.patch('/' + resource + '/:id', c => bookingProxy(c, ctx, aedilis, base + '/' + segment(c, 'id')));
+      r.delete('/' + resource + '/:id', c => bookingProxy(c, ctx, aedilis, base + '/' + segment(c, 'id')));
     }
     r.post('/meetings/:id/finalize', c => bookingProxy(c, ctx, aedilis, '/api/meetings/' + segment(c, 'id') + '/finalize'));
     r.post('/meetings/:id/glab-event', c => finalizeMeetingEvent(c, ctx, aedilis));

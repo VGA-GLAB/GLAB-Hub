@@ -4,10 +4,16 @@
  */
 export interface DownstreamOperation { action: string; additionalHeaders?: readonly string[] }
 interface Route { project: string; method: string; path: RegExp; action: string; booking?: true }
+export const AEDILIS_GLAB_PREFIX = '/api/integrations/glab';
 const routes: readonly Route[] = [
-  { project: 'aedilis', method: 'GET', path: /^\/api\/facilities$/, action: 'facility.list' },
-  { project: 'aedilis', method: 'GET', path: /^\/api\/facilities\/[^/]+$/, action: 'facility.read' },
-  { project: 'aedilis', method: 'GET', path: /^\/api\/reservations\/capabilities$/, action: 'reservation.capabilities' },
+  { project: 'aedilis', method: 'GET', path: /^\/api\/integrations\/glab\/facilities$/, action: 'facility.list' },
+  { project: 'aedilis', method: 'GET', path: /^\/api\/integrations\/glab\/facilities\/[^/]+$/, action: 'facility.read' },
+  { project: 'aedilis', method: 'GET', path: /^\/api\/integrations\/glab\/reservations\/capabilities$/, action: 'reservation.capabilities' },
+  { project: 'aedilis', method: 'GET', path: /^\/api\/integrations\/glab\/reservations$/, action: 'reservations.list', booking: true },
+  { project: 'aedilis', method: 'GET', path: /^\/api\/integrations\/glab\/reservations\/mine$/, action: 'reservations.own', booking: true },
+  { project: 'aedilis', method: 'POST', path: /^\/api\/integrations\/glab\/reservations$/, action: 'reservations.create', booking: true },
+  { project: 'aedilis', method: 'PATCH', path: /^\/api\/integrations\/glab\/reservations\/[0-9a-f-]{36}$/i, action: 'reservations.update', booking: true },
+  { project: 'aedilis', method: 'DELETE', path: /^\/api\/integrations\/glab\/reservations\/[0-9a-f-]{36}$/i, action: 'reservations.delete', booking: true },
   { project: 'aedilis', method: 'POST', path: /^\/api\/checkin\/gps$/, action: 'checkin.gps' },
   { project: 'aedilis', method: 'GET', path: /^\/api\/meet\/status$/, action: 'meet.status', booking: true },
   { project: 'aedilis', method: 'POST', path: /^\/api\/meet\/oauth\/start$/, action: 'meet.oauth.start', booking: true },
@@ -15,7 +21,7 @@ const routes: readonly Route[] = [
   { project: 'aedilis', method: 'GET', path: /^\/api\/meet\/[0-9a-f-]{36}$/i, action: 'meet.read', booking: true },
   { project: 'aedilis', method: 'POST', path: /^\/api\/meet\/[0-9a-f-]{36}$/i, action: 'meet.create', booking: true },
   { project: 'aedilis', method: 'POST', path: /^\/api\/meet\/external\/glab-event\/\d+$/, action: 'meet.event.create', booking: true },
-  ...['reservations', 'meetings'].flatMap(resource => [
+  ...['meetings'].flatMap(resource => [
     { project: 'aedilis', method: 'GET', path: new RegExp(`^/api/${resource}$`), action: `${resource}.list`, booking: true as const },
     { project: 'aedilis', method: 'GET', path: new RegExp(`^/api/${resource}/mine$`), action: `${resource}.own`, booking: true as const },
     { project: 'aedilis', method: 'POST', path: new RegExp(`^/api/${resource}$`), action: `${resource}.create`, booking: true as const },

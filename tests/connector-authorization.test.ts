@@ -20,7 +20,7 @@ describe('one-operation downstream authorization boundary', () => {
         assert.equal(current, session); if (rejected) throw new Error('private-credential-detail'); return null;
       } };
       const c = connector(async () => assert.fail('Must not send'));
-      const response = await app(context => relay(context, c, '/api/facilities', source, 'aedilis')).request('/relay');
+      const response = await app(context => relay(context, c, '/api/integrations/glab/facilities', source, 'aedilis')).request('/relay');
       assert.equal(response.status, 503); assert.equal(response.headers.get('cache-control'), 'private, no-store');
       assert.deepEqual(await response.json(), { error: 'downstream_token_unavailable', connector: 'aedilis' });
     });
@@ -34,12 +34,12 @@ describe('one-operation downstream authorization boundary', () => {
     const bytes = new Uint8Array([0, 255, 128, 1]); const header = `Cernere-Delegation ${'d'.repeat(43)}`;
     const source: TokenProvider = { mode: 'fixture', authorize: async (current, target, operation) => {
       assert.equal(current, session); assert.equal(target.projectKey, 'aedilis'); assert.equal(operation.action, 'reservation.capabilities');
-      return { path: '/api/reservations/capabilities', init: { method: 'GET', headers: { authorization: header } } };
+      return { path: '/api/integrations/glab/reservations/capabilities', init: { method: 'GET', headers: { authorization: header } } };
     } };
     const response = await app(c => authorizedConnectorFetch(c, connector(async (path, init) => {
-      assert.equal(path, '/api/reservations/capabilities'); assert.equal(new Headers(init?.headers).get('authorization'), header);
+      assert.equal(path, '/api/integrations/glab/reservations/capabilities'); assert.equal(new Headers(init?.headers).get('authorization'), header);
       return new Response(bytes);
-    }), '/api/reservations/capabilities', source, 'aedilis')).request('/relay');
+    }), '/api/integrations/glab/reservations/capabilities', source, 'aedilis')).request('/relay');
     assert.deepEqual(new Uint8Array(await response.arrayBuffer()), bytes);
   });
   it('retains streamed binary GET, Range and partial-response metadata', async () => {

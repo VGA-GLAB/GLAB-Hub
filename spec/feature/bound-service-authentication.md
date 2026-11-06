@@ -230,11 +230,11 @@ a separate unfinished consumer. Unknown methods/paths continue to be refused.
 | Module | Remaining exact route/method shapes | Target dependency |
 | --- | --- | --- |
 | events (5) | GET facilities, GET meet/organizations, POST events, POST events/:id/meet, DELETE events/:id | Aedilis facilities/Meet; local list and own attendance are classified separately |
-| facility (21) | GET facilities and facilities/:id; for reservations and meetings: GET collection, GET mine, POST collection, GET/PATCH/DELETE :id; POST meetings/:id/finalize, POST meetings/:id/glab-event, POST meetings/:id/responses, PATCH meetings/:id/responses/:responseId; GET meet/status, POST meet/oauth/start, GET meet/oauth/callback | Aedilis scoped target and callback/session binding; groups already classified |
+| facility (16) | GET reservations/:id (target handler absent); meetings: GET collection, GET mine, POST collection, GET/PATCH/DELETE :id; POST meetings/:id/finalize, POST meetings/:id/glab-event, POST meetings/:id/responses, PATCH meetings/:id/responses/:responseId; GET meet/status, POST meet/oauth/start, GET meet/oauth/callback, GET/POST meet/:id | Aedilis remaining scoped target/callback/session binding; groups and seven facility/reservation operations are classified separately |
 | tirocinium (5) | GET companies; calls: POST collection, GET :id/events, POST :id/frames, DELETE :id | Tirocinium target/streaming call ownership; own career companies are classified separately; preserve other-owner/blocked task boundaries |
 | di (4) | GET entry-points, POST discussion-launch, GET review-trends, GET conclusions | Discutere launch/identity contract and existing service-access integration must be checked separately |
 
-After the lending, presentation and own-career operations below, these four groups total35route/method shapes. Corpus shared routes still need
+After the facility/reservation operations below, these four groups total30route/method shapes. The previous35 figure omitted GET/POST meet/:id: the actual pre-unit remainder was37, with seven source operations classified here. Corpus shared routes still need
 explicit host decisions for declared data aggregation, capability invocation
 and MCP. Overview/admin configuration and capability-list metadata are classified
 by the later unit below. Declared downstream
@@ -443,3 +443,30 @@ The existing shared client owner continues to own its WS/timers and is not close
 by the routes. Required administrator service_operations/current consent, source
 reflection, actual runtime and all remaining target/native/cutover conditions are
 separate unfinished acceptance criteria.
+
+## Scoped facility/reservation callers
+
+Seven GLAB source operations use Aedilis's published target namespace
+`/api/integrations/glab`: facility list/detail (read), reservation list/own
+(sensitive_read), and create/update/delete (important). Source action names are
+facility.list/read and facility.reservations.list/own/create/update/delete.
+Each requires the currently admitted nonempty subject. Aedilis independently
+checks latest owner/audience/admin policy; a Cr capability never grants those
+resource permissions by itself.
+
+The internal reservation-capabilities request also uses the new namespace. The
+booking relay checks admission and same bound session before and after awaited
+capability/membership/body reads, rejects disconnect, and signs the exact outgoing
+method/path/query/body. The standard delegation digest binds that signed header;
+no browser-provided membership or identity assertion is forwarded. Existing Cr
+organization lookup uses only the current bound subject. Old direct target paths,
+missing GET reservation/:id, unknown methods and HEAD cannot mint a delegation.
+The existing event client shares these fixed target paths, but the event creation,
+deletion and Meet source policies remain separate unfinished work.
+
+No credential, dependency, installation hook, startup connection or new network
+destination is added. The existing explicit administrator audience map must bind
+aedilis to Cr's canonical audience; transport origin is not that authority. Both
+projects require current operation declarations and consent before cutover. Actual
+settings, runtime, protected canonical reflection, other targets/native consumers
+and coordinated deployment remain incomplete. Test execution belongs to Revisor.

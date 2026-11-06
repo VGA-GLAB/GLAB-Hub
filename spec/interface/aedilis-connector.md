@@ -10,8 +10,8 @@ Aedilis はこのコネクタを含め出席検証に関与しない。
 
 ## 中継方式（`plugins/shared.ts` の `proxy`）
 
-- メソッド / クエリ文字列 / ボディを転送する。`Authorization` はログイン中ユーザの
-  Cernere access token から Aedilis 用 project token を発行して付与する。
+- メソッド / クエリ文字列 / ボディと意味を持つヘッダーを、現在のGLAB所有sessionから
+  発行する単回 `Cernere-Delegation` に束縛する。旧user access/project tokenへのfallbackはない。
 - レスポンスの status / `content-type` を透過して返す。
 - token発行失敗（例外/null/空文字/空白）は送信前に `503 downstream_token_unavailable`。
   詳細は [下流認証契約](downstream-authorization.md)。応答は `private, no-store`。
@@ -24,12 +24,17 @@ Aedilis はこのコネクタを含め出席検証に関与しない。
 ### `facility`（`plugins/facility/index.ts`）
 | hub ルート | Aedilis | 用途 |
 |---|---|---|
-| `GET /facilities` | `GET /api/facilities` | 施設一覧 |
-| `GET /facilities/:id` | `GET /api/facilities/:id` | 施設詳細 |
-| `GET /reservations` | `GET /api/reservations` | 予約一覧（`?facility=&from=&to=`） |
-| `GET /reservations/mine` | `GET /api/reservations/mine` | 自分の予約 |
-| `POST /reservations` | `POST /api/reservations` | 新規予約 `{facilityId,startAt,endAt,purpose?}` |
-| `DELETE /reservations/:id` | `DELETE /api/reservations/:id` | 予約キャンセル |
+| `GET /facilities` | `GET /api/integrations/glab/facilities` | 施設一覧 |
+| `GET /facilities/:id` | `GET /api/integrations/glab/facilities/:id` | 施設詳細 |
+| `GET /reservations` | `GET /api/integrations/glab/reservations` | 予約一覧（`?facility=&from=&to=`） |
+| `GET /reservations/mine` | `GET /api/integrations/glab/reservations/mine` | 自分の予約 |
+| `POST /reservations` | `POST /api/integrations/glab/reservations` | 新規予約 `{facilityId,startAt,endAt,purpose?}` |
+| `PATCH /reservations/:id` | `PATCH /api/integrations/glab/reservations/:id` | 本人による変更 |
+| `DELETE /reservations/:id` | `DELETE /api/integrations/glab/reservations/:id` | 予約キャンセル |
+
+内部capabilitiesも新namespace。GET /reservations/:idはGLAB宣言だけが残る既存未実装で、
+現Aeにhandlerが無いため許可せず別残件に保持する。以下のMeet/会議は現仕様として残るが、
+新委譲target/sourceの実装・宣言・現在同意が揃うまで移行完了/配備可とはしない。
 
 ## イベント連動
 

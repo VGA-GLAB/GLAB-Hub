@@ -4,6 +4,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { Context, CorpusContext, ServiceConnector } from '../corpus/server/hub/sdk.ts';
 import { bookingProxy } from '../plugins/facility/booking-proxy.ts';
 import { boundTestSession, testDelegationProvider } from './bound-user-fixture.ts';
+import { configureAdmissionPolicy } from '../plugins/access/policy.ts';
+import type { SqlDb } from '../plugins/data.ts';
 import {
   meetOAuthCompletion,
   meetOAuthRedirectUri,
@@ -48,18 +50,19 @@ test('the result page only notifies the same origin and never echoes the code or
 });
 
 test('a server-built request is signed as sent, ignoring the caller body and query', async () => {
+  configureAdmissionPolicy({ prepare: () => ({ get: () => ({ status: 'approved' }) }) } as unknown as SqlDb);
   const secret = randomBytes(48).toString('base64url');
   const serverBody = JSON.stringify({ mode: 'organizer', redirectUri: 'https://glab.example/api/x/facility/meet/oauth/callback' });
   const c = {
     get: (key: string) => key === 'serviceUserSession' ? boundTestSession({ userId: 'admin' }) : key === 'auth' ? { userId: 'admin' } : undefined,
-    req: { method: 'GET', url: 'http://glab.test/meet/oauth/callback?state=caller&code=caller', text: async () => assert.fail('must not read the caller body'), header: () => undefined },
+    req: { method: 'GET', url: 'http://glab.test/meet/oauth/callback?state=caller&code=caller', raw: new Request('http://glab.test/meet/oauth/callback'), text: async () => assert.fail('must not read the caller body'), header: () => undefined },
   } as unknown as Context;
   const ctx = { env: () => secret, logger: { error() {} }, tokenProvider: testDelegationProvider() } as unknown as CorpusContext;
   const sent: { path: string; body: unknown; payload: Record<string, unknown> }[] = [];
   const connector: ServiceConnector = {
     id: 'aedilis', title: 'Aedilis', baseUrl: 'http://aedilis.test', scope: 'multi', health: async () => ({ status: 'up' }),
     fetch: async (path, init) => {
-      if (path === '/api/reservations/capabilities') return Response.json({ groupContextVersion: 1 });
+      if (path === '/api/integrations/glab/reservations/capabilities') return Response.json({ groupContextVersion: 1 });
       const [encoded] = (new Headers(init?.headers).get('x-glab-booking-context') ?? '').split('.');
       sent.push({ path, body: init?.body, payload: JSON.parse(Buffer.from(encoded ?? '', 'base64url').toString('utf8')) });
       return Response.json({ url: 'https://accounts.google.com/o/oauth2/v2/auth' });

@@ -5,19 +5,22 @@ import type { Context, CorpusContext, ServiceConnector } from '../corpus/server/
 import { issueEventMeet, isMeetUrl } from '../plugins/events/meet-client.ts';
 import { meetOAuthRedirectUri, requestOrigin } from '../plugins/facility/meet-oauth.ts';
 import { boundTestSession, testDelegationProvider } from './bound-user-fixture.ts';
+import { configureAdmissionPolicy } from '../plugins/access/policy.ts';
+import type { SqlDb } from '../plugins/data.ts';
 
 function fixture(reply: () => Response) {
+  configureAdmissionPolicy({ prepare: () => ({ get: () => ({ status: 'approved' }) }) } as unknown as SqlDb);
   const secret = randomBytes(48).toString('base64url');
   const c = {
     get: (key: string) => key === 'serviceUserSession' ? boundTestSession({ userId: 'member' }) : key === 'auth' ? { userId: 'member' } : undefined,
-    req: { method: 'POST', url: 'http://glab.test/api/x/events/events', text: async () => assert.fail('must not read the caller body'), header: () => undefined },
+    req: { method: 'POST', url: 'http://glab.test/api/x/events/events', raw: new Request('http://glab.test/api/x/events/events'), text: async () => assert.fail('must not read the caller body'), header: () => undefined },
   } as unknown as Context;
   const ctx = { env: () => secret, logger: { error() {} }, tokenProvider: testDelegationProvider() } as unknown as CorpusContext;
   const sent: { path: string; body: unknown; payload: Record<string, unknown> }[] = [];
   const connector: ServiceConnector = {
     id: 'aedilis', title: 'Aedilis', baseUrl: 'http://aedilis.test', scope: 'multi', health: async () => ({ status: 'up' }),
     fetch: async (path, init) => {
-      if (path === '/api/reservations/capabilities') return Response.json({ groupContextVersion: 1 });
+      if (path === '/api/integrations/glab/reservations/capabilities') return Response.json({ groupContextVersion: 1 });
       const [encoded] = (new Headers(init?.headers).get('x-glab-booking-context') ?? '').split('.');
       sent.push({ path, body: init?.body, payload: JSON.parse(Buffer.from(encoded ?? '', 'base64url').toString('utf8')) });
       return reply();

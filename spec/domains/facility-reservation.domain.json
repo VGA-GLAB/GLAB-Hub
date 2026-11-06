@@ -1,9 +1,10 @@
 {
   "name": "facility-reservation",
-  "description": "Aedilis の施設・予約 API の中継。project token を付けて /api/facilities・/api/reservations を呼ぶだけのコネクタで、施設データを GLAB に複製しない。接続先未設定時は停止せず「未接続」を表示する degraded モードで動く。",
+  "description": "Aedilis の施設・予約への一度限りのscoped委譲。GLABの最新本人/在籍許可と署名済み所属を確認し、受信側のowner/audience認可も維持する。接続/許可不明は明示503で拒否。",
   "presetRules": [],
   "templateRules": [],
   "membership": [
+    { "pathPattern": "(^|/)tests/member-facility-operation-policy\\.test\\.ts$" },
     {
       "pathPattern": "/plugins/facility/"
     },
@@ -14,12 +15,13 @@
       "pathPattern": "(^|/)tests/facilit[a-z0-9-]*\\.test\\.ts$"
     }
   ],
-  "cardTemplate": "Summarise the \"facility-reservation\" domain: Aedilis の施設・予約 API の中継。project token を付けて /api/facilities・/api/reservations を呼ぶだけのコネクタで、施設データを GLAB に複製しない。接続先未設定時は停止せず「未接続」を表示する degraded モードで動く。",
+  "cardTemplate": "Summarise the facility-reservation domain: current admitted subject, explicit one-use delegation, signed booking groups and independent target owner/audience ACLs; unknown routes or permissions fail closed.",
   "mechanics": [
     "connector-relay",
     "degraded-mode"
   ],
   "specRefs": [
+    "spec/feature/bound-service-authentication.md",
     "spec/feature/facility.md",
     "spec/interface/aedilis-connector.md"
   ],

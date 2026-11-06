@@ -4,6 +4,7 @@ import type {
   TokenProvider,
 } from '../../corpus/server/hub/sdk.ts';
 import { authorizedConnectorFetch } from '../shared.ts';
+import { AEDILIS_GLAB_PREFIX } from '../downstream-operations.ts';
 
 export interface AedilisFacilityCandidate {
   id: string;
@@ -27,7 +28,7 @@ export class AedilisEventClient {
   ) {}
 
   async listFacilities(c: Context): Promise<AedilisFacilityCandidate[]> {
-    const response = await this.request(c, '/api/facilities');
+    const response = await this.request(c, AEDILIS_GLAB_PREFIX + '/facilities');
     const body = await response.json().catch(() => null) as { items?: unknown[] } | null;
     if (!body || !Array.isArray(body.items)) throw new AedilisRequestError(502, 'invalid_response');
     return body.items.flatMap((item) => {
@@ -46,7 +47,7 @@ export class AedilisEventClient {
     c: Context,
     input: { facilityId: string; startsAt: number; endsAt: number; purpose: string },
   ): Promise<string> {
-    const response = await this.request(c, '/api/reservations', {
+    const response = await this.request(c, AEDILIS_GLAB_PREFIX + '/reservations', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -67,7 +68,7 @@ export class AedilisEventClient {
   }
 
   async cancelReservation(c: Context, reservationId: string): Promise<void> {
-    await this.request(c, `/api/reservations/${encodeURIComponent(reservationId)}`, {
+    await this.request(c, `${AEDILIS_GLAB_PREFIX}/reservations/${encodeURIComponent(reservationId)}`, {
       method: 'DELETE',
     });
   }
