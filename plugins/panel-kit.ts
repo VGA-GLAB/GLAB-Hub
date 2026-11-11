@@ -78,6 +78,7 @@ export function ensureStyles(): void {
       font: inherit; cursor: pointer; border-radius: var(--radius); border: 1px solid transparent;
       padding: 0.5rem 0.9rem; background: var(--accent); color: var(--accent-fg);
     }
+    a.gl-btn { display: inline-block; text-decoration: none; }
     .gl-btn.ghost { background: transparent; color: var(--muted); border-color: var(--line); }
     .gl-btn:hover { filter: brightness(1.1); }
     .gl-notice { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem 1.2rem; }
@@ -103,6 +104,8 @@ export function ensureStyles(): void {
  * 入力は Cernere のログイン時入力 (EducationLab の signup_fields、Cernere migration 074) で行う。
  * GLAB 側では入力フォームを出さない (neco 2026-10-16「GLAB の宣言を進める」)。揃っていないのは
  * 宣言より前に GLAB へ入った人なので、ログインし直してもらい Cernere の入力画面へ回す。
+ * Cernere で profile 提供を拒否 (opt-out) している人は再ログインでは聞かれないため、
+ * Cernere の「サービスの権限」へ直接案内する。
  * 揃うまでは Promise を解決せず、呼び出し元パネルの通常描画を止める。
  */
 export async function requireVantanUserRegistration(
@@ -128,23 +131,62 @@ export async function requireVantanUserRegistration(
   }
   if (profileResponse.complete) return true;
 
-  renderProfileViaCernere(container);
+  renderProfileViaCernere(container, profileResponse);
   return new Promise<boolean>(() => { /* ログインし直すまで描画を止める */ });
 }
 
-/** プロフィールは Cernere のログイン時入力で登録する。ログアウトして入り直すと Cernere が聞く。 */
-function renderProfileViaCernere(container: HTMLElement): void {
+/**
+ * プロフィールは Cernere で登録する。通常はログインし直すと Cernere のログイン時入力が聞く。
+ * 利用者が Cernere で GLAB へのプロフィール提供を止めている (denied) と再ログインでは入力画面が出ないので、
+ * Cernere の「サービスの権限」(inputUrl) で許可と入力をしてもらう (SPEC-GLAB-PERSONAL-DATA-001)。
+ */
+function renderProfileViaCernere(container: HTMLElement, gateState: ProfileGateState): void {
   container.innerHTML = '';
   const gate = el('section', 'gl-notice gl-profile-gate');
   gate.appendChild(el('h2', undefined, 'プロフィールの登録'));
-  gate.appendChild(el(
-    'p',
-    'gl-muted',
-    'GLAB を使うには、在校生／OBを選び、名前・役職を登録してください。在校生は学科・学年も必要です。ニックネームとOBの会社は任意です。登録は Cernere のログイン画面で行います。'
-      + 'ログインし直すと入力画面が表示されます。',
-  ));
   const message = el('p', 'gl-muted');
-  const button = el('button', 'gl-btn', 'ログインし直して登録する');
+  const actions = el('div', 'gl-row');
+  const { profileAccess, inputUrl } = gateState;
+
+  if (profileAccess === 'denied' && inputUrl) {
+    gate.appendChild(el(
+      'p',
+      'gl-muted',
+      'Cernere で GLAB へのプロフィール提供を止めているため、ログインし直しても入力画面は出ません。'
+        + 'Cernere の「サービスの権限」で GLAB のプロフィールを許可し、情報を入力してください。',
+    ));
+    actions.append(inputLink(inputUrl), reloadButton());
+  } else {
+    gate.appendChild(el(
+      'p',
+      'gl-muted',
+      'GLAB を使うには、在校生／OBを選び、名前・役職を登録してください。在校生は学科・学年も必要です。ニックネームとOBの会社は任意です。登録は Cernere のログイン画面で行います。'
+        + 'ログインし直すと入力画面が表示されます。',
+    ));
+    if (inputUrl) actions.appendChild(inputLink(inputUrl));
+    actions.appendChild(reloginButton(message, inputUrl ? 'gl-btn ghost' : 'gl-btn'));
+  }
+  gate.append(message, actions);
+  container.appendChild(gate);
+}
+
+function inputLink(url: string): HTMLAnchorElement {
+  const link = el('a', 'gl-btn', 'Cernere で情報を入力する');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  return link;
+}
+
+function reloadButton(): HTMLButtonElement {
+  const button = el('button', 'gl-btn ghost', '入力したので再読み込み');
+  button.type = 'button';
+  button.onclick = () => location.reload();
+  return button;
+}
+
+function reloginButton(message: HTMLElement, cls: string): HTMLButtonElement {
+  const button = el('button', cls, 'ログインし直して登録する');
   button.type = 'button';
   button.onclick = () => {
     button.disabled = true;
@@ -153,8 +195,7 @@ function renderProfileViaCernere(container: HTMLElement): void {
       .catch(() => undefined)
       .finally(() => location.reload());
   };
-  gate.append(message, button);
-  container.appendChild(gate);
+  return button;
 }
 
 function renderProfileUnavailable(container: HTMLElement): void {
@@ -165,7 +206,11 @@ function renderProfileUnavailable(container: HTMLElement): void {
   container.appendChild(box);
 }
 
-function parseVantanProfileResponse(value: unknown): {
+type ProfileAccess = 'granted' | 'denied' | 'undecided' | 'unknown';
+interface ProfileGateState { profileAccess: ProfileAccess; inputUrl: string | null }
+const PROFILE_ACCESS_VALUES: readonly string[] = ['granted', 'denied', 'undecided', 'unknown'];
+
+function parseVantanProfileResponse(value: unknown): ProfileGateState & {
   complete: boolean;
   profile: { name: string; roleTitle: string; departmentName: string };
 } | null {
@@ -186,5 +231,20 @@ function parseVantanProfileResponse(value: unknown): {
       roleTitle: fields.roleTitle,
       departmentName: fields.departmentName,
     },
+    profileAccess: typeof response.profileAccess === 'string' && PROFILE_ACCESS_VALUES.includes(response.profileAccess)
+      ? response.profileAccess as ProfileAccess
+      : 'unknown',
+    inputUrl: safeInputUrl(response.inputUrl),
   };
+}
+
+/** サーバが返した入力先も、画面側で HTTP(S) だけに絞ってからリンクにする。 */
+function safeInputUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
 }

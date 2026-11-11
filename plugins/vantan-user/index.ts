@@ -5,6 +5,7 @@ import { getVantanUserProfile } from './profile-client.ts';
 import {
   isCompleteVantanUserProfile,
 } from './profile-schema.ts';
+import { getProfileAccess, profileInputUrl } from './profile-access.ts';
 import { ensureGlabUser, ensureSchema } from '../data.ts';
 import { registerSteamProfileRoutes } from './steam-profile-routes.ts';
 import { registrationInputSchema, saveRegistration } from './registration.ts';
@@ -32,6 +33,7 @@ const vantanUserModule: CorpusModule = {
     router.get('/cernere-link', (c) => cernereWebUrl
       ? c.json({ url: cernereWebUrl }, 200, { 'cache-control': 'private, no-store' })
       : c.json({ error: 'link_unavailable' }, 503, { 'cache-control': 'private, no-store' }));
+    const inputUrl = profileInputUrl(ctx.env('CERNERE_FRONTEND_URL'));
     router.use('/profile', async (c, next) => {
       c.header('cache-control', 'private, no-store');
       await next();
@@ -42,9 +44,12 @@ const vantanUserModule: CorpusModule = {
       ensureGlabUser(ctx.db, identity.userId);
       try {
         const profile = await getVantanUserProfile(client, identity.userId);
+        const complete = isCompleteVantanUserProfile(profile);
         return c.json({
-          complete: isCompleteVantanUserProfile(profile),
+          complete,
           profile,
+          profileAccess: complete ? 'granted' : await getProfileAccess(client, identity.userId),
+          inputUrl,
         });
       } catch (error) {
         ctx.logger.error(`vantan_user read failed: ${errorMessage(error)}`);

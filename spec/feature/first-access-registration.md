@@ -22,3 +22,10 @@
 本番データ変更・再起動はこの実装作業では実行していない。
 新規依存・外部送信先は追加せず、既存の認証済みプロフィール保存経路のみを使用する。
 検証用ケースは追加するが、実行は Revisor の審査に委ねる。
+
+## Cernere でプロフィール提供を拒否している場合
+
+Cernere で GLAB の profile module を拒否 (opt-out) している利用者には、再ログインしても
+signup_fields の入力画面が出ない。GLAB は Cernere の拒否状態を照会し、Cernere の「サービスの権限」
+(`/data-optout`) で許可と入力をするよう案内する。詳細は `personal-data-page.md`
+(SPEC-GLAB-PERSONAL-DATA-001) の「プロフィール未登録時の入力導線」。
