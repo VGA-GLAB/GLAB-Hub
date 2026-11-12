@@ -1,37 +1,13 @@
-import type { CernereProjectApi as CernereProjectClient } from './shared-owner.ts';
-
 /**
- * おれひまが使う user_data 列を Cernere へ宣言する。
- *
- * Cernere はサービスの実態を知らずに解決する設計なので、presence 列を Cernere 側の
- * migration や service/<id>/schema.json に書いてもらうことはしない。列の正本は
- * こちら側にあり、起動時に managed_project.update_schema で宣言する。
- * project_data_<key> の DDL は Cernere の schema-migrator が宣言から生成する。
+ * GLAB の user_data 列を Cernere へ宣言する。presence 操作の前に完了を待つ。
  *
  * identity_claims (discord_id の開示) は **管理者所有**なのでここからは触れない。
  * 自己申告しても Cernere 側で捨てられる。付与は Cernere の管理操作で行う。
  */
-export const PRESENCE_COLUMNS = {
-  current_location: {
-    type: 'text',
-    module: 'presence',
-    nullable: true,
-    description: '本人申告の現在地: school / home / away、未設定は null',
-  },
-  available_now: {
-    type: 'boolean',
-    module: 'presence',
-    nullable: true,
-    default_value: 'false',
-    description: 'おれひまフラグ',
-  },
-  available_until: {
-    type: 'timestamp',
-    module: 'presence',
-    nullable: true,
-    description: 'おれひま有効期限',
-  },
-} as const;
+import type { CernereProjectApi as CernereProjectClient } from './shared-owner.ts';
+import { GLAB_USER_DATA_COLUMNS } from './user-data-columns.ts';
+
+export { PRESENCE_COLUMNS } from './presence-columns.ts';
 
 // client ごとに宣言を 1 回だけ走らせ、以降は同じ Promise を配る。
 // presence 操作は宣言の完了を待つ必要がある — 未宣言のまま list_user_data を
@@ -40,8 +16,8 @@ export const PRESENCE_COLUMNS = {
 const declarations = new WeakMap<CernereProjectClient, Promise<void>>();
 
 /**
- * user_data.columns は全置換。場所とおれひまを必ず同時に宣言し、
- * 片方の初期化が他方を論理削除することを防ぐ。
+ * user_data.columns は全置換。presence だけでなく profile を含む GLAB の全列 (GLAB_USER_DATA_COLUMNS) を
+ * 必ず同時に宣言し、起動時の宣言がプロフィール列や他方の presence 列を論理削除することを防ぐ。
  *
  * 要求時は失敗を返して未宣言のまま読み書きしない。起動時の呼び出し元だけが
  * 失敗を処理し、presence 以外の機能の起動を継続する。
@@ -59,7 +35,7 @@ export function declarePresenceSchema(
   if (existing) return existing;
 
   const pending = client
-    .call('managed_project', 'update_schema', { user_data: { columns: PRESENCE_COLUMNS } })
+    .call('managed_project', 'update_schema', { user_data: { columns: GLAB_USER_DATA_COLUMNS } })
     .then(() => undefined)
     .catch((error: unknown) => {
       log(`presence schema declaration failed: ${error instanceof Error ? error.message : String(error)}`);

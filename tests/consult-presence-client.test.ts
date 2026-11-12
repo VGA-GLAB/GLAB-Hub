@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { CernereProjectClient } from '../plugins/cernere/project-client.ts';
 import { listAvailable, resolveDiscordId, setAvailability } from '../plugins/consult/presence-client.ts';
-import { declarePresenceSchema, PRESENCE_COLUMNS } from '../plugins/consult/presence-schema.ts';
+import { declarePresenceSchema } from '../plugins/consult/presence-schema.ts';
+import { GLAB_USER_DATA_COLUMNS } from '../plugins/cernere/user-data-columns.ts';
 
 class PresenceClientStub {
   readonly calls: Array<{ module: string; action: string; payload: Record<string, unknown> }> = [];
@@ -67,11 +68,11 @@ describe('consult presence Cernere contract', () => {
     assert.equal(declarations.length, 1);
   });
 
-  it('declares the shared GLab-owned presence columns', async () => {
+  it('declares presence together with every other GLab user_data column', async () => {
     const stub = new PresenceClientStub({});
     await declarePresenceSchema(asProjectClient(stub), assert.fail);
     assert.deepEqual(stub.calls[0], {
-      module: 'managed_project', action: 'update_schema', payload: { user_data: { columns: PRESENCE_COLUMNS } },
+      module: 'managed_project', action: 'update_schema', payload: { user_data: { columns: GLAB_USER_DATA_COLUMNS } },
     });
   });
 });

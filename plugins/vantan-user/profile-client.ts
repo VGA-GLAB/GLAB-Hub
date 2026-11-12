@@ -3,13 +3,14 @@ import type { VantanUserInput, VantanUserProfile } from './profile-schema.ts';
 import { translateVantanProfile } from './profile-schema.ts';
 
 const PROFILE_PROJECT_KEY = 'glab';
-const PROFILE_COLUMNS = ['name', 'role_title', 'department_name', 'member_type', 'nickname', 'grade', 'company'] as const;
+/** GLAB が読むプロフィール列。Cernere への user_data 宣言 (cernere/user-data-columns.ts) に含まれている必要がある。 */
+export const PROFILE_READ_COLUMNS = ['name', 'role_title', 'department_name', 'member_type', 'nickname', 'grade', 'company'] as const;
 
 export async function getVantanUserProfile(
   client: CernereProjectClient,
   userId: string,
 ): Promise<VantanUserProfile> {
-  const raw = await client.getUserData(userId, PROFILE_PROJECT_KEY, [...PROFILE_COLUMNS]);
+  const raw = await client.getUserData(userId, PROFILE_PROJECT_KEY, [...PROFILE_READ_COLUMNS]);
   return translateVantanProfile(raw);
 }
 

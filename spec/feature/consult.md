@@ -2,7 +2,7 @@
 
 相談は GLAB の `glab_consult` に記録し、bot が GLAB external API 経由で Discord フォーラムのスレッドを作る。bot は Cernere に直接接続しない。相談作成はユーザごとに60秒間隔で制限し、連続作成には 429 を返す。
 
-おれひまは GLab 所有の状態データで、正本の保存先は Cernere の GLab 用 user_data (列 available_now / available_until) である。Cernere はサービス固有の presence コマンドを持たず、GLAB は汎用の `managed_project.list_user_data` / `set_user_data` / `resolve_user_by_claim` を使う。列の宣言は GLAB 側 (plugins/cernere/presence-schema.ts) が update_schema で行う。user_data.columns は全置換なので、現在地 current_location も同じ定義・宣言 Promise に統合し、起動順や同時要求によって互いの列を論理削除しない。宣言失敗時は読み書きを行わず、次の要求で再試行する。GLAB は厳格に RPC 応答を検証し、未接続・不正応答は `cernere_unavailable` の 503 として明示する。利用者は GLAB の画面から在席を更新する。Discord の `/orehima` は廃止済みである。
+おれひまは GLab 所有の状態データで、正本の保存先は Cernere の GLab 用 user_data (列 available_now / available_until) である。Cernere はサービス固有の presence コマンドを持たず、GLAB は汎用の `managed_project.list_user_data` / `set_user_data` / `resolve_user_by_claim` を使う。列の宣言は GLAB 側 (plugins/cernere/presence-schema.ts) が update_schema で行う。user_data.columns は全置換なので、宣言は presence (現在地 current_location・おれひま) だけでなく、Cernere のログイン時入力が書く profile 列も含む GLAB の全列 (plugins/cernere/user-data-columns.ts) で行い、同じ宣言 Promise を共有する。起動順や同時要求によって互いの列を論理削除しない (profile 列が論理削除されるとプロフィール登録の案内が消えなくなる、2026-11-13)。宣言失敗時は読み書きを行わず、次の要求で再試行する。GLAB は厳格に RPC 応答を検証し、未接続・不正応答は `cernere_unavailable` の 503 として明示する。利用者は GLAB の画面から在席を更新する。Discord の `/orehima` は廃止済みである。
 
 external API は service token を必須にし、応答に `cache-control: private, no-store` を付ける。Discord の相談スレッドでは `allowedMentions` の `parse` を空にし、招集対象として解決済みの個人 Discord ID だけを users allowlist に渡す。未設定の GLAB URL、service token、またはチャンネルは degraded として該当機能を実行しない。
 
