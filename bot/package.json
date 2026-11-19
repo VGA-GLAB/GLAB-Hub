@@ -4,6 +4,9 @@
   "private": true,
   "description": "GLAB Discord 通知 Bot — 日次・イベント・就活等の通知。GLAB hub と同じ corpus.db を共有",
   "type": "module",
+  "imports": {
+    "#glab-contract-runtime": "./contract-runtime.ts"
+  },
   "engines": {
     "node": ">=22.5.0"
   },
@@ -17,6 +20,7 @@
   },
   "dependencies": {
     "@ludiars/encrypted-config": "0.1.0",
+    "@ludiars/one-shot": "file:../lib/lapilli/packages/one-shot",
     "better-sqlite3": "13.0.3",
     "discord.js": "^14.26.5",
     "tsx": "^4.20.3"

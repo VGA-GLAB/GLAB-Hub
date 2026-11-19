@@ -8,6 +8,7 @@
 import { spawn } from 'node:child_process';
 import type { BotConfig } from '../config.ts';
 import type { LlmClient, LlmInvokeArgs, LlmResult } from './client.ts';
+import { resolveClaudeModel } from './model.ts';
 
 /** system + 会話履歴を 1 本のプロンプト文字列にまとめる (claude -p は単一プロンプト)。 */
 function flatten(args: LlmInvokeArgs): string {
@@ -24,14 +25,15 @@ export class ClaudeCliClient implements LlmClient {
   readonly backend = 'claude-cli';
   constructor(private readonly cfg: BotConfig) {}
 
-  invoke(args: LlmInvokeArgs): Promise<LlmResult> {
+  async invoke(args: LlmInvokeArgs): Promise<LlmResult> {
     const prompt = flatten(args);
     const { claudeCliPath, claudeCliTimeoutMs, gitBashPath, model } = this.cfg.llm;
+    const resolvedModel = resolveClaudeModel(model, 'cli');
 
     return new Promise<LlmResult>((resolvePromise, reject) => {
       const child = spawn(
         claudeCliPath,
-        ['-p', '--output-format', 'json', '--model', model],
+        ['-p', '--output-format', 'json', '--model', resolvedModel],
         {
           env: { ...process.env, CLAUDE_CODE_GIT_BASH_PATH: gitBashPath },
           stdio: ['pipe', 'pipe', 'pipe'],

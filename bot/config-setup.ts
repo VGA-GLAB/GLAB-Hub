@@ -30,7 +30,7 @@ const HINTS: Record<string, string> = {
   GLAB_PROJECTS_SERVICE_TOKEN: 'GLAB 外部 API 用 service token',
   GLAB_ADMIN_USER_IDS: 'admin ユーザ ID (カンマ区切り)',
   GLAB_LLM_BACKEND: 'LLM backend: claude-cli | anthropic | mock',
-  GLAB_LLM_MODEL: 'LLM モデル (既定 claude-opus-4-8)',
+  GLAB_LLM_MODEL: 'LLM モデルの役割名または ID (既定 opus)',
   ANTHROPIC_API_KEY: 'Anthropic API キー (backend=anthropic 時)',
 };
 

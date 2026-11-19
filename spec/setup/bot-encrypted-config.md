@@ -25,6 +25,26 @@ npm run start               # Gateway 接続 + slash command 削除同期 + 通�
 | 保存先 | `bot/glab-bot.config.json`（cwd 直下、**gitignore 済**）。env `GLAB_BOT_CONFIG_PATH` で上書き |
 | 暗号化キー（`GLAB_BOT_SECRET_KEYS`） | `DISCORD_TOKEN`, `ANTHROPIC_API_KEY`, `GLAB_DATABASE_URL`, `GLAB_PROJECTS_SERVICE_TOKEN` |
 | 全キー（`GLAB_BOT_CONFIG_KEYS`） | `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`, `GLAB_DATABASE_URL`, `GLAB_EVENT_CHANNEL_ID`, `GLAB_JOB_CHANNEL_ID`, `GLAB_REVIEW_CHANNEL_ID`, `GLAB_FORUM_CHANNEL_ID`, `GLAB_CONSULT_FORUM_CHANNEL_ID`, `GLAB_DAILY_CHANNEL_ID`, `GLAB_DAILY_NOTIFY_AT`, `GLAB_BASE_URL`, `GLAB_PROJECTS_SERVICE_TOKEN`, `GLAB_ADMIN_USER_IDS`, `GLAB_LLM_BACKEND`, `GLAB_LLM_MODEL`, `ANTHROPIC_API_KEY` |
+
+### LLM モデルの設定
+
+`GLAB_LLM_MODEL` の既定は `opus`。環境変数または暗号化設定に Claude の役割名
+（`opus`、`sonnet`、`haiku`、`fable`）かモデル ID を指定できる。役割名は呼び出し時に
+Lapilli one-shot が Concordia の対応表から解決する。別の場所に対応表がある場合は
+`LUDIARS_MODEL_ROLES_FILE` にそのファイルを指定する。設定済みのモデル ID はそのまま使う。
+
+対応表で解決できない `opus`、`sonnet`、`haiku` は Claude CLI のエイリアスとして渡す。
+Anthropic API で役割名を使うには対応表または `LUDIARS_ONESHOT_MODEL_<ROLE>` が必要。
+Bot の依存関係をインストールする前に `lib/lapilli` サブモジュールを初期化する。
+
+ルートの `npm test` も、固定済みの `lib/lapilli` を展開してからルートの開発依存を
+インストールする。設定値を組み立てる `resolveBotConfig` と実際の one-shot を使って、
+モデル指定の優先順位と CLI/API 境界の解決を検証する。Bot の暗号化ストアは `loadConfig` で読み込むため、
+このテストに Bot 側の依存インストールや GitHub Packages 認証は不要。
+
+関連タスク `actio:e93723d8-7e30-4d7f-b2ce-3a724fb6847c`
+
+関連タスク `actio:06e71dd9-8513-4351-9b03-59412546edfb`
 | master 鍵 | env `GLAB_BOT_MASTER_KEY` → 無ければマシン束縛値 `glab-bot:<hostname>:<user>`（`masterSecretPrefix: 'glab-bot'`） |
 
 **マシンごとに `npm run config-setup` を実行する**（束縛鍵はマシン固有のため、config を別マシンへコピー

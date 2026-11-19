@@ -16,7 +16,9 @@
     "plugins/projects/service-auth.ts",
     "plugins/projects/paseto-v4-public.ts",
     "plugins/cernere-service-token.ts",
-    "plugins/service-credential.ts"
+    "plugins/service-credential.ts",
+    "bot/llm/model.ts",
+    "bot/config-values.ts"
   ],
   "rules": {
     "contract-wrap": true

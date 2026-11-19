@@ -4,6 +4,7 @@
 
 import type { BotConfig } from '../config.ts';
 import type { LlmClient, LlmInvokeArgs, LlmResult } from './client.ts';
+import { resolveClaudeModel } from './model.ts';
 
 interface AnthropicResponse {
   content?: Array<{ type: string; text?: string }>;
@@ -26,7 +27,7 @@ export class AnthropicClient implements LlmClient {
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: args.model,
+        model: resolveClaudeModel(args.model, 'api'),
         max_tokens: args.maxTokens,
         system: args.system,
         messages: args.messages,

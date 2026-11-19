@@ -1,7 +1,8 @@
 {
   "version": 1,
   "contractsDir": "contracts",
-  "importFrom": "@ludiars/log-weaver",
+  "importFrom": "#glab-contract-runtime",
+  "runtimeFile": "bot/contract-runtime.ts",
   "contracts": [
     {
       "id": "C-1",
@@ -144,6 +145,24 @@
       "symbol": "selectSenderCredential",
       "file": "plugins/service-credential.ts",
       "module": "./contracts/sender-credential.contract.ts",
+      "mode": "observe",
+      "sample": 1
+    },
+    {
+      "id": "C-17",
+      "criterion": "C-17 resolveClaudeModel(model, transport): Claude の役割名を対応表のモデル ID に解決し、明示されたモデル ID はそのまま渡す",
+      "symbol": "resolveClaudeModel",
+      "file": "bot/llm/model.ts",
+      "module": "./bot/llm/model.contract.ts",
+      "mode": "observe",
+      "sample": 1
+    },
+    {
+      "id": "C-18",
+      "criterion": "C-18 resolveBotConfig(stored, env): モデル指定は空白を除いて環境変数、保存設定、opus の順に採用する",
+      "symbol": "resolveBotConfig",
+      "file": "bot/config-values.ts",
+      "module": "./bot/config-values.contract.ts",
       "mode": "observe",
       "sample": 1
     }

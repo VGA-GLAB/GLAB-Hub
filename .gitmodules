@@ -1,3 +1,6 @@
 [submodule "corpus"]
 	path = corpus
 	url = https://github.com/LUDIARS/Corpus
+[submodule "lib/lapilli"]
+	path = lib/lapilli
+	url = https://github.com/LUDIARS/Lapilli.git

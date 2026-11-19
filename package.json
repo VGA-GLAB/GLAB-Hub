@@ -4,6 +4,9 @@
   "private": true,
   "description": "GLAB — 学校組織 GLAB 運営 hub (Corpus 派生)。出席 / 施設予約 / イベント / 就活情報 + Discord 通知",
   "type": "module",
+  "imports": {
+    "#glab-contract-runtime": "./bot/contract-runtime.ts"
+  },
   "engines": {
     "node": ">=22.5.0"
   },
@@ -28,6 +31,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@ludiars/one-shot": "file:lib/lapilli/packages/one-shot",
     "@simplewebauthn/browser": "^13.3.0",
     "@types/node": "^20.14.0",
     "@types/qrcode": "^1.5.5",

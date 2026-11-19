@@ -1,0 +1,143 @@
+// 保存設定と環境変数から GLAB Discord Bot の設定値を組み立てる。
+
+import { resolve } from 'node:path';
+import { normalizeDailyNotifyAt } from '../plugins/daily-engagement/catalog.ts';
+import { sourceDirOf } from '../startup/runtime-paths.ts';
+import { contract } from '#glab-contract-runtime'; /* augur-inject:import:8f3d036f */
+import augurContract_4d17687e from './config-values.contract.ts'; /* augur-inject:contract-predicate:9ab7e72c */
+
+// bot は bot/dist/index.js に事前コンパイルして起動するので、ソースの bot/ に戻して使う。
+const BOT_DIR = sourceDirOf(import.meta.url);
+
+type LlmBackend = 'claude-cli' | 'anthropic' | 'mock';
+
+export interface BotConfig {
+  admissionNotification?: { channelId: string; mentionUserId: string; publicUrl: string };
+  discordToken: string;
+  discordClientId: string;
+  guildId: string;
+  /** 共有 SQLite (Corpus と同じ corpus.db)。 */
+  dbPath: string;
+  /** GLAB所有イベントのPostgreSQL。 */
+  databaseUrl: string;
+  channels: {
+    event: string;
+    job: string;
+    review: string;
+    forum: string;
+    consultForum: string;
+    daily: string;
+  };
+  glabBaseUrl: string;
+  /** 従来の固定トークン。 認証集約 P4 の間は Cernere service token の発行失敗時だけ使う (P5 で撤去)。 */
+  glabServiceToken: string;
+  /**
+   * Cernere project client credentials (Excubitor `cernere_launch_credentials` が env 注入)。
+   * GLAB external API 用の Cernere service token を発行するためだけに使い、 Cernere 以外へ送らない。
+   */
+  cernere: {
+    baseUrl: string;
+    clientId: string;
+    clientSecret: string;
+  };
+  /** admin 扱いする Discord ユーザ id。 */
+  adminUserIds: string[];
+  llm: {
+    backend: LlmBackend;
+    model: string;
+    anthropicApiKey: string;
+    anthropicBaseUrl: string;
+    claudeCliPath: string;
+    claudeCliTimeoutMs: number;
+    gitBashPath: string;
+    systemPrompt: string;
+    maxTokens: number;
+  };
+  reminder: {
+    intervalMs: number;
+    eventWindowMs: number;
+    jobWindowMs: number;
+  };
+  daily: {
+    /** Asia/Tokyo の HH:MM。 */
+    notifyAt: string;
+  };
+}
+
+const DEFAULT_SYSTEM_PROMPT =
+  'あなたは学校組織 GLAB (Vantan Game Academy のゲーム制作ラボ) の Discord アシスタントです。' +
+  'メンバーの質問 (就活・制作・スケジュール・技術) に、 簡潔で実践的な日本語で答えてください。' +
+  '分からないことは正直に分からないと答えてください。';
+
+export function resolveBotConfig(stored: Readonly<Record<string, string>>, env: NodeJS.ProcessEnv): BotConfig {
+  /** env 優先 → 暗号化 config → 既定。 */
+  const pick = (key: string, fallback = ''): string => {
+    const e = env[key];
+    if (e && e.trim()) return e.trim();
+    const s = stored[key];
+    if (s && s.trim()) return s.trim();
+    return fallback;
+  };
+  const pickNum = (key: string, fallback: number): number => {
+    const v = pick(key);
+    const n = Number(v);
+    return v && Number.isFinite(n) ? n : fallback;
+  };
+
+  const backend = (pick('GLAB_LLM_BACKEND', 'claude-cli') as LlmBackend) || 'claude-cli';
+  const eventChannel = pick('GLAB_EVENT_CHANNEL_ID');
+
+  return {
+    discordToken: pick('DISCORD_TOKEN'),
+    discordClientId: pick('DISCORD_CLIENT_ID'),
+    guildId: pick('DISCORD_GUILD_ID'),
+    dbPath: pick('GLAB_DB_PATH', resolve(BOT_DIR, '..', 'data', 'corpus.db')),
+    databaseUrl: pick('GLAB_DATABASE_URL'),
+    channels: {
+      event: eventChannel,
+      job: pick('GLAB_JOB_CHANNEL_ID'),
+      review: pick('GLAB_REVIEW_CHANNEL_ID'),
+      forum: pick('GLAB_FORUM_CHANNEL_ID'),
+      consultForum: pick('GLAB_CONSULT_FORUM_CHANNEL_ID'),
+      // 専用チャンネルを設けない構成では、既存のお知らせ先を明示的に再利用する。
+      daily: pick('GLAB_DAILY_CHANNEL_ID', eventChannel),
+    },
+    glabBaseUrl: pick('GLAB_BASE_URL'),
+    admissionNotification: {
+      channelId: pick('GLAB_ADMISSION_CHANNEL_ID'),
+      mentionUserId: pick('GLAB_ADMISSION_MENTION_USER_ID'),
+      publicUrl: pick('GLAB_PUBLIC_URL'),
+    },
+    glabServiceToken: pick('GLAB_PROJECTS_SERVICE_TOKEN'),
+    cernere: {
+      baseUrl: pick('CERNERE_BASE_URL'),
+      clientId: pick('CERNERE_PROJECT_CLIENT_ID'),
+      clientSecret: pick('CERNERE_PROJECT_CLIENT_SECRET'),
+    },
+    adminUserIds: pick('GLAB_ADMIN_USER_IDS')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+    llm: {
+      backend,
+      model: pick('GLAB_LLM_MODEL', 'opus'),
+      anthropicApiKey: pick('ANTHROPIC_API_KEY'),
+      anthropicBaseUrl: pick('ANTHROPIC_BASE_URL', 'https://api.anthropic.com'),
+      claudeCliPath: pick('GLAB_CLAUDE_CLI_PATH', 'claude'),
+      claudeCliTimeoutMs: pickNum('GLAB_CLAUDE_CLI_TIMEOUT_MS', 120_000),
+      gitBashPath: pick('CLAUDE_CODE_GIT_BASH_PATH', 'C:\\Program Files\\Git\\bin\\bash.exe'),
+      systemPrompt: pick('GLAB_LLM_SYSTEM_PROMPT', DEFAULT_SYSTEM_PROMPT),
+      maxTokens: pickNum('GLAB_LLM_MAX_TOKENS', 1024),
+    },
+    reminder: {
+      intervalMs: pickNum('GLAB_REMINDER_INTERVAL_MS', 300_000),
+      eventWindowMs: pickNum('GLAB_EVENT_WINDOW_MS', 24 * 3_600_000),
+      jobWindowMs: pickNum('GLAB_JOB_WINDOW_MS', 3 * 24 * 3_600_000),
+    },
+    daily: {
+      notifyAt: normalizeDailyNotifyAt(pick('GLAB_DAILY_NOTIFY_AT', '09:00')),
+    },
+  };
+}
+// @ts-expect-error augur-inject
+resolveBotConfig = contract(resolveBotConfig, { ...augurContract_4d17687e, contractId: 'C-18', mode: 'observe', sample: 1, where: 'bot/config-values.ts:70', rule: 'contract-wrap', id: '4d17687e' }); /* augur-inject:contract-wrap:4d17687e */
