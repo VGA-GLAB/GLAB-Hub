@@ -70,7 +70,7 @@ test('launch configuration uses injected env and bypasses standalone secret boot
   // The host must install the membership gate when starting Corpus.
   assert.match(launcher, /import \{ memberAccessPolicy \} from '\.\/plugins\/access\/policy\.ts'/);
   assert.match(launcher, /import \{ createGlabPublicRoutes \} from '\.\/plugins\/public-routes\.ts'/);
-  assert.match(launcher, /await startCorpus\(\{\s*operationPolicy:\s*glabOperationPolicy,\s*accessPolicy:\s*memberAccessPolicy,\s*publicReadRoutes:\s*db => createGlabPublicRoutes\(db, resolve\(ROOT, 'public\/legal'\)\),?\s*\}\)/);
+  assert.match(launcher, /await startCorpus\(\{\s*operationPolicy:\s*glabOperationPolicy,\s*accessPolicy:\s*memberAccessPolicy,\s*publicReadRoutes:\s*db => createGlabPublicRoutes\(db, resolve\(ROOT, 'public\/legal'\), resolve\(ROOT, 'public\/client'\)\),?\s*\}\)/);
   // The public router retains quests while adding the fixed legal document routes.
   const publicRoutes = read('plugins/public-routes.ts');
   assert.match(publicRoutes, /router\.route\('\/', createPublicLegalRoutes\(legalDirectory\)\)/);

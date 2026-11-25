@@ -114,7 +114,7 @@ try {
     const runtime = await startCorpus({
       operationPolicy: glabOperationPolicy,
       accessPolicy: memberAccessPolicy,
-      publicReadRoutes: db => createGlabPublicRoutes(db, resolve(ROOT, 'public/legal')),
+      publicReadRoutes: db => createGlabPublicRoutes(db, resolve(ROOT, 'public/legal'), resolve(ROOT, 'public/client')),
     });
     // 起動中に停止信号が来ていたら shutdown は済んでいるので、起動し終えた Corpus をここで閉じる。
     if (stopping) await runtime.close();

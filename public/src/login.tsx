@@ -36,6 +36,11 @@ function EmbeddedLoginHost({
         }}
         onError={(cause) => { if (!signal.aborted) setError(cause.message); }}
       />
+      <p>
+        <a href={new URL('/passkeys/register', cernereFrontendUrl).href}
+          target="_blank" rel="noopener noreferrer">この端末を Cernere に登録する</a>
+        <br />登録後、この画面に戻ってパスキーでログインしてください。
+      </p>
     </>
   );
 }
